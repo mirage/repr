@@ -1,0 +1,60 @@
+type 'a typ = 'a Repr.Type.t
+module Id :
+  sig
+    type 'a t[@@deriving repr]
+    include sig val t : 'a Repr.Type.t -> 'a t Repr.Type.t end[@@ocaml.doc
+                                                                "@inline"]
+    [@@merlin.hide ]
+  end =
+  struct
+    type 'a t = 'a[@@deriving repr]
+    include struct let t a = a end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end 
+let __ : type a. a typ -> a Id.t typ = Id.t
+module Phantom :
+  sig
+    type _ t = int[@@deriving repr]
+    include
+      sig val t : 'v_x__001_ Repr.Type.t -> 'v_x__001_ t Repr.Type.t end
+    [@@ocaml.doc "@inline"][@@merlin.hide ]
+  end =
+  struct
+    type _ t = int[@@deriving repr]
+    include struct let t _ = Repr.Type.int end[@@ocaml.doc "@inline"]
+    [@@merlin.hide ]
+  end 
+let __ : type a. a typ -> a Phantom.t typ = Phantom.t
+module Multiple :
+  sig
+    type ('a, 'b, 'c) t = {
+      foo: 'a ;
+      bar: 'b list ;
+      baz: ('b * 'c) }[@@deriving repr]
+    include
+      sig
+        val t :
+          'a Repr.Type.t ->
+            'b Repr.Type.t -> 'c Repr.Type.t -> ('a, 'b, 'c) t Repr.Type.t
+      end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end =
+  struct
+    type ('a, 'b, 'c) t = {
+      foo: 'a ;
+      bar: 'b list ;
+      baz: ('b * 'c) }[@@deriving repr]
+    include
+      struct
+        let t a b c =
+          Repr.Type.sealr
+            (Repr.Type.(|+)
+               (Repr.Type.(|+)
+                  (Repr.Type.(|+)
+                     (Repr.Type.record "t"
+                        (fun foo -> fun bar -> fun baz -> { foo; bar; baz }))
+                     (Repr.Type.field "foo" a (fun t -> t.foo)))
+                  (Repr.Type.field "bar" (Repr.Type.list b) (fun t -> t.bar)))
+               (Repr.Type.field "baz" (Repr.Type.pair b c) (fun t -> t.baz)))
+      end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end 
+let __ : type a b c. a typ -> b typ -> c typ -> (a, b, c) Multiple.t typ =
+  Multiple.t

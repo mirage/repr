@@ -1,0 +1,13 @@
+type deep_tuple =
+  ((((int32 * int32) * int32 * int32) * int32 * int32) * int32 * int32)
+[@@deriving repr]
+include
+  struct
+    let deep_tuple_t =
+      Repr.Type.triple
+        (Repr.Type.triple
+           (Repr.Type.triple (Repr.Type.pair Repr.Type.int32 Repr.Type.int32)
+              Repr.Type.int32 Repr.Type.int32) Repr.Type.int32
+           Repr.Type.int32) Repr.Type.int32 Repr.Type.int32
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]
+let (_ : deep_tuple Repr.Type.t) = deep_tuple_t

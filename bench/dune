@@ -1,0 +1,19 @@
+(executable
+ (name main)
+ (libraries repr bechamel fpath yojson ppx_deriving_yojson.runtime unix)
+ (preprocess
+  (pps ppx_repr ppx_deriving_yojson)))
+
+(rule
+ (alias bench)
+ (package repr-bench)
+ (deps main.exe)
+ (action (progn)))
+
+;; Require [main.ml] to compile during tests
+
+(rule
+ (alias runtest)
+ (package repr-bench)
+ (deps main.exe)
+ (action progn))

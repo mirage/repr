@@ -1,0 +1,13 @@
+module Json = struct type t = string
+                     let t = Repr.Type.string end
+type foo = {
+  contents: Json.t }[@@deriving repr]
+include
+  struct
+    let foo_t =
+      Repr.Type.sealr
+        (Repr.Type.(|+)
+           (Repr.Type.record "foo" (fun contents -> { contents }))
+           (Repr.Type.field "contents" Json.t (fun t -> t.contents)))
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]
+let (_ : foo Repr.Type.t) = foo_t

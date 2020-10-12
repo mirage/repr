@@ -1,0 +1,61 @@
+type c = string[@@deriving repr { name = "c_wit" }]
+include struct let c_wit = Repr.Type.string end[@@ocaml.doc "@inline"]
+[@@merlin.hide ]
+let (_ : c Repr.Type.t) = c_wit
+type d = int[@@deriving repr { name = "repr_for_d" }]
+include struct let repr_for_d = Repr.Type.int end[@@ocaml.doc "@inline"]
+[@@merlin.hide ]
+let (_ : d Repr.Type.t) = repr_for_d
+type point_elsewhere1 = ((c)[@repr c_wit])[@@deriving repr]
+include struct let point_elsewhere1_t = c_wit end[@@ocaml.doc "@inline"]
+[@@merlin.hide ]
+type point_elsewhere2 = (int * ((c)[@repr c_wit]))[@@deriving repr]
+include
+  struct let point_elsewhere2_t = Repr.Type.pair Repr.Type.int c_wit end
+[@@ocaml.doc "@inline"][@@merlin.hide ]
+type point_elsewhere3 =
+  | A of int * ((c)[@repr c_wit]) 
+  | B of ((c)[@repr c_wit]) [@@deriving repr]
+include
+  struct
+    let point_elsewhere3_t =
+      Repr.Type.sealv
+        (Repr.Type.(|~)
+           (Repr.Type.(|~)
+              (Repr.Type.variant "point_elsewhere3"
+                 (fun a ->
+                    fun b ->
+                      function | A (x1, x2) -> a (x1, x2) | B x1 -> b x1))
+              (Repr.Type.case1 "A" (Repr.Type.pair Repr.Type.int c_wit)
+                 (fun (x1, x2) -> A (x1, x2))))
+           (Repr.Type.case1 "B" c_wit (fun x1 -> B x1)))
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]
+type point_elsewhere4 =
+  {
+  lorem: string ;
+  ipsum: ((c)[@repr c_wit]) ;
+  dolor: int ;
+  sit: ((d)[@repr repr_for_d]) }[@@deriving repr]
+include
+  struct
+    let point_elsewhere4_t =
+      Repr.Type.sealr
+        (Repr.Type.(|+)
+           (Repr.Type.(|+)
+              (Repr.Type.(|+)
+                 (Repr.Type.(|+)
+                    (Repr.Type.record "point_elsewhere4"
+                       (fun lorem ->
+                          fun ipsum ->
+                            fun dolor ->
+                              fun sit -> { lorem; ipsum; dolor; sit }))
+                    (Repr.Type.field "lorem" Repr.Type.string
+                       (fun t -> t.lorem)))
+                 (Repr.Type.field "ipsum" c_wit (fun t -> t.ipsum)))
+              (Repr.Type.field "dolor" Repr.Type.int (fun t -> t.dolor)))
+           (Repr.Type.field "sit" repr_for_d (fun t -> t.sit)))
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]
+let (_ : point_elsewhere1 Repr.Type.t) = point_elsewhere1_t
+let (_ : point_elsewhere2 Repr.Type.t) = point_elsewhere2_t
+let (_ : point_elsewhere3 Repr.Type.t) = point_elsewhere3_t
+let (_ : point_elsewhere4 Repr.Type.t) = point_elsewhere4_t

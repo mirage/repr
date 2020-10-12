@@ -1,8 +1,8 @@
 open Ppxlib
 
 (*
- * - [%impl_record n] becomes becomes a function which builds Irmin records with 1 up to [n] fields.
- * - [%impl_variant n] becomes a function which builds Irmin variants with 1 up to [n] cases.
+ * - [%impl_record n] becomes becomes a function which builds record representations with 1 up to [n] fields.
+ * - [%impl_variant n] becomes a function which builds variant representations with 1 up to [n] cases.
  *)
 
 module type S = sig
@@ -52,7 +52,7 @@ module Located (A : Ast_builder.S) : S = struct
                 [%expr
                   [%e body]
                   |+ T.field [%e ev "n" i]
-                       (t_to_irmin [%e ev "t" i])
+                       (t_to_repr [%e ev "t" i])
                        (new_dyn_record_getter record_name [%e ev "n" i]
                           [%e ev "t" i])])
           |> List.fold_left ( |> ) body
@@ -120,7 +120,7 @@ module Located (A : Ast_builder.S) : S = struct
               [%expr
                 [%e e]
                 |~ T.case1 [%e ev "n" i]
-                     (t_to_irmin [%e ev "t" i])
+                     (t_to_repr [%e ev "t" i])
                      (fun v ->
                        (variant_name, [%e ev "n" i], wrap [%e ev "t" i] v))]
       in

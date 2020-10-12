@@ -1,0 +1,5 @@
+(library
+ (public_name ppx_repr)
+ (kind ppx_deriver)
+ (ppx_runtime_libraries repr)
+ (libraries ppx_repr_lib ppxlib))

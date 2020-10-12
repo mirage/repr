@@ -1,0 +1,41 @@
+type test_record1 = {
+  alpha: string ;
+  beta: int64 list ;
+  gamma: unit }[@@deriving repr]
+include
+  struct
+    let test_record1_t =
+      Repr.Type.sealr
+        (Repr.Type.(|+)
+           (Repr.Type.(|+)
+              (Repr.Type.(|+)
+                 (Repr.Type.record "test_record1"
+                    (fun alpha ->
+                       fun beta -> fun gamma -> { alpha; beta; gamma }))
+                 (Repr.Type.field "alpha" Repr.Type.string (fun t -> t.alpha)))
+              (Repr.Type.field "beta" (Repr.Type.list Repr.Type.int64)
+                 (fun t -> t.beta)))
+           (Repr.Type.field "gamma" Repr.Type.unit (fun t -> t.gamma)))
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]
+type test_record2 =
+  {
+  the_FIRST_identifier: test_record1 option ;
+  the_SECOND_identifier: (string, int32) result list }[@@deriving repr]
+include
+  struct
+    let test_record2_t =
+      Repr.Type.sealr
+        (Repr.Type.(|+)
+           (Repr.Type.(|+)
+              (Repr.Type.record "test_record2"
+                 (fun the_FIRST_identifier ->
+                    fun the_SECOND_identifier ->
+                      { the_FIRST_identifier; the_SECOND_identifier }))
+              (Repr.Type.field "the_FIRST_identifier"
+                 (Repr.Type.option test_record1_t)
+                 (fun t -> t.the_FIRST_identifier)))
+           (Repr.Type.field "the_SECOND_identifier"
+              (Repr.Type.list
+                 (Repr.Type.result Repr.Type.string Repr.Type.int32))
+              (fun t -> t.the_SECOND_identifier)))
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]

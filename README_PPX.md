@@ -1,16 +1,16 @@
-## ppx_irmin
+## ppx_repr
 
-PPX extension for automatically generating Irmin type representations.
+PPX extension for automatically generating type representations.
 
 ### Overview
 
-`ppx_irmin` automatically generates Irmin type representations (values of type
-`_ Irmin.Type.t`) corresponding to type declarations in your code. For example:
+`ppx_repr` automatically generates type representations (values of type
+`_ Repr.Type.t`) corresponding to type declarations in your code. For example:
 
 ```ocaml
 type 'a tree =
   | Branch of tree * bool option * tree
-  | Leaf of 'a [@@deriving irmin]
+  | Leaf of 'a [@@deriving repr]
 ```
 
 will be expanded to:
@@ -19,7 +19,7 @@ will be expanded to:
 type 'a tree = (* as above *)
 
 let tree_t leaf_t =
-  let open Irmin.Type in
+  let open Repr.Type in
   mu (fun tree_t ->
       variant "tree" (fun branch leaf -> function
           | Branch (x1, x2, x3) -> branch (x1, x2, x3)
@@ -34,36 +34,36 @@ extension point.
 
 ### Installation and usage
 
-`ppx_irmin` may be installed via [opam](https://opam.ocaml.org/):
+`ppx_repr` may be installed via [opam](https://opam.ocaml.org/):
 
 ```
-opam install ppx_irmin
+opam install ppx_repr
 ```
 
 If you're using the [dune](https://github.com/ocaml/dune) build system, add the
 following field to your `library`, `executable` or `test` stanza:
 
 ```
-(preprocess (pps ppx_irmin))
+(preprocess (pps ppx_repr))
 ```
 
-You can now use `[@@deriving irmin]` after a type declaration in your code to
-automatically derive an Irmin type representation with the same name.
+You can now use `[@@deriving repr]` after a type declaration in your code to
+automatically derive a type representation with the same name.
 
 ### Specifics
 
-`ppx_irmin` supports all of the type combinators exposed in the
-[Irmin.Type](https://docs.mirage.io/irmin/Irmin/Type/index.html) module (basic
+`ppx_repr` supports all of the type combinators exposed in the
+[Repr.Type](https://docs.mirage.io/irmin/Irmin.Type/index.html) module (basic
 types, records, variants (plain and closed polymorphic), recursive types etc.).
 Types with parameters will result in parameterised representations (i.e. type
 `'a t` is generated a representation of type `'a Type.t -> 'a t Type.t`).
 
-To supply base representations from a module other than `Irmin.Type` (such as
-when `Irmin.Type` is aliased to a different module path), the `lib` argument
-can be passed to `@@deriving irmin`:
+To supply base representations from a module other than `Repr.Type` (such as
+when `Repr.Type` is aliased to a different module path), the `lib` argument
+can be passed to `@@deriving repr`:
 
 ```ocaml
-type foo = unit [@@deriving irmin { lib = Some "Mylib.Types" }]
+type foo = unit [@@deriving repr { lib = Some "Mylib.Types" }]
 
 (* generates the value *)
 val foo_t = Mylib.Types.unit
@@ -79,50 +79,50 @@ type-name is `t`, in which case the representation is simply `t`. This
 behaviour can be overridden using the `name` argument, as in:
 
 ```ocaml
-type foo = string list * int32 [@@deriving irmin { name = "foo_repr" }]
+type foo = string list * int32 [@@deriving repr { name = "foo_repr" }]
 
 (* generates the value *)
-val foo_repr = Irmin.Type.(pair (list string) int32)
+val foo_repr = Repr.Type.(pair (list string) int32)
 ```
 
-If the type contains an abstract type, `ppx_irmin` will expect to find a
+If the type contains an abstract type, `ppx_repr` will expect to find a
 corresponding type representation using its own naming rules. This can be
 overridden using the `[@repr ...]` attribute, as in:
 
 ```ocaml
-type bar = (foo [@repr foo_repr], string) result [@@deriving irmin]
+type bar = (foo [@repr foo_repr], string) result [@@deriving repr]
 
 (* generates the value *)
-val bar_t = Irmin.Type.(result foo_repr string)
+val bar_t = Repr.Type.(result foo_repr string)
 ```
 
 Built-in abstract types such as `unit` are assumed to be represented in
-`Irmin.Type`. This behaviour can be overridden with the `[@nobuiltin]`
+`Repr.Type`. This behaviour can be overridden with the `[@nobuiltin]`
 attribute:
 
 ```ocaml
-type t = unit [@nobuiltin] [@@deriving irmin]
+type t = unit [@nobuiltin] [@@deriving repr]
 
 (* generates the value *)
-let t = unit_t (* not [Irmin.Type.unit] *)
+let t = unit_t (* not [Repr.Type.unit] *)
 ```
 
 #### Signature type definitions
 
-The `ppx_irmin` deriver can also be used in signatures to expose the
+The `ppx_repr` deriver can also be used in signatures to expose the
 auto-generated value:
 
 ```ocaml
 module Contents : sig
-  type t = int32 [@@deriving irmin]
+  type t = int32 [@@deriving repr]
 
   (* exposes repr in signature *)
-  val t : t Irmin.Type.t
+  val t : t Repr.Type.t
 
 end = struct
-  type t = int32 [@@deriving irmin]
+  type t = int32 [@@deriving repr]
 
   (* generates repr value *)
-  val t = Irmin.Type.int32
+  val t = Repr.Type.int32
 end
 ```

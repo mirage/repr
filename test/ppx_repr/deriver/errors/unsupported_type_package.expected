@@ -1,0 +1,2 @@
+File "unsupported_type_package.ml", line 5, characters 9-19:
+Error: ppx_repr: package type (module S) encountered. Package types are not Irmin-serialisable.
