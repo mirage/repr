@@ -15,6 +15,7 @@
  *)
 
 open Ppxlib
+include Engine_intf
 module SSet = Set.Make (String)
 
 let repr_types =
@@ -37,25 +38,7 @@ let repr_types =
       "result";
     ]
 
-module type S = sig
-  val parse_lib : expression -> string option
-
-  val expand_typ : ?lib:string -> core_type -> expression
-
-  val derive_str :
-    ?name:string ->
-    ?lib:string ->
-    rec_flag * type_declaration list ->
-    structure_item list
-
-  val derive_sig :
-    ?name:string ->
-    ?lib:string ->
-    rec_flag * type_declaration list ->
-    signature_item list
-end
-
-module Located (A : Ast_builder.S) : S = struct
+module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
   type state = {
     rec_flag : rec_flag;
     type_name : string;

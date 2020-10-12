@@ -14,26 +14,30 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
+include Attributes_intf
 open Ppxlib
 
-let namespace = "repr"
+module Make (T : sig
+  val namespace : string
+end) =
+struct
+  let repr =
+    Attribute.declare
+      (String.concat "." [ T.namespace; "repr" ])
+      Attribute.Context.Core_type
+      Ast_pattern.(single_expr_payload __)
+      (fun e -> e)
 
-let repr =
-  Attribute.declare
-    (String.concat "." [ namespace; "repr" ])
-    Attribute.Context.Core_type
-    Ast_pattern.(single_expr_payload __)
-    (fun e -> e)
+  let nobuiltin =
+    Attribute.declare
+      (String.concat "." [ T.namespace; "nobuiltin" ])
+      Attribute.Context.Core_type
+      Ast_pattern.(pstr __')
+      (fun s ->
+        match s with
+        | { txt = _ :: _; loc } ->
+            Location.raise_errorf ~loc "`nobuiltin` payload must be empty"
+        | { txt = []; _ } -> ())
 
-let nobuiltin =
-  Attribute.declare
-    (String.concat "." [ namespace; "nobuiltin" ])
-    Attribute.Context.Core_type
-    Ast_pattern.(pstr __')
-    (fun s ->
-      match s with
-      | { txt = _ :: _; loc } ->
-          Location.raise_errorf ~loc "`nobuiltin` payload must be empty"
-      | { txt = []; _ } -> ())
-
-let all = Attribute.[ T repr; T nobuiltin ]
+  let all = Attribute.[ T repr; T nobuiltin ]
+end

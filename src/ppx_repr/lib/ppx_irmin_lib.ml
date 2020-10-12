@@ -14,8 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-module Attributes = Attributes
-(** Definitions of attributes required by [ppx_repr]. *)
-
 module Engine = Engine
 (** Derivers and expanders for [ppx_repr]. *)
+
+module Plugins = Plugins
+(** Functions for defining PPXes that use the implementation defined in {!Engine}. *)

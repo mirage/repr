@@ -14,5 +14,12 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-include Attributes_intf.Attributes
-(** @inline *)
+module Make (T : sig
+  val namespace : string
+
+  val default_library : string
+end) : sig
+  val register_deriver : unit -> unit
+
+  val register_extension : unit -> unit
+end
