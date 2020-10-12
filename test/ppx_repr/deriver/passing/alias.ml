@@ -5,8 +5,8 @@ type t_alias = test_result [@@deriving repr]
 
 type t = t_alias [@@deriving repr]
 
-let (_ : test_result Repr.Type.t) = test_result_t
+let (_ : test_result Repr.t) = test_result_t
 
-let (_ : t_alias Repr.Type.t) = t_alias_t
+let (_ : t_alias Repr.t) = t_alias_t
 
-let (_ : t Repr.Type.t) = t
+let (_ : t Repr.t) = t

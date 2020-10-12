@@ -15,7 +15,7 @@
  *)
 
 module Plugins = Ppx_repr_lib.Plugins.Make (struct
-  let default_library = "Repr.Type"
+  let default_library = "Repr"
 
   let namespace = "repr"
 end)

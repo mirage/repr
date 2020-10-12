@@ -4,10 +4,9 @@ type deep_tuple =
 include
   struct
     let deep_tuple_t =
-      Repr.Type.triple
-        (Repr.Type.triple
-           (Repr.Type.triple (Repr.Type.pair Repr.Type.int32 Repr.Type.int32)
-              Repr.Type.int32 Repr.Type.int32) Repr.Type.int32
-           Repr.Type.int32) Repr.Type.int32 Repr.Type.int32
+      Repr.triple
+        (Repr.triple
+           (Repr.triple (Repr.pair Repr.int32 Repr.int32) Repr.int32
+              Repr.int32) Repr.int32 Repr.int32) Repr.int32 Repr.int32
   end[@@ocaml.doc "@inline"][@@merlin.hide ]
-let (_ : deep_tuple Repr.Type.t) = deep_tuple_t
+let (_ : deep_tuple Repr.t) = deep_tuple_t

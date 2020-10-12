@@ -1,4 +1,4 @@
-module T = Repr.Type
+module T = Repr
 
 let id x = x
 

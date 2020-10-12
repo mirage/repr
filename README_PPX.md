@@ -5,7 +5,7 @@ PPX extension for automatically generating type representations.
 ### Overview
 
 `ppx_repr` automatically generates type representations (values of type
-`_ Repr.Type.t`) corresponding to type declarations in your code. For example:
+`_ Repr.t`) corresponding to type declarations in your code. For example:
 
 ```ocaml
 type 'a tree =
@@ -19,7 +19,7 @@ will be expanded to:
 type 'a tree = (* as above *)
 
 let tree_t leaf_t =
-  let open Repr.Type in
+  let open Repr in
   mu (fun tree_t ->
       variant "tree" (fun branch leaf -> function
           | Branch (x1, x2, x3) -> branch (x1, x2, x3)
@@ -53,13 +53,13 @@ automatically derive a type representation with the same name.
 ### Specifics
 
 `ppx_repr` supports all of the type combinators exposed in the
-[Repr.Type](https://docs.mirage.io/irmin/Irmin.Type/index.html) module (basic
+[Repr](https://docs.mirage.io/irmin/Irmin.Type/index.html) module (basic
 types, records, variants (plain and closed polymorphic), recursive types etc.).
 Types with parameters will result in parameterised representations (i.e. type
 `'a t` is generated a representation of type `'a Type.t -> 'a t Type.t`).
 
-To supply base representations from a module other than `Repr.Type` (such as
-when `Repr.Type` is aliased to a different module path), the `lib` argument
+To supply base representations from a module other than `Repr` (such as
+when `Repr` is aliased to a different module path), the `lib` argument
 can be passed to `@@deriving repr`:
 
 ```ocaml
@@ -82,7 +82,7 @@ behaviour can be overridden using the `name` argument, as in:
 type foo = string list * int32 [@@deriving repr { name = "foo_repr" }]
 
 (* generates the value *)
-val foo_repr = Repr.Type.(pair (list string) int32)
+val foo_repr = Repr.(pair (list string) int32)
 ```
 
 If the type contains an abstract type, `ppx_repr` will expect to find a
@@ -93,18 +93,18 @@ overridden using the `[@repr ...]` attribute, as in:
 type bar = (foo [@repr foo_repr], string) result [@@deriving repr]
 
 (* generates the value *)
-val bar_t = Repr.Type.(result foo_repr string)
+val bar_t = Repr.(result foo_repr string)
 ```
 
 Built-in abstract types such as `unit` are assumed to be represented in
-`Repr.Type`. This behaviour can be overridden with the `[@nobuiltin]`
+`Repr`. This behaviour can be overridden with the `[@nobuiltin]`
 attribute:
 
 ```ocaml
 type t = unit [@nobuiltin] [@@deriving repr]
 
 (* generates the value *)
-let t = unit_t (* not [Repr.Type.unit] *)
+let t = unit_t (* not [Repr.unit] *)
 ```
 
 #### Signature type definitions
@@ -117,12 +117,12 @@ module Contents : sig
   type t = int32 [@@deriving repr]
 
   (* exposes repr in signature *)
-  val t : t Repr.Type.t
+  val t : t Repr.t
 
 end = struct
   type t = int32 [@@deriving repr]
 
   (* generates repr value *)
-  val t = Repr.Type.int32
+  val t = Repr.int32
 end
 ```

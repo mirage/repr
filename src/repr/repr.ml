@@ -14,6 +14,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
+include Type
+(** @inline *)
+
+(** {1 Miscellaneous modules} *)
+
 module Staging = Staging
-module Type = Type
 module Witness = Witness

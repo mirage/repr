@@ -1,5 +1,5 @@
 open Crowbar
-module T = Repr.Type
+module T = Repr
 
 let ( |+ ) = T.( |+ )
 

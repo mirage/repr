@@ -1,6 +1,6 @@
 open Bechamel
 open Toolkit
-module T = Repr.Type
+module T = Repr
 open Output
 
 module Generic_op = struct

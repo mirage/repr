@@ -1,4 +1,4 @@
-type 'a typ = 'a Repr.Type.t
+type 'a typ = 'a Repr.t
 
 module Trivial : sig
   type t [@@deriving repr]

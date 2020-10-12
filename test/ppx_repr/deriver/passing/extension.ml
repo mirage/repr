@@ -1,4 +1,4 @@
-type 'a typ = 'a Repr.Type.t
+type 'a typ = 'a Repr.t
 
 module Simple = struct
   let (_ : (int * string) list typ) = [%typ: (int * string) list]
@@ -7,7 +7,7 @@ end
 module Alias = struct
   type t = unit
 
-  let t = Repr.Type.unit
+  let t = Repr.unit
 
   let (_ : unit typ) = [%typ: t]
 end

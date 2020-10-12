@@ -1,9 +1,9 @@
 module Elsewhere : sig
-  module Foo : module type of Repr.Type
+  module Foo : module type of Repr
 
   type t [@@deriving repr { lib = Some "Foo" }]
 end = struct
-  module Foo = Repr.Type
+  module Foo = Repr
 
   module Irmin = struct end
 
@@ -15,9 +15,9 @@ module Locally_avaliable : sig
 
   type t [@@deriving repr { lib = None }]
 end = struct
-  let pair, unit = Repr.Type.(pair, unit)
+  let pair, unit = Repr.(pair, unit)
 
-  type 'a ty = 'a Repr.Type.ty
+  type 'a ty = 'a Repr.ty
 
   module Irmin = struct end
 
