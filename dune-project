@@ -20,15 +20,12 @@
   (alcotest (and (>= 1.1.0) :with-test)))
  (synopsis "Dynamic type representaitons. Provides no stability guarantee")
  (description "\
-!!!!!!!!!!!!!!!!!!!!
-!!!!! UNSTABLE !!!!!
-!!!!!!!!!!!!!!!!!!!!
-
 This package defines a library of combinators for building dynamic type
 representations and a set of generic operations over representable types, used
 in the implementation of Irmin and related packages.
 
-It is not intended for public consumption and provides no stability guarantee.
+It is not yet intended for public consumption and provides no stability
+guarantee.
 "))
 
 (package
