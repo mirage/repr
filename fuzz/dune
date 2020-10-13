@@ -1,6 +1,6 @@
 (executable
  (name main)
- (libraries digestif.c crowbar repr)
+ (libraries crowbar repr)
  (preprocess
   (pps repr-fuzz.rewriter)))
 

@@ -16,6 +16,7 @@
   uutf
   (jsonm (>= 1.0.0))
   (base64 (>= 2.0.0))
+  (hex :with-test)
   (alcotest (and (>= 1.1.0) :with-test)))
  (synopsis "Dynamic type representaitons. Provides no stability guarantee")
  (description "\
@@ -44,6 +45,7 @@ It is not intended for public consumption and provides no stability guarantee.
   (repr (= :version))
   bechamel
   yojson
+  fpath
   ppx_deriving_yojson)
  (synopsis "Benchmarks for the `repr` package")
  (description "Benchmarks for the `repr` package"))

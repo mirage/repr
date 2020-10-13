@@ -266,8 +266,7 @@ let benchmark () =
     Instance.[ minor_allocated; major_allocated; monotonic_clock ]
   in
   let raw_results =
-    let quota = Mtime.Span.of_uint64_ns 5_000_000_000L (* 5s *) in
-    Benchmark.all (Benchmark.cfg ~run:nb_runs ~quota ()) instances suite
+    Benchmark.all (Benchmark.cfg ~quota:(Time.second 1.) ()) instances suite
   in
   List.map (fun instance -> Analyze.all ols instance raw_results) instances
   |> Analyze.merge ols instances

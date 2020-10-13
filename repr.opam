@@ -24,6 +24,7 @@ depends: [
   "uutf"
   "jsonm" {>= "1.0.0"}
   "base64" {>= "2.0.0"}
+  "hex" {with-test}
   "alcotest" {>= "1.1.0" & with-test}
   "odoc" {with-doc}
 ]
