@@ -18,20 +18,12 @@ open Ppxlib
 
 module Unsupported : sig
   val tuple_size : loc:location -> int -> _
-
   val type_arrow : loc:location -> core_type -> _
-
   val type_open : loc:location -> _
-
   val type_poly : loc:location -> core_type -> _
-
   val type_open_polyvar : loc:location -> core_type -> _
-
   val type_package : loc:location -> core_type -> _
-
   val type_extension : loc:location -> core_type -> _
-
   val type_alias : loc:location -> core_type -> _
-
   val type_any : loc:location -> _
 end

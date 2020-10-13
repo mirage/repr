@@ -2,9 +2,7 @@ open Crowbar
 module T = Repr
 
 let ( |+ ) = T.( |+ )
-
 let ( |~ ) = T.( |~ )
-
 let fmt = Format.sprintf
 
 (* This is part of the standard library as of 4.08 (see [Option.map]). *)
@@ -17,11 +15,8 @@ let result_map fa fe r =
 (* This has to be upstreamed to Crowbar. In the meantime, you can run:
    {v opam pin crowbar https://github.com/stedolan/crowbar.git#master v}. *)
 let char = map [ bytes_fixed 1 ] (fun s -> s.[0])
-
 let string = bytes
-
 let bytes = map [ string ] Bytes.of_string
-
 let triple a b c = map [ a; b; c ] (fun a b c -> (a, b, c))
 
 (* Untyped internal representation of Irmin values. *)

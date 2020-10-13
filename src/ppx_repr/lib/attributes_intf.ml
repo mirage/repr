@@ -2,7 +2,6 @@ open Ppxlib
 
 module type S = sig
   val repr : (core_type, expression) Attribute.t
-
   val nobuiltin : (core_type, unit) Attribute.t
 end
 

@@ -17,5 +17,4 @@
 open Type_core
 
 val t : 'a t -> 'a size_of
-
 val unboxed : 'a t -> 'a size_of

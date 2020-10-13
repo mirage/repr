@@ -1,10 +1,7 @@
 (* Variants *)
 type test_variant1 = A [@@deriving repr]
-
 type test_variant2 = A2 of int64 [@@deriving repr]
-
 type test_variant3 = A3 of string * test_variant2 [@@deriving repr]
-
 type test_variant4 = A4 | B4 | C4 [@@deriving repr]
 
 type test_variant5 =

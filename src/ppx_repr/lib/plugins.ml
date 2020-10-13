@@ -18,7 +18,6 @@ open Ppxlib
 
 module Make (T : sig
   val namespace : string
-
   val default_library : string
 end) =
 struct

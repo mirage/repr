@@ -7,19 +7,16 @@ open Ppxlib
 
 module type S = sig
   val impl_record : int -> expression
-
   val impl_variant : int -> expression
 end
 
 let ( >>| ) x f = List.map f x
-
 let ( >>= ) x f = List.map f x |> List.flatten
 
 module Located (A : Ast_builder.S) : S = struct
   open A
 
   let ev n i = evar (n ^ string_of_int i)
-
   let pv n i = pvar (n ^ string_of_int i)
 
   let plist : pattern list -> pattern =

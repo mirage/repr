@@ -1,7 +1,6 @@
 open Ppxlib
 
 let ( >> ) f g x = g (f x)
-
 let ( >|= ) x f = List.map f x
 
 module Make (A : Ast_builder.S) : sig
@@ -17,8 +16,6 @@ end = struct
   open A
 
   let compose_all l x = List.fold_left ( |> ) x (List.rev l)
-
   let lambda = List.map (pvar >> pexp_fun Nolabel None) >> compose_all
-
   let arrow = List.map (ptyp_arrow Nolabel) >> compose_all
 end

@@ -18,16 +18,12 @@ module type S = sig
   type ('a, 'p) t
 
   val return : 'a -> ('a, 'p) t
-
   val map : ('a -> 'b) -> ('a, 'p) t -> ('b, 'p) t
-
   val bind : ('a -> ('b, 'p) t) -> ('a, 'p) t -> ('b, 'p) t
-
   val sequence : ('a, 'p) t list -> ('a list, 'p) t
 
   module Syntax : sig
     val ( let+ ) : ('a, 'p) t -> ('a -> 'b) -> ('b, 'p) t
-
     val ( let* ) : ('a, 'p) t -> ('a -> ('b, 'p) t) -> ('b, 'p) t
   end
 end

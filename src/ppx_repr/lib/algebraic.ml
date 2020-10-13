@@ -21,9 +21,7 @@ open Ppxlib
 module Located (A : Ast_builder.S) (M : Monad.S) : S with module M = M = struct
   module M = M
   open Utils
-
   open Utils.Make (A)
-
   open A
 
   let generate_identifiers n =

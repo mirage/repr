@@ -3,17 +3,12 @@ module T = Repr
 let id x = x
 
 type foo = { a : int; b : int }
-
 type bar = { c : int option; d : int option option }
 
 let to_bin_string t = T.unstage (T.to_bin_string t)
-
 let of_bin_string t = T.unstage (T.of_bin_string t)
-
 let encode_bin t = T.unstage (T.encode_bin t)
-
 let decode_bin t = T.unstage (T.decode_bin t)
-
 let size_of t = T.unstage (T.size_of t)
 
 let with_buf f =
@@ -23,9 +18,7 @@ let with_buf f =
 
 module Unboxed = struct
   let decode_bin t = T.unstage (T.Unboxed.decode_bin t)
-
   let encode_bin t = T.unstage (T.Unboxed.encode_bin t)
-
   let size_of t = T.unstage (T.Unboxed.size_of t)
 end
 
@@ -78,7 +71,6 @@ let pp_hex ppf s =
   Fmt.string ppf x
 
 let of_hex_string x = Ok (Hex.to_string (`Hex x))
-
 let hex = T.map T.string ~pp:pp_hex ~of_string:of_hex_string id id
 
 let hex2 =
@@ -111,7 +103,6 @@ let hex2 =
   T.map T.string ~json:(encode_json, decode_json) id id
 
 let error = Alcotest.testable (fun ppf (`Msg e) -> Fmt.string ppf e) ( = )
-
 let ok x = Alcotest.result x error
 
 let test_json () =
@@ -244,7 +235,6 @@ module Algebraic = struct
   (* Dummy algebraic types and corresponding type representations *)
 
   type my_enum = Alpha | Beta | Gamma | Delta [@@deriving repr]
-
   type my_variant = Left of int | Right of int list [@@deriving repr]
 
   type my_recursive_variant =
@@ -524,9 +514,7 @@ let test_pp_ty () =
         ~pre_hash:s2 ()
 
     let like_prim : int T.t = T.(like int)
-
     let like_custom : empty T.t = T.like v
-
     let map : int T.t = T.(map int) (fun x -> x) (fun x -> x)
   end in
   test ~case_name:"custom v" Custom.v "Custom (-)";

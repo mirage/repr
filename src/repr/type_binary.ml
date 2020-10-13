@@ -20,21 +20,13 @@ open Utils
 
 module B = struct
   external get_16 : string -> int -> int = "%caml_string_get16"
-
   external get_32 : string -> int -> int32 = "%caml_string_get32"
-
   external get_64 : string -> int -> int64 = "%caml_string_get64"
-
   external set_16 : Bytes.t -> int -> int -> unit = "%caml_string_set16u"
-
   external set_32 : Bytes.t -> int -> int32 -> unit = "%caml_string_set32u"
-
   external set_64 : Bytes.t -> int -> int64 -> unit = "%caml_string_set64u"
-
   external swap16 : int -> int = "%bswap16"
-
   external swap32 : int32 -> int32 = "%bswap_int32"
-
   external swap64 : int64 -> int64 = "%bswap_int64"
 
   let get_uint16 s off =
@@ -58,13 +50,9 @@ end
 
 module Encode = struct
   let unit () _k = ()
-
   let add_bytes b k = k (Bytes.to_string b)
-
   let add_string s k = k s
-
   let char c = add_bytes (Bytes.make 1 c)
-
   let int8 i = char (Char.chr i)
 
   let int16 i =
@@ -83,7 +71,6 @@ module Encode = struct
     add_bytes b
 
   let float f = int64 (Int64.bits_of_float f)
-
   let bool b = char (if b then '\255' else '\000')
 
   let int i k =
@@ -116,7 +103,6 @@ module Encode = struct
       add_string s k
 
   let string boxed = if boxed then boxed_string else unboxed_string
-
   let unboxed_bytes _ = add_bytes
 
   let boxed_bytes n =
@@ -242,7 +228,6 @@ module Decode = struct
   type 'a res = int * 'a
 
   let unit _ ofs = (ofs, ())
-
   let char buf ofs = (ofs + 1, buf.[ofs])
 
   let int8 buf ofs =
@@ -250,9 +235,7 @@ module Decode = struct
     (ofs, Char.code c)
 
   let int16 buf ofs = (ofs + 2, B.get_uint16 buf ofs)
-
   let int32 buf ofs = (ofs + 4, B.get_uint32 buf ofs)
-
   let int64 buf ofs = (ofs + 8, B.get_uint64 buf ofs)
 
   let bool buf ofs =
@@ -313,7 +296,6 @@ module Decode = struct
     fun boxed -> if boxed then f_boxed else f_unboxed
 
   let string = mk (fun x -> x) Bytes.unsafe_to_string
-
   let bytes = mk Bytes.of_string (fun x -> x)
 
   let list l n =
@@ -452,16 +434,13 @@ module Decode = struct
 end
 
 let encode_bin = Encode.t
-
 let decode_bin = Decode.t
 
 type 'a to_bin_string = 'a to_string staged
-
 type 'a of_bin_string = 'a of_string staged
 
 module Unboxed = struct
   let encode_bin = Encode.unboxed
-
   let decode_bin = Decode.unboxed
 end
 

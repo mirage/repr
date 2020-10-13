@@ -75,19 +75,12 @@ end
 
 module Equal = struct
   let unit _ _ = true
-
   let bool (x : bool) (y : bool) = x = y
-
   let char (x : char) (y : char) = x = y
-
   let int (x : int) (y : int) = x = y
-
   let int32 (x : int32) (y : int32) = x = y
-
   let int64 (x : int64) (y : int64) = x = y
-
   let string x y = x == y || String.equal x y
-
   let bytes x y = x == y || Bytes.equal x y
 
   (* NOTE: equality is ill-defined on float *)
@@ -184,21 +177,13 @@ end
 
 module Compare = struct
   let unit (_ : unit) (_ : unit) = 0 [@@inline always]
-
   let bool (x : bool) (y : bool) = compare x y [@@inline always]
-
   let char x y = Char.compare x y [@@inline always]
-
   let int (x : int) (y : int) = compare x y [@@inline always]
-
   let int32 x y = Int32.compare x y [@@inline always]
-
   let int64 x y = Int64.compare x y [@@inline always]
-
   let float (x : float) (y : float) = compare x y [@@inline always]
-
   let string x y = if x == y then 0 else String.compare x y [@@inline always]
-
   let bytes x y = if x == y then 0 else Bytes.compare x y [@@inline always]
 
   let list c x y =
@@ -317,5 +302,4 @@ module Compare = struct
 end
 
 let equal = Equal.t
-
 let compare t x y = Compare.t t x y
