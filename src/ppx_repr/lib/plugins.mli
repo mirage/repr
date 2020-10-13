@@ -21,5 +21,5 @@ module Make (T : sig
 end) : sig
   val register_deriver : unit -> unit
 
-  val register_extension : unit -> unit
+  val register_extension : ?no_reserve_namespace:unit -> unit -> unit
 end

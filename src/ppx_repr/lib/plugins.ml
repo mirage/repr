@@ -67,13 +67,15 @@ struct
     in
     Deriving.add ~str_type_decl ~sig_type_decl T.namespace |> Deriving.ignore
 
-  let register_extension () =
+  let register_extension ?no_reserve_namespace () =
     let library = Lazy.force library in
     let extension =
       Extension.declare (T.namespace ^ ".typ") Extension.Context.expression
         Ast_pattern.(ptyp __)
         (with_engine @@ fun (module L) -> L.expand_typ ?lib:!library)
     in
-    Reserved_namespaces.reserve T.namespace;
+    (match no_reserve_namespace with
+    | Some () -> ()
+    | None -> Reserved_namespaces.reserve T.namespace);
     Driver.register_transformation ~extensions:[ extension ] T.namespace
 end

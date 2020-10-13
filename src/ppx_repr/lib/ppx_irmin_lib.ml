@@ -18,4 +18,5 @@ module Engine = Engine
 (** Derivers and expanders for [ppx_repr]. *)
 
 module Plugins = Plugins
-(** Functions for defining PPXes that use the implementation defined in {!Engine}. *)
+(** Functions for defining PPXes that use the implementation defined in
+    {!Engine}. *)
