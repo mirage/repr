@@ -1,0 +1,11 @@
+type test_result = (int, string) result[@@deriving repr]
+include struct let test_result_t = Repr.result Repr.int Repr.string end
+[@@ocaml.doc "@inline"][@@merlin.hide ]
+type t_alias = test_result[@@deriving repr]
+include struct let t_alias_t = test_result_t end[@@ocaml.doc "@inline"]
+[@@merlin.hide ]
+type t = t_alias[@@deriving repr]
+include struct let t = t_alias_t end[@@ocaml.doc "@inline"][@@merlin.hide ]
+let (_ : test_result Repr.t) = test_result_t
+let (_ : t_alias Repr.t) = t_alias_t
+let (_ : t Repr.t) = t

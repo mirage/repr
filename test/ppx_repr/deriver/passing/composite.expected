@@ -1,0 +1,33 @@
+type test_list1 = string list[@@deriving repr]
+include struct let test_list1_t = Repr.list Repr.string end[@@ocaml.doc
+                                                             "@inline"]
+[@@merlin.hide ]
+type test_list2 = int32 list list list[@@deriving repr]
+include
+  struct let test_list2_t = Repr.list (Repr.list (Repr.list Repr.int32)) end
+[@@ocaml.doc "@inline"][@@merlin.hide ]
+type test_array = bool array[@@deriving repr]
+include struct let test_array_t = Repr.array Repr.bool end[@@ocaml.doc
+                                                            "@inline"]
+[@@merlin.hide ]
+type test_option = unit option[@@deriving repr]
+include struct let test_option_t = Repr.option Repr.unit end[@@ocaml.doc
+                                                              "@inline"]
+[@@merlin.hide ]
+type test_pair = (string * int32)[@@deriving repr]
+include struct let test_pair_t = Repr.pair Repr.string Repr.int32 end
+[@@ocaml.doc "@inline"][@@merlin.hide ]
+type test_triple = (string * int32 * bool)[@@deriving repr]
+include
+  struct let test_triple_t = Repr.triple Repr.string Repr.int32 Repr.bool end
+[@@ocaml.doc "@inline"][@@merlin.hide ]
+type test_result = (int32, string) result[@@deriving repr]
+include struct let test_result_t = Repr.result Repr.int32 Repr.string end
+[@@ocaml.doc "@inline"][@@merlin.hide ]
+let (_ : test_list1 Repr.t) = test_list1_t
+let (_ : test_list2 Repr.t) = test_list2_t
+let (_ : test_array Repr.t) = test_array_t
+let (_ : test_option Repr.t) = test_option_t
+let (_ : test_pair Repr.t) = test_pair_t
+let (_ : test_triple Repr.t) = test_triple_t
+let (_ : test_result Repr.t) = test_result_t

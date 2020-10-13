@@ -1,0 +1,60 @@
+type c = string[@@deriving repr { name = "c_wit" }]
+include struct let c_wit = Repr.string end[@@ocaml.doc "@inline"][@@merlin.hide
+                                                                   ]
+let (_ : c Repr.t) = c_wit
+type d = int[@@deriving repr { name = "repr_for_d" }]
+include struct let repr_for_d = Repr.int end[@@ocaml.doc "@inline"][@@merlin.hide
+                                                                    ]
+let (_ : d Repr.t) = repr_for_d
+type point_elsewhere1 = ((c)[@repr c_wit])[@@deriving repr]
+include struct let point_elsewhere1_t = c_wit end[@@ocaml.doc "@inline"]
+[@@merlin.hide ]
+type point_elsewhere2 = (int * ((c)[@repr c_wit]))[@@deriving repr]
+include struct let point_elsewhere2_t = Repr.pair Repr.int c_wit end[@@ocaml.doc
+                                                                    "@inline"]
+[@@merlin.hide ]
+type point_elsewhere3 =
+  | A of int * ((c)[@repr c_wit]) 
+  | B of ((c)[@repr c_wit]) [@@deriving repr]
+include
+  struct
+    let point_elsewhere3_t =
+      Repr.sealv
+        (Repr.(|~)
+           (Repr.(|~)
+              (Repr.variant "point_elsewhere3"
+                 (fun a ->
+                    fun b ->
+                      function | A (x1, x2) -> a (x1, x2) | B x1 -> b x1))
+              (Repr.case1 "A" (Repr.pair Repr.int c_wit)
+                 (fun (x1, x2) -> A (x1, x2))))
+           (Repr.case1 "B" c_wit (fun x1 -> B x1)))
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]
+type point_elsewhere4 =
+  {
+  lorem: string ;
+  ipsum: ((c)[@repr c_wit]) ;
+  dolor: int ;
+  sit: ((d)[@repr repr_for_d]) }[@@deriving repr]
+include
+  struct
+    let point_elsewhere4_t =
+      Repr.sealr
+        (Repr.(|+)
+           (Repr.(|+)
+              (Repr.(|+)
+                 (Repr.(|+)
+                    (Repr.record "point_elsewhere4"
+                       (fun lorem ->
+                          fun ipsum ->
+                            fun dolor ->
+                              fun sit -> { lorem; ipsum; dolor; sit }))
+                    (Repr.field "lorem" Repr.string (fun t -> t.lorem)))
+                 (Repr.field "ipsum" c_wit (fun t -> t.ipsum)))
+              (Repr.field "dolor" Repr.int (fun t -> t.dolor)))
+           (Repr.field "sit" repr_for_d (fun t -> t.sit)))
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]
+let (_ : point_elsewhere1 Repr.t) = point_elsewhere1_t
+let (_ : point_elsewhere2 Repr.t) = point_elsewhere2_t
+let (_ : point_elsewhere3 Repr.t) = point_elsewhere3_t
+let (_ : point_elsewhere4 Repr.t) = point_elsewhere4_t

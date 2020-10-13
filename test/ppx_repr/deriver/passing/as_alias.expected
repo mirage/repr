@@ -1,0 +1,41 @@
+type 'a typ = 'a Repr.t
+module Trivial :
+  sig
+    type t[@@deriving repr]
+    include sig val t : t Repr.t end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end =
+  struct
+    type t = int as 'a[@@deriving repr]
+    include struct let t = Repr.int end[@@ocaml.doc "@inline"][@@merlin.hide
+                                                                ]
+  end 
+module Recursive :
+  sig
+    type 'a tree[@@deriving repr]
+    include sig val tree_t : 'a Repr.t -> 'a tree Repr.t end[@@ocaml.doc
+                                                              "@inline"]
+    [@@merlin.hide ]
+  end =
+  struct
+    type 'a tree =
+      [ `Branch of ('tree * int * 'tree)  | `Leaf of 'a ] as 'tree[@@deriving
+                                                                    repr]
+    include
+      struct
+        let tree_t a =
+          Repr.mu
+            (fun tree ->
+               Repr.sealv
+                 (Repr.(|~)
+                    (Repr.(|~)
+                       (Repr.variant "tree"
+                          (fun branch ->
+                             fun leaf ->
+                               function
+                               | `Branch x1 -> branch x1
+                               | `Leaf x1 -> leaf x1))
+                       (Repr.case1 "Branch" (Repr.triple tree Repr.int tree)
+                          (fun x1 -> `Branch x1)))
+                    (Repr.case1 "Leaf" a (fun x1 -> `Leaf x1))))
+      end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end 

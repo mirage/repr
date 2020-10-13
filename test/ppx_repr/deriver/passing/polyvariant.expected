@@ -1,0 +1,88 @@
+type test_polyvar1 = [ `On of int  | `Off ][@@deriving repr]
+include
+  struct
+    let test_polyvar1_t =
+      Repr.sealv
+        (Repr.(|~)
+           (Repr.(|~)
+              (Repr.variant "test_polyvar1"
+                 (fun on ->
+                    fun off -> function | `On x1 -> on x1 | `Off -> off))
+              (Repr.case1 "On" Repr.int (fun x1 -> `On x1)))
+           (Repr.case0 "Off" `Off))
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]
+type test_polyvar2 =
+  [ `Outer_a of [ `Inner_a  | `Inner_b ]  | `Outer_b of [ `Inner_a ] 
+  | `Outer_c of [ `Inner_a of string  | `Inner_c of int ] ][@@deriving repr]
+include
+  struct
+    let test_polyvar2_t =
+      Repr.sealv
+        (Repr.(|~)
+           (Repr.(|~)
+              (Repr.(|~)
+                 (Repr.variant "test_polyvar2"
+                    (fun outer_a ->
+                       fun outer_b ->
+                         fun outer_c ->
+                           function
+                           | `Outer_a x1 -> outer_a x1
+                           | `Outer_b x1 -> outer_b x1
+                           | `Outer_c x1 -> outer_c x1))
+                 (Repr.case1 "Outer_a"
+                    (Repr.sealv
+                       (Repr.(|~)
+                          (Repr.(|~)
+                             (Repr.variant "test_polyvar2"
+                                (fun inner_a ->
+                                   fun inner_b ->
+                                     function
+                                     | `Inner_a -> inner_a
+                                     | `Inner_b -> inner_b))
+                             (Repr.case0 "Inner_a" `Inner_a))
+                          (Repr.case0 "Inner_b" `Inner_b)))
+                    (fun x1 -> `Outer_a x1)))
+              (Repr.case1 "Outer_b"
+                 (Repr.sealv
+                    (Repr.(|~)
+                       (Repr.variant "test_polyvar2"
+                          (fun inner_a -> function | `Inner_a -> inner_a))
+                       (Repr.case0 "Inner_a" `Inner_a)))
+                 (fun x1 -> `Outer_b x1)))
+           (Repr.case1 "Outer_c"
+              (Repr.sealv
+                 (Repr.(|~)
+                    (Repr.(|~)
+                       (Repr.variant "test_polyvar2"
+                          (fun inner_a ->
+                             fun inner_c ->
+                               function
+                               | `Inner_a x1 -> inner_a x1
+                               | `Inner_c x1 -> inner_c x1))
+                       (Repr.case1 "Inner_a" Repr.string
+                          (fun x1 -> `Inner_a x1)))
+                    (Repr.case1 "Inner_c" Repr.int (fun x1 -> `Inner_c x1))))
+              (fun x1 -> `Outer_c x1)))
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]
+type test_polyvar3 =
+  [ `Branch of (test_polyvar3 * test_polyvar3)  | `Leaf of string ][@@deriving
+                                                                    repr]
+include
+  struct
+    let test_polyvar3_t =
+      Repr.mu
+        (fun test_polyvar3_t ->
+           Repr.sealv
+             (Repr.(|~)
+                (Repr.(|~)
+                   (Repr.variant "test_polyvar3"
+                      (fun branch ->
+                         fun leaf ->
+                           function
+                           | `Branch x1 -> branch x1
+                           | `Leaf x1 -> leaf x1))
+                   (Repr.case1 "Branch"
+                      (Repr.pair test_polyvar3_t test_polyvar3_t)
+                      (fun x1 -> `Branch x1)))
+                (Repr.case1 "Leaf" Repr.string (fun x1 -> `Leaf x1))))
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]

@@ -1,0 +1,6 @@
+(test
+ (name main)
+ (package repr)
+ (libraries alcotest repr hex)
+ (preprocess
+  (pps ppx_repr)))

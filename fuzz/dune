@@ -1,21 +1,20 @@
 (executable
- (name fuzz_types)
- (libraries digestif.c crowbar irmin)
+ (name main)
+ (libraries crowbar repr)
  (preprocess
-  (pps irmin-fuzz.rewriter)))
+  (pps repr-fuzz.rewriter)))
 
 ;; Start fuzzing when calling `dune build @fuzz`.
 
 (rule
  (alias fuzz)
  (deps
-  (source_tree ./input)
-  fuzz_types.exe)
+  (source_tree ./input))
  (action
-  (run afl-fuzz -i ./input -o output ./fuzz_types.exe @@)))
+  (run afl-fuzz -i ./input -o output %{exe:fuzz_types.exe} @@)))
 
 (rule
  (alias runtest)
- (package irmin-fuzz)
- (deps fuzz_types.exe)
+ (package repr-fuzz)
+ (deps main.exe)
  (action progn))

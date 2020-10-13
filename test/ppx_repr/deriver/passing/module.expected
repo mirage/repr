@@ -1,0 +1,28 @@
+module ModuleQualifiedTypes =
+  struct
+    module X =
+      struct
+        type t = int[@@deriving repr]
+        include struct let t = Repr.int end[@@ocaml.doc "@inline"][@@merlin.hide
+                                                                    ]
+      end
+    module Y =
+      struct
+        type foo = X.t list[@@deriving repr]
+        include struct let foo_t = Repr.list X.t end[@@ocaml.doc "@inline"]
+        [@@merlin.hide ]
+      end
+    type t = X.t[@@deriving repr]
+    include struct let t = X.t end[@@ocaml.doc "@inline"][@@merlin.hide ]
+    type t_result = (X.t, unit) result[@@deriving repr]
+    include struct let t_result_t = Repr.result X.t Repr.unit end[@@ocaml.doc
+                                                                   "@inline"]
+    [@@merlin.hide ]
+    type foo = Y.foo[@@deriving repr]
+    include struct let foo_t = Y.foo_t end[@@ocaml.doc "@inline"][@@merlin.hide
+                                                                   ]
+    type foo_list = Y.foo list[@@deriving repr]
+    include struct let foo_list_t = Repr.list Y.foo_t end[@@ocaml.doc
+                                                           "@inline"]
+    [@@merlin.hide ]
+  end

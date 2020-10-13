@@ -1,0 +1,2 @@
+File "unsupported_type_open.ml", line 1, characters 0-29:
+Error: ppx_repr: extensible variant types are not Irmin-serialisable.

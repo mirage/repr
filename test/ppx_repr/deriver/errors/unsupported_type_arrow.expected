@@ -1,0 +1,2 @@
+File "unsupported_type_arrow.ml", line 1, characters 9-20:
+Error: ppx_repr: function type encountered: unit -> int. Functions are not Irmin-serialisable.

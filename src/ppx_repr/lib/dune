@@ -1,7 +1,6 @@
 (library
- (name main)
- (public_name repr-fuzz.rewriter)
- (kind ppx_rewriter)
+ (name ppx_repr_lib)
+ (public_name ppx_repr.lib)
  (libraries ppxlib)
  (preprocess
   (pps ppxlib.metaquot)))

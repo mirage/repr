@@ -1,0 +1,40 @@
+type t = unit[@@deriving repr]
+include struct let t = Repr.unit end[@@ocaml.doc "@inline"][@@merlin.hide ]
+type t_alias = unit[@@deriving repr]
+include struct let t_alias_t = Repr.unit end[@@ocaml.doc "@inline"][@@merlin.hide
+                                                                    ]
+module S1 :
+  sig
+    type nonrec t = t list[@@deriving repr]
+    include sig val t : t Repr.t end[@@ocaml.doc "@inline"][@@merlin.hide ]
+    type nonrec t_alias = t_alias list[@@deriving repr]
+    include sig val t_alias_t : t_alias Repr.t end[@@ocaml.doc "@inline"]
+    [@@merlin.hide ]
+  end =
+  struct
+    type nonrec t = t list[@@deriving repr]
+    include struct let t = Repr.list t end[@@ocaml.doc "@inline"][@@merlin.hide
+                                                                   ]
+    type nonrec t_alias = t_alias list[@@deriving repr]
+    include struct let t_alias_t = Repr.list t_alias_t end[@@ocaml.doc
+                                                            "@inline"]
+    [@@merlin.hide ]
+  end 
+module S2 :
+  sig
+    type nonrec t = t list[@@deriving repr { name = "t_repr" }]
+    include sig val t_repr : t Repr.t end[@@ocaml.doc "@inline"][@@merlin.hide
+                                                                  ]
+    type nonrec t_alias = t_alias list[@@deriving repr { name = "t_repr" }]
+    include sig val t_repr : t_alias Repr.t end[@@ocaml.doc "@inline"]
+    [@@merlin.hide ]
+  end =
+  struct
+    type nonrec t = t list[@@deriving repr { name = "t_repr" }]
+    include struct let t_repr = Repr.list t end[@@ocaml.doc "@inline"]
+    [@@merlin.hide ]
+    type nonrec t_alias = t_alias list[@@deriving repr { name = "t_repr" }]
+    include struct let t_repr = Repr.list t_alias_t end[@@ocaml.doc
+                                                         "@inline"][@@merlin.hide
+                                                                    ]
+  end 

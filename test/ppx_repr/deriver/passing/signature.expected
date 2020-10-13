@@ -1,0 +1,55 @@
+module SigTests :
+  sig
+    type t = string[@@deriving repr]
+    include sig val t : t Repr.t end[@@ocaml.doc "@inline"][@@merlin.hide ]
+    type foo = unit[@@deriving repr { name = "foo_repr" }]
+    include sig val foo_repr : foo Repr.t end[@@ocaml.doc "@inline"][@@merlin.hide
+                                                                    ]
+    type my_int = (int32 * t)[@@deriving repr]
+    include sig val my_int_t : my_int Repr.t end[@@ocaml.doc "@inline"]
+    [@@merlin.hide ]
+    type my_variant =
+      | A of (my_int, int) result 
+      | B of unit 
+      | C of string * int32 [@@deriving repr]
+    include sig val my_variant_t : my_variant Repr.t end[@@ocaml.doc
+                                                          "@inline"][@@merlin.hide
+                                                                    ]
+  end =
+  struct
+    type t = string[@@deriving repr]
+    include struct let t = Repr.string end[@@ocaml.doc "@inline"][@@merlin.hide
+                                                                   ]
+    type foo = unit[@@deriving repr { name = "foo_repr" }]
+    include struct let foo_repr = Repr.unit end[@@ocaml.doc "@inline"]
+    [@@merlin.hide ]
+    type my_int = (int32 * t)[@@deriving repr]
+    include struct let my_int_t = Repr.pair Repr.int32 t end[@@ocaml.doc
+                                                              "@inline"]
+    [@@merlin.hide ]
+    type my_variant =
+      | A of (my_int, int) result 
+      | B of unit 
+      | C of string * int32 [@@deriving repr]
+    include
+      struct
+        let my_variant_t =
+          Repr.sealv
+            (Repr.(|~)
+               (Repr.(|~)
+                  (Repr.(|~)
+                     (Repr.variant "my_variant"
+                        (fun a ->
+                           fun b ->
+                             fun c ->
+                               function
+                               | A x1 -> a x1
+                               | B x1 -> b x1
+                               | C (x1, x2) -> c (x1, x2)))
+                     (Repr.case1 "A" (Repr.result my_int_t Repr.int)
+                        (fun x1 -> A x1)))
+                  (Repr.case1 "B" Repr.unit (fun x1 -> B x1)))
+               (Repr.case1 "C" (Repr.pair Repr.string Repr.int32)
+                  (fun (x1, x2) -> C (x1, x2))))
+      end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end 
