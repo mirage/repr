@@ -569,12 +569,14 @@ let test_int () =
   let p14 = 16384 in
   let p21 = 2097152 in
   let p28 = 268435456 in
-  let p35 = 34359738368 in
-  let p42 = 4398046511104 in
-  let p49 = 562949953421312 in
-  let p56 = 72057594037927936 in
-  (*  let p63 = max_int in *)
-  let ps = [ p7; p14; p21; p28; p35; p42; p49; p56 (* p63 *) ] in
+  (* NOTE: We don't test above 31 bits in order to keep the tests compatible
+           with 32-bit machines. *)
+  (* let p35 = 34359738368 in
+   * let p42 = 4398046511104 in
+   * let p49 = 562949953421312 in
+   * let p56 = 72057594037927936 in
+   * let p63 = max_int in *)
+  let ps = [ p7; p14; p21; p28 (* p35; p42; p49; p56; p63 *) ] in
   List.iter
     (fun p ->
       test T.int (p - 1);
