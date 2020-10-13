@@ -6,10 +6,11 @@ This package defines a library of combinators for building dynamic type
 representations and a set of generic operations over representable types, used
 in the implementation of Irmin and related packages.
 
-It is not intended for public consumption and provides no stability guarantee.
+It is not yet intended for public consumption and provides no stability
+guarantee.
 """
 maintainer: ["thomas@gazagnaire.org"]
-authors: ["Thomas Gazagnaire"]
+authors: ["Thomas Gazagnaire" "Craig Ferguson"]
 license: "ISC"
 homepage: "https://github.com/mirage/repr"
 bug-reports: "https://github.com/mirage/repr/issues"

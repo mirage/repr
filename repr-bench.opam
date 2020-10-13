@@ -3,7 +3,7 @@ opam-version: "2.0"
 synopsis: "Benchmarks for the `repr` package"
 description: "Benchmarks for the `repr` package"
 maintainer: ["thomas@gazagnaire.org"]
-authors: ["Thomas Gazagnaire"]
+authors: ["Thomas Gazagnaire" "Craig Ferguson"]
 license: "ISC"
 homepage: "https://github.com/mirage/repr"
 bug-reports: "https://github.com/mirage/repr/issues"

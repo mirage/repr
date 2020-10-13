@@ -1,6 +1,7 @@
 ## ISC License
 
 Copyright (c) 2013-2020 Thomas Gazagnaire <thomas@gazagnaire.org>
+Copyright (c) 2019-2020 Craig Ferguson    <craig@tarides.com>
 
 Permission to use, copy, modify, and distribute this software for any
 purpose with or without fee is hereby granted, provided that the above

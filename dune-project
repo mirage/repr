@@ -5,7 +5,7 @@
 (name repr)
 (source (github mirage/repr))
 (license ISC)
-(authors "Thomas Gazagnaire")
+(authors "Thomas Gazagnaire" "Craig Ferguson")
 (maintainers "thomas@gazagnaire.org")
 
 (package
