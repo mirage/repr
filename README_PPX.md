@@ -53,7 +53,7 @@ automatically derive a type representation with the same name.
 ### Specifics
 
 `ppx_repr` supports all of the type combinators exposed in the
-[Repr](https://docs.mirage.io/irmin/Irmin.Type/index.html) module (basic
+[Repr](https://docs.mirage.io/repr/Repr/index.html) module (basic
 types, records, variants (plain and closed polymorphic), recursive types etc.).
 Types with parameters will result in parameterised representations (i.e. type
 `'a t` is generated a representation of type `'a Type.t -> 'a t Type.t`).
