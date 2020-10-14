@@ -49,7 +49,7 @@ module Encode = struct
   let int e i = float e (float_of_int i)
   let int32 e i = float e (Int32.to_float i)
   let int64 e i = float e (Int64.to_float i)
-  let bool e = function false -> float e 0. | _ -> float e 1.
+  let bool e b = lexeme e (`Bool b)
 
   let list l e x =
     lexeme e `As;
@@ -240,7 +240,7 @@ module Decode = struct
   let int32 e = float e >|= Int32.of_float
   let int64 e = float e >|= Int64.of_float
   let int e = float e >|= int_of_float
-  let bool e = int e >|= function 0 -> false | _ -> true
+  let bool e = lexeme e >>= function `Bool b -> Ok b | l -> error e l "`Bool"
 
   let list l e =
     expect_lexeme e `As >>= fun () ->
