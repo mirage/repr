@@ -1,7 +1,6 @@
 open Staging
 
 val check_valid_utf8 : string -> unit
-
 val is_valid_utf8 : string -> bool
 
 val fix_staged : ('f -> 'f) -> ((_ -> _) staged as 'f)

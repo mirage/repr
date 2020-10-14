@@ -57,9 +57,7 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     f_ref := f_new
 
   open Utils
-
   open Utils.Make (A)
-
   module Reader = Monad.Reader
 
   module Algebraic = struct
@@ -78,7 +76,6 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     [%expr [%e mu] (fun [%p pvar fparam] -> [%e e])]
 
   let repr_name_of_type_name = function "t" -> "t" | x -> x ^ "_t"
-
   let in_lib ~lib x = match lib with Some lib -> lib ^ "." ^ x | None -> x
 
   let contains_tvar tvar typ =

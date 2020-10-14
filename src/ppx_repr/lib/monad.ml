@@ -20,11 +20,8 @@ module Reader = struct
   type ('a, 'e) t = Reader of ('e -> 'a)
 
   let run (Reader r) = r
-
   let map f m = Reader (fun env -> f (run m env))
-
   let bind f m = Reader (fun env -> run (f (run m env)) env)
-
   let return x = Reader (fun _ -> x)
 
   let sequence (type a e) ms =
@@ -34,14 +31,11 @@ module Reader = struct
       ms (return [])
 
   let asks f = Reader (fun env -> f env)
-
   let ask = Reader (fun env -> env)
-
   let local f m = Reader (fun env -> run m (f env))
 
   module Syntax = struct
     let ( let+ ) x f = map f x
-
     let ( let* ) x f = bind f x
   end
 end

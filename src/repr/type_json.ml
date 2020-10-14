@@ -47,11 +47,8 @@ module Encode = struct
     | _ -> lexeme e (`Float f)
 
   let int e i = float e (float_of_int i)
-
   let int32 e i = float e (Int32.to_float i)
-
   let int64 e i = float e (Int64.to_float i)
-
   let bool e = function false -> float e 0. | _ -> float e 1.
 
   let list l e x =
@@ -160,7 +157,6 @@ module Decode = struct
     | `End | `Await -> assert false
 
   let ( >>= ) l f = match l with Error _ as e -> e | Ok l -> f l
-
   let ( >|= ) l f = match l with Ok l -> Ok (f l) | Error _ as e -> e
 
   let error e got expected =
@@ -242,11 +238,8 @@ module Decode = struct
     | l -> error e l "`String[0]"
 
   let int32 e = float e >|= Int32.of_float
-
   let int64 e = float e >|= Int64.of_float
-
   let int e = float e >|= int_of_float
-
   let bool e = int e >|= function 0 -> false | _ -> true
 
   let list l e =
@@ -397,9 +390,7 @@ module Decode = struct
 end
 
 let encode = Encode.t
-
 let decode = Decode.t
-
 let decode_jsonm x d = Decode.(t x @@ { d; lexemes = [] })
 
 let pp ?minify t ppf x =
@@ -410,7 +401,5 @@ let pp ?minify t ppf x =
   Fmt.string ppf (Buffer.contents buf)
 
 let to_string ?minify t x = Fmt.to_to_string (pp ?minify t) x
-
 let of_string x s = Decode.(t x @@ Json.decoder (`String s))
-
 let decode_lexemes x ls = Decode.(t x @@ Json.decoder_of_lexemes ls)

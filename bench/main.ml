@@ -68,30 +68,20 @@ end
 (** Generators for random data *)
 module Faker = struct
   let () = Random.self_init ()
-
   let unit () = ()
 
   let bool () =
     match Random.int 2 with 0 -> false | 1 -> true | _ -> assert false
 
   let char_int () = Random.int (1 lsl 8)
-
   let short_int () = (1 lsl 8) + Random.int (1 lsl 8)
-
   let long_int () = (1 lsl 16) + Random.int (1 lsl 16)
-
   let int32 () = Random.int32 Int32.max_int
-
   let int64 () = Random.int64 Int64.max_int
-
   let char () = char_of_int (Random.int 256)
-
   let string n () = String.init n (fun _i -> char ())
-
   let bytes n () = Bytes.init n (fun _i -> char ())
-
   let pair a b () = (a (), b ())
-
   let triple a b c () = (a (), b (), c ())
 
   type record = { foo : string; bar : int64; baz : bool * unit }
@@ -113,11 +103,9 @@ module Faker = struct
   type fixed_string = string
 
   let fixed_string_t = T.string_of (`Fixed 5)
-
   let fixed_string () = string 5 ()
 
   type 'a node = { left : 'a; v : fixed_string; right : 'a } [@@deriving repr]
-
   type tree = Branch of tree node | Leaf of int [@@deriving repr]
 
   let tree () =
@@ -160,21 +148,13 @@ module Data = struct
       E { typ; random; encoded }
 
     let unit = mk_data T.unit Faker.unit
-
     let bool = mk_data T.bool Faker.bool
-
     let string_1024 = mk_data T.string Faker.(string 1024)
-
     let bytes_1024 = mk_data T.bytes Faker.(bytes 1024)
-
     let char_int = mk_data T.int Faker.char_int
-
     let short_int = mk_data T.int Faker.short_int
-
     let long_int = mk_data T.int Faker.long_int
-
     let int32 = mk_data T.int32 Faker.int32
-
     let int64 = mk_data T.int64 Faker.int64
 
     let pair_string_int =
@@ -186,9 +166,7 @@ module Data = struct
         Faker.(triple short_int short_int short_int)
 
     let record = mk_data Faker.record_t Faker.record
-
     let variant = mk_data Faker.variant_t Faker.variant
-
     let tree = mk_data Faker.tree_t Faker.tree
   end
 end

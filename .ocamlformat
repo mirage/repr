@@ -3,3 +3,4 @@ profile = conventional
 parse-docstrings
 break-infix = fit-or-vertical
 indicate-multiline-delimiters = no
+module-item-spacing = compact

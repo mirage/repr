@@ -8,7 +8,6 @@ module Alias = struct
   type t = unit
 
   let t = Repr.unit
-
   let (_ : unit typ) = [%typ: t]
 end
 
@@ -18,9 +17,7 @@ end
 
 module Params = struct
   let __ : type a. a typ -> a list typ = [%typ: 'a list]
-
   let __ : type a b. a typ -> b typ -> (a * b * a) typ = [%typ: 'a * _ * 'a]
-
   let __ : type a b. a typ -> b typ -> (a, b) result typ = [%typ: (_, _) result]
 end
 

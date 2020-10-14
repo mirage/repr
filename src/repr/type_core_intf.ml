@@ -2,33 +2,19 @@ open Staging
 
 module Types = struct
   type len = [ `Int | `Int8 | `Int16 | `Int32 | `Int64 | `Fixed of int ]
-
   type 'a pp = 'a Fmt.t
-
   type 'a of_string = string -> ('a, [ `Msg of string ]) result
-
   type 'a to_string = 'a -> string
-
   type 'a encode_json = Jsonm.encoder -> 'a -> unit
-
   type json_decoder = { mutable lexemes : Jsonm.lexeme list; d : Jsonm.decoder }
-
   type 'a decode_json = json_decoder -> ('a, [ `Msg of string ]) result
-
   type 'a bin_seq = 'a -> (string -> unit) -> unit
-
   type 'a pre_hash = 'a bin_seq staged
-
   type 'a encode_bin = 'a bin_seq staged
-
   type 'a decode_bin = (string -> int -> int * 'a) staged
-
   type 'a size_of = ('a -> int option) staged
-
   type 'a compare = 'a -> 'a -> int
-
   type 'a equal = 'a -> 'a -> bool
-
   type 'a short_hash = ?seed:int -> 'a -> int
 
   type 'a t =
@@ -189,7 +175,6 @@ module type Type_core = sig
       ?encoding:[< Jsonm.encoding ] -> [< Jsonm.src ] -> json_decoder
 
     val decoder_of_lexemes : Jsonm.lexeme list -> json_decoder
-
     val rewind : json_decoder -> Jsonm.lexeme -> unit
 
     val decode :

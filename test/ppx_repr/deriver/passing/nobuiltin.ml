@@ -22,9 +22,7 @@ end
 module Nobuiltin_operator = struct
   (* Define our own representation of [result]. *)
   let result_t a b = Repr.pair a b
-
   let int32_t = Repr.int
-
   let int64_t = Repr.bool
 
   type u = (((int32[@nobuiltin]), int64) result[@nobuiltin]) [@@deriving repr]

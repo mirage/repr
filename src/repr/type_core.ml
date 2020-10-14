@@ -22,9 +22,7 @@ module Json = struct
   type decoder = json_decoder
 
   let decoder ?encoding src = { lexemes = []; d = Jsonm.decoder ?encoding src }
-
   let decoder_of_lexemes lexemes = { lexemes; d = Jsonm.decoder (`String "") }
-
   let rewind e l = e.lexemes <- l :: e.lexemes
 
   let decode e =

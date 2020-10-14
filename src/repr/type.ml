@@ -43,37 +43,21 @@ let short_hash = function
 (* Combinators for Irmin types *)
 
 let unit = Prim Unit
-
 let bool = Prim Bool
-
 let char = Prim Char
-
 let int = Prim Int
-
 let int32 = Prim Int32
-
 let int64 = Prim Int64
-
 let float = Prim Float
-
 let string = Prim (String `Int)
-
 let bytes = Prim (Bytes `Int)
-
 let string_of n = Prim (String n)
-
 let bytes_of n = Prim (Bytes n)
-
 let list ?(len = `Int) v = List { v; len }
-
 let array ?(len = `Int) v = Array { v; len }
-
 let pair a b = Tuple (Pair (a, b))
-
 let triple a b c = Tuple (Triple (a, b, c))
-
 let option a = Option a
-
 let boxed t = Boxed t
 
 let v ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
@@ -184,7 +168,6 @@ let ( |+ ) = app
 (* variants *)
 
 type 'a case_p = 'a case_v
-
 type ('a, 'b) case = int -> 'a a_case * 'b
 
 let case0 cname0 c0 =
