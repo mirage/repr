@@ -23,6 +23,7 @@ depends: [
   "base64" {>= "2.0.0"}
   "hex" {with-test}
   "alcotest" {>= "1.1.0" & with-test}
+  "ppx_repr" {with-test}
   "odoc" {with-doc}
 ]
 build: [
