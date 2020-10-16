@@ -1,6 +1,7 @@
 (lang dune 2.7)
 (generate_opam_files true)
 (allow_approximate_merlin)
+(strict_package_deps)
 
 (name repr)
 (source (github mirage/repr))
@@ -10,14 +11,7 @@
 
 (package
  (name repr)
- (depends
-  (ocaml (>= 4.08.0))
-  (fmt (>= 0.8.0))
-  uutf
-  (jsonm (>= 1.0.0))
-  (base64 (>= 2.0.0))
-  (hex :with-test)
-  (alcotest (and (>= 1.1.0) :with-test)))
+ (depends) ;; Dune doesn't support generating `post` dependencies
  (synopsis "Dynamic type representaitons. Provides no stability guarantee")
  (description "\
 This package defines a library of combinators for building dynamic type
@@ -40,6 +34,7 @@ guarantee.
  (name repr-bench)
  (depends
   (repr (= :version))
+  (ppx_repr (= :version))
   bechamel
   yojson
   fpath

@@ -14,17 +14,6 @@ authors: ["Thomas Gazagnaire" "Craig Ferguson"]
 license: "ISC"
 homepage: "https://github.com/mirage/repr"
 bug-reports: "https://github.com/mirage/repr/issues"
-depends: [
-  "dune" {>= "2.7"}
-  "ocaml" {>= "4.08.0"}
-  "fmt" {>= "0.8.0"}
-  "uutf"
-  "jsonm" {>= "1.0.0"}
-  "base64" {>= "2.0.0"}
-  "hex" {with-test}
-  "alcotest" {>= "1.1.0" & with-test}
-  "odoc" {with-doc}
-]
 build: [
   ["dune" "subst"] {dev}
   [
@@ -40,3 +29,15 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/mirage/repr.git"
+depends: [
+  "dune" {>= "2.7"}
+  "ocaml" {>= "4.08.0"}
+  "fmt" {>= "0.8.0"}
+  "uutf"
+  "jsonm" {>= "1.0.0"}
+  "base64" {>= "2.0.0"}
+  "hex" {with-test}
+  "alcotest" {>= "1.1.0" & with-test}
+  "odoc" {with-doc}
+  "ppx_repr" {= version & post & with-test}
+]
