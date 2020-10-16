@@ -1,6 +1,11 @@
 (test
  (name main)
- (package repr)
+ ; These tests cannot be associated with the [repr] package, as tempting as it
+ ; seems. They depend on [ppx_repr] for convenience, which introduces a cyclic
+ ; dependency since [ppx_repr] depends on [repr] in its [ppx_runtime_libraries]
+ ; stanza. This cycle cannot be resolved by adding a [post] flag.
+ ; See https://github.com/ocaml/opam/issues/4267.
+ (package ppx_repr)
  (libraries alcotest repr hex)
  (preprocess
   (pps ppx_repr)))

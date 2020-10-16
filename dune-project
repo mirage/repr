@@ -11,7 +11,12 @@
 
 (package
  (name repr)
- (depends) ;; Dune doesn't support generating `post` dependencies
+ (depends
+  (ocaml (>= 4.08.0))
+  (fmt (>= 0.8.0))
+  uutf
+  (jsonm (>= 1.0.0))
+  (base64 (>= 2.0.0)))
  (synopsis "Dynamic type representaitons. Provides no stability guarantee")
  (description "\
 This package defines a library of combinators for building dynamic type
@@ -26,7 +31,10 @@ guarantee.
  (name ppx_repr)
  (depends
   (repr (= :version))
-  (ppxlib (and (>= 0.12.0) (< 0.18.0))))
+  (ppxlib (and (>= 0.12.0) (< 0.18.0)))
+  ; Test dependencies inherited from [repr] (see [test/repr/dune])
+  (hex :with-test)
+  (alcotest (and (>= 1.1.0) :with-test)))
  (synopsis "PPX deriver for type representations")
  (description "PPX deriver for type representations"))
 
