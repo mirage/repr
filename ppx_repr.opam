@@ -10,7 +10,7 @@ bug-reports: "https://github.com/mirage/repr/issues"
 depends: [
   "dune" {>= "2.7"}
   "repr" {= version}
-  "ppxlib" {>= "0.12.0" & < "0.18.0"}
+  "ppxlib" {>= "0.18.0"}
   "hex" {with-test}
   "alcotest" {>= "1.1.0" & with-test}
   "odoc" {with-doc}
