@@ -510,7 +510,7 @@ let test_pp_ty () =
       T.v ~pp:a2 ~of_string:a1 ~json:(a2, a1)
         ~bin:(hdr a2, hdr a2, hdr a1)
         ~equal:a2 ~compare:a2
-        ~short_hash:(fun ?seed:_ -> a1)
+        ~short_hash:(T.stage (fun ?seed:_ -> a1))
         ~pre_hash:s2 ()
 
     let like_prim : int T.t = T.(like int)

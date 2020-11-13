@@ -52,7 +52,7 @@ module Generic_op = struct
 
   let short_hash : t =
     let consume (type a) (ty : a T.t) =
-      let f = T.short_hash ty in
+      let f = T.unstage (T.short_hash ty) in
       T.stage (f : a -> int)
     in
     { name = "short_hash"; operation = Consumer { consume } }

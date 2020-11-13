@@ -15,7 +15,7 @@ module Types = struct
   type 'a size_of = ('a -> int option) staged
   type 'a compare = 'a -> 'a -> int
   type 'a equal = 'a -> 'a -> bool
-  type 'a short_hash = ?seed:int -> 'a -> int
+  type 'a short_hash = (?seed:int -> 'a -> int) staged
 
   type 'a t =
     | Var : string -> 'a t

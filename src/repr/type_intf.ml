@@ -275,9 +275,6 @@ module type DSL = sig
   val compare : 'a t -> 'a -> 'a -> int
   (** [compare t] compares values of type [t]. *)
 
-  val short_hash : 'a t -> ?seed:int -> 'a -> int
-  (** [hash t x] is a short hash of [x] of type [t]. *)
-
   type 'a pp = 'a Fmt.t
   (** The type for pretty-printers. *)
 
@@ -417,6 +414,11 @@ module type DSL = sig
   type 'a size_of = ('a -> int option) staged
   (** The type for size function related to binary encoder/decoders. *)
 
+  type 'a short_hash := (?seed:int -> 'a -> int) staged
+
+  val short_hash : 'a t -> 'a short_hash
+  (** [hash t x] is a short hash of [x] of type [t]. *)
+
   val pre_hash : 'a t -> 'a encode_bin
   (** [pre_hash t x] is the string representation of [x], of type [t], which
       will be used to compute the digest of the value. By default it's
@@ -484,7 +486,7 @@ module type DSL = sig
     ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     equal:('a -> 'a -> bool) ->
     compare:('a -> 'a -> int) ->
-    short_hash:(?seed:int -> 'a -> int) ->
+    short_hash:'a short_hash ->
     pre_hash:'a encode_bin ->
     unit ->
     'a t
@@ -497,7 +499,7 @@ module type DSL = sig
     ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?equal:('a -> 'a -> bool) ->
     ?compare:('a -> 'a -> int) ->
-    ?short_hash:('a -> int) ->
+    ?short_hash:'a short_hash ->
     ?pre_hash:'a encode_bin ->
     'a t ->
     'a t
@@ -510,7 +512,7 @@ module type DSL = sig
     ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?equal:('a -> 'a -> bool) ->
     ?compare:('a -> 'a -> int) ->
-    ?short_hash:('a -> int) ->
+    ?short_hash:'a short_hash ->
     ?pre_hash:'a encode_bin ->
     'b t ->
     ('b -> 'a) ->
