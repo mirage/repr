@@ -34,11 +34,11 @@ let short_hash = function
   | Custom c -> c.short_hash
   | t ->
       let pre_hash = unstage (pre_hash t) in
-      fun ?seed x ->
-        let seed = match seed with None -> 0 | Some t -> t in
-        let h = ref seed in
-        pre_hash x (fun s -> h := Hashtbl.seeded_hash !h s);
-        !h
+      stage @@ fun ?seed x ->
+      let seed = match seed with None -> 0 | Some t -> t in
+      let h = ref seed in
+      pre_hash x (fun s -> h := Hashtbl.seeded_hash !h s);
+      !h
 
 (* Combinators for Irmin types *)
 
@@ -300,9 +300,7 @@ let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash:h
         | None -> Type_ordered.equal t)
   in
   let compare = or_default ~op:Type_ordered.compare compare in
-  let short_hash ?seed =
-    match h with Some x -> x | None -> short_hash ?seed t
-  in
+  let short_hash = match h with Some x -> x | None -> short_hash t in
   let pre_hash = match p with Some x -> x | None -> encode_bin in
   Custom
     {
