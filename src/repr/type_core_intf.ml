@@ -13,8 +13,8 @@ module Types = struct
   type 'a encode_bin = 'a bin_seq staged
   type 'a decode_bin = (string -> int -> int * 'a) staged
   type 'a size_of = ('a -> int option) staged
-  type 'a compare = 'a -> 'a -> int
-  type 'a equal = 'a -> 'a -> bool
+  type 'a compare = ('a -> 'a -> int) staged
+  type 'a equal = ('a -> 'a -> bool) staged
   type 'a short_hash = (?seed:int -> 'a -> int) staged
 
   type 'a t =
