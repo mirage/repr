@@ -50,25 +50,25 @@ end
 
 module Encode = struct
   let unit () _k = ()
-  let add_bytes b k = k (Bytes.to_string b)
+  let unsafe_add_bytes b k = k (Bytes.unsafe_to_string b)
   let add_string s k = k s
-  let char c = add_bytes (Bytes.make 1 c)
+  let char c = unsafe_add_bytes (Bytes.make 1 c)
   let int8 i = char (Char.chr i)
 
   let int16 i =
     let b = Bytes.create 2 in
     B.set_uint16 b 0 i;
-    add_bytes b
+    unsafe_add_bytes b
 
   let int32 i =
     let b = Bytes.create 4 in
     B.set_uint32 b 0 i;
-    add_bytes b
+    unsafe_add_bytes b
 
   let int64 i =
     let b = Bytes.create 8 in
     B.set_uint64 b 0 i;
-    add_bytes b
+    unsafe_add_bytes b
 
   let float f = int64 (Int64.bits_of_float f)
   let bool b = char (if b then '\255' else '\000')
@@ -103,14 +103,14 @@ module Encode = struct
       add_string s k
 
   let string boxed = if boxed then boxed_string else unboxed_string
-  let unboxed_bytes _ = add_bytes
+  let unboxed_bytes _ b = add_string (Bytes.to_string b)
 
   let boxed_bytes n =
     let len = len n in
     fun s k ->
       let i = Bytes.length s in
       len i k;
-      add_bytes s k
+      unsafe_add_bytes s k
 
   let bytes boxed = if boxed then boxed_bytes else unboxed_bytes
 
