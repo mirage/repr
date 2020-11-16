@@ -18,36 +18,6 @@ open Type_core
 open Staging
 open Utils
 
-module B = struct
-  external get_16 : string -> int -> int = "%caml_string_get16"
-  external get_32 : string -> int -> int32 = "%caml_string_get32"
-  external get_64 : string -> int -> int64 = "%caml_string_get64"
-  external set_16 : Bytes.t -> int -> int -> unit = "%caml_string_set16u"
-  external set_32 : Bytes.t -> int -> int32 -> unit = "%caml_string_set32u"
-  external set_64 : Bytes.t -> int -> int64 -> unit = "%caml_string_set64u"
-  external swap16 : int -> int = "%bswap16"
-  external swap32 : int32 -> int32 = "%bswap_int32"
-  external swap64 : int64 -> int64 = "%bswap_int64"
-
-  let get_uint16 s off =
-    if not Sys.big_endian then swap16 (get_16 s off) else get_16 s off
-
-  let get_uint32 s off =
-    if not Sys.big_endian then swap32 (get_32 s off) else get_32 s off
-
-  let get_uint64 s off =
-    if not Sys.big_endian then swap64 (get_64 s off) else get_64 s off
-
-  let set_uint16 s off v =
-    if not Sys.big_endian then set_16 s off (swap16 v) else set_16 s off v
-
-  let set_uint32 s off v =
-    if not Sys.big_endian then set_32 s off (swap32 v) else set_32 s off v
-
-  let set_uint64 s off v =
-    if not Sys.big_endian then set_64 s off (swap64 v) else set_64 s off v
-end
-
 module Encode = struct
   let unit () _k = ()
   let unsafe_add_bytes b k = k (Bytes.unsafe_to_string b)
@@ -57,17 +27,17 @@ module Encode = struct
 
   let int16 i =
     let b = Bytes.create 2 in
-    B.set_uint16 b 0 i;
+    Bytes.set_uint16_be b 0 i;
     unsafe_add_bytes b
 
   let int32 i =
     let b = Bytes.create 4 in
-    B.set_uint32 b 0 i;
+    Bytes.set_int32_be b 0 i;
     unsafe_add_bytes b
 
   let int64 i =
     let b = Bytes.create 8 in
-    B.set_uint64 b 0 i;
+    Bytes.set_int64_be b 0 i;
     unsafe_add_bytes b
 
   let float f = int64 (Int64.bits_of_float f)
@@ -234,9 +204,10 @@ module Decode = struct
     let ofs, c = char buf ofs in
     (ofs, Char.code c)
 
-  let int16 buf ofs = (ofs + 2, B.get_uint16 buf ofs)
-  let int32 buf ofs = (ofs + 4, B.get_uint32 buf ofs)
-  let int64 buf ofs = (ofs + 8, B.get_uint64 buf ofs)
+  let str = Bytes.unsafe_of_string
+  let int16 buf ofs = (ofs + 2, Bytes.get_uint16_be (str buf) ofs)
+  let int32 buf ofs = (ofs + 4, Bytes.get_int32_be (str buf) ofs)
+  let int64 buf ofs = (ofs + 8, Bytes.get_int64_be (str buf) ofs)
 
   let bool buf ofs =
     let ofs, c = char buf ofs in
