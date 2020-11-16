@@ -19,11 +19,17 @@ open Staging
 open Utils
 
 module Encode = struct
+  let chars =
+    Array.init 256 (fun i -> Bytes.unsafe_to_string (Bytes.make 1 (Char.chr i)))
+
   let unit () _k = ()
   let unsafe_add_bytes b k = k (Bytes.unsafe_to_string b)
   let add_string s k = k s
-  let char c = unsafe_add_bytes (Bytes.make 1 c)
-  let int8 i = char (Char.chr i)
+  let char c k = k chars.(Char.code c)
+
+  let int8 i k =
+    assert (i < 256);
+    k chars.(i)
 
   let int16 i =
     let b = Bytes.create 2 in
