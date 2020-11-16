@@ -63,24 +63,24 @@ module Encode = struct
     | `Fixed _ -> unit ()
     | `Unboxed -> unit ()
 
-  let unboxed_string _ = add_string
+  let unboxed_string _ = stage add_string
 
   let boxed_string n =
     let len = len n in
-    fun s k ->
-      let i = String.length s in
-      len i k;
-      add_string s k
+    stage @@ fun s k ->
+    let i = String.length s in
+    len i k;
+    add_string s k
 
   let string boxed = if boxed then boxed_string else unboxed_string
-  let unboxed_bytes _ b = add_string (Bytes.to_string b)
+  let unboxed_bytes _ = stage @@ fun b k -> add_string (Bytes.to_string b) k
 
   let boxed_bytes n =
     let len = len n in
-    fun s k ->
-      let i = Bytes.length s in
-      len i k;
-      unsafe_add_bytes s k
+    stage @@ fun s k ->
+    let i = Bytes.length s in
+    len i k;
+    unsafe_add_bytes s k
 
   let bytes boxed = if boxed then boxed_bytes else unboxed_bytes
 
@@ -170,8 +170,8 @@ module Encode = struct
     | Int32 -> stage int32
     | Int64 -> stage int64
     | Float -> stage float
-    | String n -> stage (string boxed n)
-    | Bytes n -> stage (bytes boxed n)
+    | String n -> string boxed n
+    | Bytes n -> bytes boxed n
 
   and record : type a. a record -> a encode_bin =
    fun r ->
@@ -238,7 +238,8 @@ module Decode = struct
     | `Fixed n -> (ofs, n)
     | `Unboxed -> (ofs, String.length buf - ofs)
 
-  let mk_unboxed of_string of_bytes _ buf ofs =
+  let mk_unboxed of_string of_bytes _ =
+    stage @@ fun buf ofs ->
     let len = String.length buf - ofs in
     if ofs = 0 then (len, of_string buf)
     else
@@ -246,7 +247,7 @@ module Decode = struct
       String.blit buf ofs str 0 len;
       (ofs + len, of_bytes str)
 
-  let mk_boxed of_string of_bytes n =
+  let mk_boxed of_string of_bytes =
     let sub len buf ofs =
       if ofs = 0 && len = String.length buf then (len, of_string buf)
       else
@@ -254,12 +255,14 @@ module Decode = struct
         String.blit buf ofs str 0 len;
         (ofs + len, of_bytes str)
     in
-    match n with
-    | `Fixed n -> sub n (* fixed-size strings are never boxed *)
+    function
+    | `Fixed n ->
+        (* fixed-size strings are never boxed *)
+        stage @@ fun buf ofs -> sub n buf ofs
     | n ->
-        fun buf ofs ->
-          let ofs, len = len buf ofs n in
-          sub len buf ofs
+        stage @@ fun buf ofs ->
+        let ofs, len = len buf ofs n in
+        sub len buf ofs
 
   let mk of_string of_bytes =
     let f_boxed = mk_boxed of_string of_bytes in
@@ -371,8 +374,8 @@ module Decode = struct
     | Int32 -> stage int32
     | Int64 -> stage int64
     | Float -> stage float
-    | String n -> stage (string boxed n)
-    | Bytes n -> stage (bytes boxed n)
+    | String n -> string boxed n
+    | Bytes n -> bytes boxed n
 
   and record : type a. a record -> a decode_bin =
    fun { rfields = Fields (fs, constr); _ } ->
