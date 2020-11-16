@@ -264,15 +264,30 @@ module type DSL = sig
         let r, z = mu2 (fun r z -> (mkr z, mkz y))
       ]} *)
 
+  (** {1 Staging} *)
+
+  type +'a staged
+  (** The type for staged operations. *)
+
+  val stage : 'a -> 'a staged
+  (** [stage x] stages [x]. *)
+
+  val unstage : 'a staged -> 'a
+  (** [unstage x] unstages [x]. *)
+
   (** {1:generics Generic Operations}
 
       Given a value ['a t], it is possible to define generic operations on value
       of type ['a] such as pretty-printing, parsing and unparsing. *)
 
-  val equal : 'a t -> 'a -> 'a -> bool
+  type 'a equal = ('a -> 'a -> bool) staged
+
+  val equal : 'a t -> 'a equal
   (** [equal t] is the equality function between values of type [t]. *)
 
-  val compare : 'a t -> 'a -> 'a -> int
+  type 'a compare = ('a -> 'a -> int) staged
+
+  val compare : 'a t -> 'a compare
   (** [compare t] compares values of type [t]. *)
 
   type 'a pp = 'a Fmt.t
@@ -392,17 +407,6 @@ module type DSL = sig
   val of_json_string : 'a t -> string -> ('a, [ `Msg of string ]) result
   (** [of_json_string] is {!decode_json} with a string decoder .*)
 
-  (** {2 Staging} *)
-
-  type +'a staged
-  (** The type for staged operations. *)
-
-  val stage : 'a -> 'a staged
-  (** [stage x] stages [x]. *)
-
-  val unstage : 'a staged -> 'a
-  (** [unstage x] unstages [x]. *)
-
   (** {2 Binary Converters} *)
 
   type 'a encode_bin = ('a -> (string -> unit) -> unit) staged
@@ -484,8 +488,8 @@ module type DSL = sig
     json:'a encode_json * 'a decode_json ->
     bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
-    equal:('a -> 'a -> bool) ->
-    compare:('a -> 'a -> int) ->
+    equal:'a equal ->
+    compare:'a compare ->
     short_hash:'a short_hash ->
     pre_hash:'a encode_bin ->
     unit ->
@@ -497,8 +501,8 @@ module type DSL = sig
     ?json:'a encode_json * 'a decode_json ->
     ?bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
-    ?equal:('a -> 'a -> bool) ->
-    ?compare:('a -> 'a -> int) ->
+    ?equal:'a equal ->
+    ?compare:'a compare ->
     ?short_hash:'a short_hash ->
     ?pre_hash:'a encode_bin ->
     'a t ->
@@ -510,8 +514,8 @@ module type DSL = sig
     ?json:'a encode_json * 'a decode_json ->
     ?bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
-    ?equal:('a -> 'a -> bool) ->
-    ?compare:('a -> 'a -> int) ->
+    ?equal:'a equal ->
+    ?compare:'a compare ->
     ?short_hash:'a short_hash ->
     ?pre_hash:'a encode_bin ->
     'b t ->

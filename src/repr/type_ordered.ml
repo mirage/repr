@@ -15,6 +15,8 @@
  *)
 
 open Type_core
+open Staging
+open Utils
 
 module Refl = struct
   open Witness
@@ -86,10 +88,14 @@ module Equal = struct
   (* NOTE: equality is ill-defined on float *)
   let float (x : float) (y : float) = x = y
 
-  let list e x y =
+  let list e =
+    let e = unstage e in
+    stage @@ fun x y ->
     x == y || (List.length x = List.length y && List.for_all2 e x y)
 
-  let array e x y =
+  let array e =
+    let e = unstage e in
+    stage @@ fun x y ->
     x == y
     || Array.length x = Array.length y
        &&
@@ -99,13 +105,19 @@ module Equal = struct
        in
        aux (Array.length x - 1)
 
-  let pair ex ey ((x1, y1) as a) ((x2, y2) as b) =
+  let pair ex ey =
+    let ex = unstage ex and ey = unstage ey in
+    stage @@ fun ((x1, y1) as a) ((x2, y2) as b) ->
     a == b || (ex x1 x2 && ey y1 y2)
 
-  let triple ex ey ez ((x1, y1, z1) as a) ((x2, y2, z2) as b) =
+  let triple ex ey ez =
+    let ex = unstage ex and ey = unstage ey and ez = unstage ez in
+    stage @@ fun ((x1, y1, z1) as a) ((x2, y2, z2) as b) ->
     a == b || (ex x1 x2 && ey y1 y2 && ez z1 z2)
 
-  let option e x y =
+  let option e =
+    let e = unstage e in
+    stage @@ fun x y ->
     x == y
     ||
     match (x, y) with
@@ -114,7 +126,7 @@ module Equal = struct
     | _ -> false
 
   let rec t : type a. a t -> a equal = function
-    | Self s -> t s.self_fix
+    | Self s -> self s
     | Custom c -> c.equal
     | Map m -> map m
     | Boxed x -> t x
@@ -127,49 +139,59 @@ module Equal = struct
     | Variant v -> variant v
     | Var v -> raise (Unbound_type_variable v)
 
+  and self : type a. a self -> a equal = function
+    | { self_unroll; _ } ->
+        fix_staged (fun equal ->
+            let cyclic = self_unroll (partial ~equal ()) in
+            t cyclic)
+
   and tuple : type a. a tuple -> a equal = function
     | Pair (a, b) -> pair (t a) (t b)
     | Triple (a, b, c) -> triple (t a) (t b) (t c)
 
   and map : type a b. (a, b) map -> b equal =
    fun { x; g; _ } ->
-    let eq = t x in
-    fun u v -> eq (g u) (g v)
+    let eq = unstage (t x) in
+    stage @@ fun u v -> eq (g u) (g v)
 
   and prim : type a. a prim -> a equal = function
-    | Unit -> unit
-    | Bool -> bool
-    | Char -> char
-    | Int -> int
-    | Int32 -> int32
-    | Int64 -> int64
-    | Float -> float
-    | String _ -> string
-    | Bytes _ -> bytes
+    | Unit -> stage unit
+    | Bool -> stage bool
+    | Char -> stage char
+    | Int -> stage int
+    | Int32 -> stage int32
+    | Int64 -> stage int64
+    | Float -> stage float
+    | String _ -> stage string
+    | Bytes _ -> stage bytes
 
   and record : type a. a record -> a equal =
    fun r ->
-    let fields = fields r in
-    fun x y -> List.for_all (function Field f -> field f x y) fields
+    let fields =
+      List.map (function Field f -> unstage (field f)) (fields r)
+    in
+    stage @@ fun x y -> List.for_all (function f -> f x y) fields
 
   and field : type a b. (a, b) field -> a equal =
-   fun f x y -> t f.ftype (f.fget x) (f.fget y)
+   fun f ->
+    let equal = unstage (t f.ftype) in
+    stage @@ fun x y -> equal (f.fget x) (f.fget y)
 
   and variant : type a. a variant -> a equal =
-   fun v x y -> case_v (v.vget x) (v.vget y)
-
-  and case_v : type a. a case_v equal =
-   fun x y ->
-    match (x, y) with
-    | CV0 x, CV0 y -> int x.ctag0 y.ctag0
-    | CV1 (x, vx), CV1 (y, vy) ->
-        int x.ctag1 y.ctag1 && eq (x.ctype1, vx) (y.ctype1, vy)
-    | _ -> false
+   fun v ->
+    let equal x y =
+      match (x, y) with
+      | CV0 x, CV0 y -> int x.ctag0 y.ctag0
+      | CV1 (x, vx), CV1 (y, vy) ->
+          int x.ctag1 y.ctag1 && eq (x.ctype1, vx) (y.ctype1, vy)
+      | _ -> false
+    in
+    stage @@ fun x y -> equal (v.vget x) (v.vget y)
 
   and eq : type a b. a t * a -> b t * b -> bool =
    fun (tx, x) (ty, y) ->
     match Refl.t tx ty with
-    | Some Witness.Refl -> t tx x y
+    | Some Witness.Refl -> unstage (t tx) x y
     | None -> assert false
 
   (* this should never happen *)
@@ -186,7 +208,9 @@ module Compare = struct
   let string x y = if x == y then 0 else String.compare x y [@@inline always]
   let bytes x y = if x == y then 0 else Bytes.compare x y [@@inline always]
 
-  let list c x y =
+  let list c =
+    let c = unstage c in
+    stage @@ fun x y ->
     if x == y then 0
     else
       let rec aux x y =
@@ -198,7 +222,9 @@ module Compare = struct
       in
       aux x y
 
-  let array c x y =
+  let array c =
+    let c = unstage c in
+    stage @@ fun x y ->
     if x == y then 0
     else
       let lenx = Array.length x in
@@ -214,14 +240,21 @@ module Compare = struct
         in
         aux 0
 
-  let pair cx cy ((x1, y1) as a) ((x2, y2) as b) =
+  let pair cx cy =
+    let cx = unstage cx and cy = unstage cy in
+    stage @@ fun ((x1, y1) as a) ((x2, y2) as b) ->
     if a == b then 0 else match cx x1 x2 with 0 -> cy y1 y2 | i -> i
 
-  let triple cx cy cz ((x1, y1, z1) as a) ((x2, y2, z2) as b) =
+  let triple cx cy cz =
+    let cx = unstage cx in
+    let pair = unstage (pair cy cz) in
+    stage @@ fun ((x1, y1, z1) as a) ((x2, y2, z2) as b) ->
     if a == b then 0
-    else match cx x1 x2 with 0 -> pair cy cz (y1, z1) (y2, z2) | i -> i
+    else match cx x1 x2 with 0 -> pair (y1, z1) (y2, z2) | i -> i
 
-  let option c x y =
+  let option c =
+    let c = unstage c in
+    stage @@ fun x y ->
     if x == y then 0
     else
       match (x, y) with
@@ -231,19 +264,19 @@ module Compare = struct
       | Some x, Some y -> c x y
 
   let prim : type a. a prim -> a compare = function
-    | Unit -> unit
-    | Bool -> bool
-    | Char -> char
-    | Int -> int
-    | Int32 -> int32
-    | Int64 -> int64
-    | Float -> float
-    | String _ -> string
-    | Bytes _ -> bytes
+    | Unit -> stage unit
+    | Bool -> stage bool
+    | Char -> stage char
+    | Int -> stage int
+    | Int32 -> stage int32
+    | Int64 -> stage int64
+    | Float -> stage float
+    | String _ -> stage string
+    | Bytes _ -> stage bytes
     [@@inline always]
 
   let rec t : type a. a t -> a compare = function
-    | Self s -> t s.self_fix
+    | Self s -> self s
     | Custom c -> c.compare
     | Map m -> map m
     | Boxed x -> t x
@@ -256,50 +289,60 @@ module Compare = struct
     | Variant v -> variant v
     | Var v -> raise (Unbound_type_variable v)
 
+  and self : type a. a self -> a compare = function
+    | { self_unroll; _ } ->
+        fix_staged (fun compare ->
+            let cyclic = self_unroll (partial ~compare ()) in
+            t cyclic)
+
   and tuple : type a. a tuple -> a compare = function
     | Pair (x, y) -> pair (t x) (t y)
     | Triple (x, y, z) -> triple (t x) (t y) (t z)
 
   and map : type a b. (a, b) map -> b compare =
    fun { x; g; _ } ->
-    let compare = t x in
-    fun u v -> compare (g u) (g v)
+    let compare = unstage (t x) in
+    stage @@ fun u v -> compare (g u) (g v)
 
   and record : type a. a record -> a compare =
    fun r ->
-    let fields = fields r in
-    fun x y ->
-      let rec aux = function
-        | [] -> 0
-        | Field f :: t -> ( match field f x y with 0 -> aux t | i -> i)
-      in
-      aux fields
+    let fields =
+      List.map (function Field f -> unstage (field f)) (fields r)
+    in
+    stage @@ fun x y ->
+    let rec aux = function
+      | [] -> 0
+      | f :: t -> ( match f x y with 0 -> aux t | i -> i)
+    in
+    aux fields
 
   and field : type a b. (a, b) field -> a compare =
-   fun f x y -> t f.ftype (f.fget x) (f.fget y)
+   fun f ->
+    let compare = unstage (t f.ftype) in
+    stage @@ fun x y -> compare (f.fget x) (f.fget y)
 
   and variant : type a. a variant -> a compare =
-   fun v x y -> case_v (v.vget x) (v.vget y)
-
-  and case_v : type a. a case_v compare =
-   fun x y ->
-    match (x, y) with
-    | CV0 x, CV0 y -> int x.ctag0 y.ctag0
-    | CV0 x, CV1 (y, _) -> int x.ctag0 y.ctag1
-    | CV1 (x, _), CV0 y -> int x.ctag1 y.ctag0
-    | CV1 (x, vx), CV1 (y, vy) -> (
-        match int x.ctag1 y.ctag1 with
-        | 0 -> compare (x.ctype1, vx) (y.ctype1, vy)
-        | i -> i)
+   fun v ->
+    let compare x y =
+      match (x, y) with
+      | CV0 x, CV0 y -> int x.ctag0 y.ctag0
+      | CV0 x, CV1 (y, _) -> int x.ctag0 y.ctag1
+      | CV1 (x, _), CV0 y -> int x.ctag1 y.ctag0
+      | CV1 (x, vx), CV1 (y, vy) -> (
+          match int x.ctag1 y.ctag1 with
+          | 0 -> compare (x.ctype1, vx) (y.ctype1, vy)
+          | i -> i)
+    in
+    stage @@ fun x y -> compare (v.vget x) (v.vget y)
 
   and compare : type a b. a t * a -> b t * b -> int =
    fun (tx, x) (ty, y) ->
     match Refl.t tx ty with
-    | Some Witness.Refl -> t tx x y
+    | Some Witness.Refl -> unstage (t tx) x y
     | None -> assert false
 
   (* this should never happen *)
 end
 
 let equal = Equal.t
-let compare t x y = Compare.t t x y
+let compare t = Compare.t t

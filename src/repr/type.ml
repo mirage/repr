@@ -296,7 +296,9 @@ let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash:h
     | Some x -> x
     | None -> (
         match compare with
-        | Some f -> fun x y -> f x y = 0
+        | Some f ->
+            let f = unstage f in
+            stage (fun x y -> f x y = 0)
         | None -> Type_ordered.equal t)
   in
   let compare = or_default ~op:Type_ordered.compare compare in

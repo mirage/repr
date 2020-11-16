@@ -166,7 +166,7 @@ let test_json_option () =
   Alcotest.(check (ok (option (option int))))
     "Decode nested null option" (Ok (Some None)) x;
 
-  let testable_t = Alcotest.testable (T.pp t) (T.equal t) in
+  let testable_t = Alcotest.testable (T.pp t) T.(unstage (equal t)) in
   let x = of_json_string t "{}" in
   Alcotest.(check (ok testable_t))
     "Decode nested option"
@@ -208,7 +208,7 @@ let l =
   in
   T.list ~len:(`Fixed 2) hex
 
-let tl = Alcotest.testable (T.pp l) (T.equal l)
+let tl = Alcotest.testable (T.pp l) T.(unstage (equal l))
 
 let test_bin () =
   let s = T.to_string l [ "foo"; "foo" ] in
@@ -505,13 +505,15 @@ let test_pp_ty () =
     let v : empty T.t =
       let a1 _ = assert false in
       let a2 _ _ = assert false in
-      let s2 = T.stage @@ fun _ _ -> assert false in
+      let pre_hash = T.stage @@ fun _ _ -> assert false in
+      let equal = T.stage @@ fun _ _ -> assert false in
+      let compare = T.stage @@ fun _ _ -> assert false in
       let hdr f = T.stage f in
       T.v ~pp:a2 ~of_string:a1 ~json:(a2, a1)
         ~bin:(hdr a2, hdr a2, hdr a1)
-        ~equal:a2 ~compare:a2
+        ~equal ~compare
         ~short_hash:(T.stage (fun ?seed:_ -> a1))
-        ~pre_hash:s2 ()
+        ~pre_hash ()
 
     let like_prim : int T.t = T.(like int)
     let like_custom : empty T.t = T.like v
@@ -524,26 +526,30 @@ let test_pp_ty () =
 
   ()
 
-let x = T.like ~compare:(fun x y -> y - x - 1) T.int
+let x = T.like ~compare:(T.stage @@ fun x y -> y - x - 1) T.int
+let compare_x = T.(unstage (compare x))
+let equal_x = T.(unstage (equal x))
 
 let test_compare () =
-  Alcotest.(check int) "rev compare" (T.compare x 1 2) 0;
-  Alcotest.(check int) "rev compare" (T.compare x 2 1) (-2);
-  Alcotest.(check int) "rev compare" (T.compare x 1 1) (-1);
-  Alcotest.(check bool) "rev equal" (T.equal x 1 2) true;
-  Alcotest.(check bool) "rev equal" (T.equal x 1 1) false
+  Alcotest.(check int) "rev compare" (compare_x 1 2) 0;
+  Alcotest.(check int) "rev compare" (compare_x 2 1) (-2);
+  Alcotest.(check int) "rev compare" (compare_x 1 1) (-1);
+  Alcotest.(check bool) "rev equal" (equal_x 1 2) true;
+  Alcotest.(check bool) "rev equal" (equal_x 1 1) false
 
-let x = T.like ~equal:(fun x y -> x - y = 2) T.int
+let y = T.like ~equal:(T.stage @@ fun x y -> x - y = 2) T.int
+let compare_y = T.(unstage (compare y))
+let equal_y = T.(unstage (equal y))
 
 let test_equal () =
-  Alcotest.(check int) "eq1" (T.compare x 1 2) (compare 1 2);
-  Alcotest.(check int) "eq2" (T.compare x 3 1) (compare 3 1);
-  Alcotest.(check bool) "eq3" (T.equal x 3 1) true;
-  Alcotest.(check bool) "eq4" (T.equal x 0 0) false
+  Alcotest.(check int) "eq1" (compare_y 1 2) (compare 1 2);
+  Alcotest.(check int) "eq2" (compare_y 3 1) (compare 3 1);
+  Alcotest.(check bool) "eq3" (equal_y 3 1) true;
+  Alcotest.(check bool) "eq4" (equal_y 0 0) false
 
 let test_int () =
   let test dx x =
-    let tt = Alcotest.testable (T.pp dx) (T.equal dx) in
+    let tt = Alcotest.testable (T.pp dx) T.(unstage (equal dx)) in
     match of_bin_string dx (to_bin_string dx x) with
     | Error (`Msg e) -> Alcotest.fail e
     | Ok y -> Alcotest.(check tt) "eq" x y
@@ -675,7 +681,7 @@ type v =
   | `X256 of int | `X257 of int | `X258 of int | `X259 of int ]
 [@@deriving repr { name = "v"}] [@@ocamlformat "disable"]
 
-let v_t = Alcotest.testable (T.pp v) (T.equal v)
+let v_t = Alcotest.testable (T.pp v) (T.unstage (T.equal v))
 
 let test_variants () =
   let test i =
