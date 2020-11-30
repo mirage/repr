@@ -229,7 +229,28 @@ let test_bin () =
   let _, foo = Unboxed.decode_bin T.string "foo" 0 in
   Alcotest.(check string) "decode foo 0" foo "foo";
   let _, foo = Unboxed.decode_bin T.string "123foo" 3 in
-  Alcotest.(check string) "decode foo 3" foo "foo"
+  Alcotest.(check string) "decode foo 3" foo "foo";
+  let varints =
+    [
+      (0, "\000");
+      (127, "\127");
+      (128, "\128\001");
+      (16384, "\128\128\001");
+      (88080384, "\128\128\128\042");
+    ]
+  in
+  List.iter
+    (fun (k, v) ->
+      let _, k' = decode_bin T.int v 0 in
+      Alcotest.(check int) (Fmt.str "decoding %S" v) k k')
+    varints;
+  List.iter
+    (fun (k, v) ->
+      let buf = Buffer.create 10 in
+      encode_bin T.int k (Buffer.add_string buf);
+      let v' = Buffer.contents buf in
+      Alcotest.(check string) (Fmt.str "decoding %S" v) v v')
+    varints
 
 module Algebraic = struct
   (* Dummy algebraic types and corresponding type representations *)
