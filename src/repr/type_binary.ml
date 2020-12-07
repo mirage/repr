@@ -51,10 +51,10 @@ module Encode = struct
 
   let int i k =
     let rec aux n =
-      if n >= 0 && n < 128 then int8 n k
+      if n >= 0 && n < 128 then k chars.(n)
       else
-        let out = 128 + (n land 127) in
-        int8 out k;
+        let out = 128 lor (n land 127) in
+        k chars.(out);
         aux (n lsr 7)
     in
     aux i
@@ -203,12 +203,13 @@ end
 module Decode = struct
   type 'a res = int * 'a
 
-  let unit _ ofs = (ofs, ())
-  let char buf ofs = (ofs + 1, buf.[ofs])
+  let unit _ ofs = (ofs, ()) [@@inline always]
+  let char buf ofs = (ofs + 1, buf.[ofs]) [@@inline always]
 
   let int8 buf ofs =
     let ofs, c = char buf ofs in
     (ofs, Char.code c)
+    [@@inline always]
 
   let str = Bytes.unsafe_of_string
   let int16 buf ofs = (ofs + 2, Bytes.get_uint16_be (str buf) ofs)
@@ -224,12 +225,12 @@ module Decode = struct
     (ofs, Int64.float_of_bits f)
 
   let int buf ofs =
-    let rec aux n p ofs =
+    let rec aux buf n p ofs =
       let ofs, i = int8 buf ofs in
-      let n = n + ((i land 127) lsl (p * 7)) in
-      if i >= 0 && i < 128 then (ofs, n) else aux n (p + 1) ofs
+      let n = n + ((i land 127) lsl p) in
+      if i >= 0 && i < 128 then (ofs, n) else aux buf n (p + 7) ofs
     in
-    aux 0 0 ofs
+    aux buf 0 0 ofs
 
   let len buf ofs = function
     | `Int -> int buf ofs
