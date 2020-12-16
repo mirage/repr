@@ -1,5 +1,7 @@
 (executable
  (name main)
+ (public_name repr-fuzz)
+ (package repr-fuzz)
  (libraries crowbar repr)
  (preprocess
   (pps repr-fuzz.rewriter)))
