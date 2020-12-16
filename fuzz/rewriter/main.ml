@@ -154,8 +154,7 @@ module Located (A : Ast_builder.S) : S = struct
       error_case
         ~msg:
           (Format.sprintf
-             "The given TVariant has a number of fields outside of [|1; %d|]."
-             n)
+             "The given TVariant has a number of fields outside of [|1; %d|]." n)
     in
     (* Generate the i-th cartesian power l^i. *)
     let rec cart l = function

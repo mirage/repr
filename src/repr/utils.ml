@@ -2,7 +2,8 @@ open Staging
 
 let check_valid_utf8 str =
   Uutf.String.fold_utf_8
-    (fun _ _ -> function `Malformed _ -> invalid_arg "Malformed UTF-8"
+    (fun _ _ -> function
+      | `Malformed _ -> invalid_arg "Malformed UTF-8"
       | _ -> ())
     () str
 
