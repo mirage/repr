@@ -266,8 +266,7 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
      pexp_desc =
        Pexp_construct
          ( { txt = Lident "Some"; _ },
-           Some { pexp_desc = Pexp_constant (Pconst_string (lib, _, None)); _ }
-         );
+           Some { pexp_desc = Pexp_constant (Pconst_string (lib, None)); _ } );
      _;
     } ->
         Some lib
