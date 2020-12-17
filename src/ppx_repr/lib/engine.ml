@@ -356,9 +356,7 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
           | Some _ -> in_lib ~lib "t"
           | None -> (
               (* This type decl may shadow the repr type ['a t] *)
-              match name.txt with
-              | "t" -> "ty"
-              | _ -> "t"))
+              match name.txt with "t" -> "ty" | _ -> "t"))
           |> Located.lident
         in
         let type_ =
