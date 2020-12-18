@@ -50,14 +50,14 @@ module Encode = struct
   let bool b = char (if b then '\255' else '\000')
 
   let int i k =
-    let rec aux n =
+    let rec aux n k =
       if n >= 0 && n < 128 then k chars.(n)
       else
         let out = 128 lor (n land 127) in
         k chars.(out);
-        aux (n lsr 7)
+        aux (n lsr 7) k
     in
-    aux i
+    aux i k
 
   let len n i =
     match n with
