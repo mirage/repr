@@ -21,20 +21,10 @@ depends: [
   "uutf"
   "jsonm" {>= "1.0.0"}
   "base64" {>= "2.0.0"}
-  "odoc" {with-doc}
 ]
 build: [
   ["dune" "subst"] {dev}
-  [
-    "dune"
-    "build"
-    "-p"
-    name
-    "-j"
-    jobs
-    "@install"
-    "@runtest" {with-test}
-    "@doc" {with-doc}
-  ]
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name] {with-test}
 ]
 dev-repo: "git+https://github.com/mirage/repr.git"

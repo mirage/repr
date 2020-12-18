@@ -17,16 +17,7 @@ depends: [
 ]
 build: [
   ["dune" "subst"] {dev}
-  [
-    "dune"
-    "build"
-    "-p"
-    name
-    "-j"
-    jobs
-    "@install"
-    "@runtest" {with-test}
-    "@doc" {with-doc}
-  ]
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name] {with-test}
 ]
 dev-repo: "git+https://github.com/mirage/repr.git"
