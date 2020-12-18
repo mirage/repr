@@ -13,7 +13,7 @@
  (name repr)
  (depends
   (ocaml (>= 4.08.0))
-  (fmt (>= 0.8.0))
+  (fmt (>= 0.8.7))
   uutf
   (jsonm (>= 1.0.0))
   (base64 (>= 2.0.0)))
@@ -58,4 +58,3 @@ guarantee.
   (ppxlib (and (>= 0.12.0) (< 0.18.0))))
  (synopsis "Fuzz tests for the `repr` package")
  (description "Fuzz tests for the `repr` package"))
-  
