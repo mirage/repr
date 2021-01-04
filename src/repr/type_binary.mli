@@ -17,6 +17,28 @@
 open Type_core
 open Staging
 
+module Uuid : sig
+  type t = string
+
+  val t : t ty
+  val of_string : string -> t
+end
+
+module Shape : sig
+  type t
+  (** The type of {i shapes} of a particular type with respect to the binary
+      decoders defined here. Shapes are represented canonically such that
+      equality of shapes of two types [t1] and [t2] implies equivalence of the
+      binary codecs derived from [t1] and [t2].
+
+      This can be used to ensure that changes to a type representation do not
+      alter the binary representation of values of that type. *)
+
+  val of_type : _ ty -> t
+  val equal : t -> t -> bool
+  val pp_dump : Format.formatter -> t -> unit
+end
+
 val encode_bin : 'a t -> 'a encode_bin
 val decode_bin : 'a t -> 'a decode_bin
 

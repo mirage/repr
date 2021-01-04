@@ -480,7 +480,19 @@ module type DSL = sig
     (** Same as {!size_of} for unboxed values. *)
   end
 
+  module Binary_shape : sig
+    include module type of Type_binary.Shape
+    (** @inline *)
+  end
+
   (** {1 Custom converters} *)
+
+  type 'a ty = 'a t
+
+  module Uuid : sig
+    include module type of Type_binary.Uuid
+    (** @inline *)
+  end
 
   val v :
     pp:'a pp ->
@@ -488,6 +500,7 @@ module type DSL = sig
     json:'a encode_json * 'a decode_json ->
     bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
+    ?bin_codec_uuid:Uuid.t ->
     equal:'a equal ->
     compare:'a compare ->
     short_hash:'a short_hash ->
@@ -501,6 +514,7 @@ module type DSL = sig
     ?json:'a encode_json * 'a decode_json ->
     ?bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
+    ?bin_codec_uuid:Uuid.t ->
     ?equal:'a equal ->
     ?compare:'a compare ->
     ?short_hash:'a short_hash ->
@@ -514,16 +528,16 @@ module type DSL = sig
     ?json:'a encode_json * 'a decode_json ->
     ?bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
+    ?bin_codec_uuid:Uuid.t ->
     ?equal:'a equal ->
     ?compare:'a compare ->
     ?short_hash:'a short_hash ->
     ?pre_hash:'a encode_bin ->
+    ?uuid:Uuid.t ->
     'b t ->
     ('b -> 'a) ->
     ('a -> 'b) ->
     'a t
-
-  type 'a ty = 'a t
 
   module type S = sig
     type t

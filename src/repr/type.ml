@@ -60,8 +60,8 @@ let triple a b c = Tuple (Triple (a, b, c))
 let option a = Option a
 let boxed t = Boxed t
 
-let v ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
-    ~pre_hash () =
+let v ~pp ~of_string ~json ~bin ?unboxed_bin ?bin_codec_uuid ~equal ~compare
+    ~short_hash ~pre_hash () =
   let encode_json, decode_json = json in
   let encode_bin, decode_bin, size_of = bin in
   let unboxed_encode_bin, unboxed_decode_bin, unboxed_size_of =
@@ -84,6 +84,7 @@ let v ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
       unboxed_encode_bin;
       unboxed_decode_bin;
       unboxed_size_of;
+      bin_codec_uuid;
     }
 
 (* fix points *)
@@ -251,8 +252,8 @@ let result a b =
   |~ case1 "error" b (fun b -> Error b)
   |> sealv
 
-let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash:h
-    ?pre_hash:p t =
+let like ?pp ?of_string ?json ?bin ?unboxed_bin ?bin_codec_uuid ?equal ?compare
+    ?short_hash:h ?pre_hash:p t =
   let or_default ~op:generic_op = function
     | Some x -> x
     | None -> generic_op t
@@ -321,19 +322,29 @@ let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash:h
       unboxed_encode_bin;
       unboxed_decode_bin;
       unboxed_size_of;
+      bin_codec_uuid;
     }
 
-let map ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
-    ?pre_hash x f g =
+let map ?pp ?of_string ?json ?bin ?unboxed_bin ?bin_codec_uuid ?equal ?compare
+    ?short_hash ?pre_hash ?uuid x f g =
   match
-    (pp, of_string, json, bin, unboxed_bin, equal, compare, short_hash, pre_hash)
+    ( pp,
+      of_string,
+      json,
+      bin,
+      unboxed_bin,
+      bin_codec_uuid,
+      equal,
+      compare,
+      short_hash,
+      pre_hash )
   with
-  | None, None, None, None, None, None, None, None, None ->
-      Map { x; f; g; mwit = Witness.make () }
+  | None, None, None, None, None, None, None, None, None, None ->
+      Map { x; f; g; uuid; mwit = Witness.make () }
   | _ ->
-      let x = Map { x; f; g; mwit = Witness.make () } in
-      like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
-        ?pre_hash x
+      let x = Map { x; f; g; uuid; mwit = Witness.make () } in
+      like ?pp ?of_string ?json ?bin ?unboxed_bin ?bin_codec_uuid ?equal
+        ?compare ?short_hash ?pre_hash x
 
 module type S = sig
   type t
@@ -364,3 +375,6 @@ module Unboxed = struct
 
   let size_of = Type_size.unboxed
 end
+
+module Binary_shape = Type_binary.Shape
+module Uuid = Type_binary.Uuid

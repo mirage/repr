@@ -18,6 +18,162 @@ open Type_core
 open Staging
 open Utils
 
+module Uuid = struct
+  type t = string
+
+  let t = Prim (String `Int)
+  let equal = String.equal
+  let pp = Fmt.string
+  let of_string t = t
+end
+
+module Shape = struct
+  type size =
+    | Boxed of [ `Int | `Int8 | `Int16 | `Int32 | `Int64 ]
+    | Fixed of int
+    | Any
+
+  let pp_len =
+    Fmt.of_to_string (function
+      | `Int -> "Int"
+      | `Int8 -> "Int8"
+      | `Int16 -> "Int16"
+      | `Int32 -> "Int32"
+      | `Int64 -> "Int64")
+
+  let pp_size ppf = function
+    | Boxed len -> Fmt.pf ppf "Boxed %a" pp_len len
+    | Fixed x -> Fmt.pf ppf "Fixed %d" x
+    | Any -> Fmt.pf ppf "Any"
+
+  type t =
+    | Empty
+    | Bool
+    | Char
+    | Int
+    | Int32
+    | Int64
+    | Float
+    | Option of t
+    | Pair of t * t
+    | Triple of t * t * t
+    | Contiguous of size * t
+    | Record of (string * t) list
+    | Variant of (string * t) list
+    | Opaque of Uuid.t
+    | Map of Uuid.t * t
+
+  let rec equal a b =
+    match (a, b) with
+    | Empty, Empty -> true
+    | Bool, Bool -> true
+    | Char, Char -> true
+    | Int, Int -> true
+    | Int32, Int32 -> true
+    | Int64, Int64 -> true
+    | Float, Float -> true
+    | Option a, Option b -> equal a b
+    | Pair (a1, a2), Pair (b1, b2) -> equal a1 b1 && equal a2 b2
+    | Triple (a1, a2, a3), Triple (b1, b2, b3) ->
+        equal a1 b1 && equal a2 b2 && equal a3 b3
+    | Contiguous (a1, a2), Contiguous (b1, b2) -> a1 = b1 && equal a2 b2
+    | Record t1, Record t2 | Variant t1, Variant t2 ->
+        List.for_all2
+          (fun (a1, a2) (b1, b2) -> String.equal a1 b1 && equal a2 b2)
+          t1 t2
+    | Opaque u1, Opaque u2 -> Uuid.equal u1 u2
+    | Map (u1, t1), Map (u2, t2) -> Uuid.equal u1 u2 && equal t1 t2
+    | ( ( Empty | Bool | Char | Int | Int32 | Int64 | Float | Option _ | Pair _
+        | Triple _ | Contiguous _ | Record _ | Variant _ | Opaque _ | Map _ ),
+        _ ) ->
+        false
+
+  let rec pp_dump ppf = function
+    | Empty -> Fmt.pf ppf "Empty"
+    | Bool -> Fmt.pf ppf "Bool"
+    | Char -> Fmt.pf ppf "Char"
+    | Int -> Fmt.pf ppf "Int"
+    | Int32 -> Fmt.pf ppf "Int32"
+    | Int64 -> Fmt.pf ppf "Int64"
+    | Float -> Fmt.pf ppf "Float"
+    | Option t -> Fmt.pf ppf "Option @[<v 1>%a@]" pp_dump t
+    | Pair (t1, t2) ->
+        Fmt.pf ppf "Pair @[<v 1>%a@] @[<v 1>%a@]" pp_dump t1 pp_dump t2
+    | Triple (t1, t2, t3) ->
+        Fmt.pf ppf "Triple @[<v 1>%a@] @[<v 1>%a@] @[<v 1>%a@]" pp_dump t1
+          pp_dump t2 pp_dump t3
+    | Contiguous (size, t) ->
+        Fmt.pf ppf "Contiguous (@[<v 1>%a@]) (@[<v 1>%a@])" pp_size size pp_dump
+          t
+    | Record t | Variant t ->
+        (Fmt.Dump.list (Fmt.Dump.pair Fmt.string pp_dump)) ppf t
+    | Opaque u -> Fmt.pf ppf "Opaque %a" Uuid.pp u
+    | Map (u, t) -> Fmt.pf ppf "Map (%a, %a)" Uuid.pp u pp_dump t
+
+  let get_size = function
+    | (`Int | `Int8 | `Int16 | `Int32 | `Int64) as n -> Boxed n
+    | `Fixed n -> Fixed n
+    | `Unboxed -> Any
+
+  let rec of_type : type a. a ty -> t = function
+    | Prim p -> prim p
+    | Tuple e -> tuple e
+    | Option e -> Option (of_type e)
+    | List { len; v } -> Contiguous (get_size len, of_type v)
+    | Array { len; v } -> Contiguous (get_size len, of_type v)
+    | Record r -> record r
+    | Variant v -> variant v
+    | Self { self_unroll; _ } -> of_type (self_unroll (Var "foo"))
+    | Map m -> map m
+    | Custom c -> custom c
+    | Boxed _ -> assert false
+    | Var _ -> assert false
+
+  and prim : type a. a prim -> t = function
+    | Unit -> Empty
+    | Bool -> Bool
+    | Char -> Char
+    | Int -> Int
+    | Int32 -> Int32
+    | Int64 -> Int64
+    | Float -> Float
+    | String len | Bytes len -> Contiguous (get_size len, Char)
+
+  and tuple : type a. a tuple -> t = function
+    | Pair (a, b) -> Pair (of_type a, of_type b)
+    | Triple (a, b, c) -> Triple (of_type a, of_type b, of_type c)
+
+  and record : type a. a record -> t =
+   fun { rfields = Fields (fs, _); _ } ->
+    let module Record_shape = Fields_folder (struct
+      type nonrec (_, _) t = (string * t) list
+    end) in
+    let nil = [] in
+    let cons { fname; ftype; _ } acc = (fname, of_type ftype) :: acc in
+    Record (Record_shape.fold { nil; cons } fs)
+
+  and variant : type a. a variant -> t =
+   fun v ->
+    let cases =
+      v.vcases
+      |> Array.map (function
+           | C0 { cname0; ctag0 = _; c0 = _ } -> (cname0, Empty)
+           | C1 { cname1; ctype1; ctag1 = _; cwit1 = _; c1 = _ } ->
+               (cname1, of_type ctype1))
+      |> Array.to_list
+    in
+    Variant cases
+
+  and map : type a b. (a, b) map -> t = function
+    | { uuid = None; _ } -> invalid_arg "Unversioned 'map' bijection in typerep"
+    | { uuid = Some uuid; x; f = _; g = _; mwit = _ } -> Map (uuid, of_type x)
+
+  and custom : type a. a custom -> t = function
+    | { bin_codec_uuid = None; _ } ->
+        invalid_arg "Unversioned custom binary codec in typerep"
+    | { bin_codec_uuid = Some u; _ } -> Opaque u
+end
+
 module Encode = struct
   let chars =
     Array.init 256 (fun i -> Bytes.unsafe_to_string (Bytes.make 1 (Char.chr i)))

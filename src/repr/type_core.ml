@@ -50,7 +50,8 @@ let partial ?(pp = fun _ -> failwith "`pp` not implemented")
     ?(unboxed_decode_bin =
       stage (fun _ -> failwith "`unboxed_decode_bin` not implemented"))
     ?(unboxed_size_of =
-      stage (fun _ -> failwith "`unboxed_size_of` not implemented")) () =
+      stage (fun _ -> failwith "`unboxed_size_of` not implemented"))
+    ?bin_codec_uuid () =
   Custom
     {
       cwit = `Witness (Witness.make ());
@@ -68,6 +69,7 @@ let partial ?(pp = fun _ -> failwith "`pp` not implemented")
       unboxed_encode_bin;
       unboxed_decode_bin;
       unboxed_size_of;
+      bin_codec_uuid;
     }
 
 let rec fields_aux : type a b. (a, b) fields -> a a_field list = function
