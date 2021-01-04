@@ -21,9 +21,8 @@ open Utils
 module Uuid = struct
   type t = string
 
-  let t = Prim (String `Int)
-  let equal = String.equal
-  let pp = Fmt.string
+  let t = Type_combinators.string
+
   let of_string t = t
 end
 
@@ -32,19 +31,6 @@ module Shape = struct
     | Boxed of [ `Int | `Int8 | `Int16 | `Int32 | `Int64 ]
     | Fixed of int
     | Any
-
-  let pp_len =
-    Fmt.of_to_string (function
-      | `Int -> "Int"
-      | `Int8 -> "Int8"
-      | `Int16 -> "Int16"
-      | `Int32 -> "Int32"
-      | `Int64 -> "Int64")
-
-  let pp_size ppf = function
-    | Boxed len -> Fmt.pf ppf "Boxed %a" pp_len len
-    | Fixed x -> Fmt.pf ppf "Fixed %d" x
-    | Any -> Fmt.pf ppf "Any"
 
   type t =
     | Empty
@@ -62,53 +48,6 @@ module Shape = struct
     | Variant of (string * t) list
     | Opaque of Uuid.t
     | Map of Uuid.t * t
-
-  let rec equal a b =
-    match (a, b) with
-    | Empty, Empty -> true
-    | Bool, Bool -> true
-    | Char, Char -> true
-    | Int, Int -> true
-    | Int32, Int32 -> true
-    | Int64, Int64 -> true
-    | Float, Float -> true
-    | Option a, Option b -> equal a b
-    | Pair (a1, a2), Pair (b1, b2) -> equal a1 b1 && equal a2 b2
-    | Triple (a1, a2, a3), Triple (b1, b2, b3) ->
-        equal a1 b1 && equal a2 b2 && equal a3 b3
-    | Contiguous (a1, a2), Contiguous (b1, b2) -> a1 = b1 && equal a2 b2
-    | Record t1, Record t2 | Variant t1, Variant t2 ->
-        List.for_all2
-          (fun (a1, a2) (b1, b2) -> String.equal a1 b1 && equal a2 b2)
-          t1 t2
-    | Opaque u1, Opaque u2 -> Uuid.equal u1 u2
-    | Map (u1, t1), Map (u2, t2) -> Uuid.equal u1 u2 && equal t1 t2
-    | ( ( Empty | Bool | Char | Int | Int32 | Int64 | Float | Option _ | Pair _
-        | Triple _ | Contiguous _ | Record _ | Variant _ | Opaque _ | Map _ ),
-        _ ) ->
-        false
-
-  let rec pp_dump ppf = function
-    | Empty -> Fmt.pf ppf "Empty"
-    | Bool -> Fmt.pf ppf "Bool"
-    | Char -> Fmt.pf ppf "Char"
-    | Int -> Fmt.pf ppf "Int"
-    | Int32 -> Fmt.pf ppf "Int32"
-    | Int64 -> Fmt.pf ppf "Int64"
-    | Float -> Fmt.pf ppf "Float"
-    | Option t -> Fmt.pf ppf "Option @[<v 1>%a@]" pp_dump t
-    | Pair (t1, t2) ->
-        Fmt.pf ppf "Pair @[<v 1>%a@] @[<v 1>%a@]" pp_dump t1 pp_dump t2
-    | Triple (t1, t2, t3) ->
-        Fmt.pf ppf "Triple @[<v 1>%a@] @[<v 1>%a@] @[<v 1>%a@]" pp_dump t1
-          pp_dump t2 pp_dump t3
-    | Contiguous (size, t) ->
-        Fmt.pf ppf "Contiguous (@[<v 1>%a@]) (@[<v 1>%a@])" pp_size size pp_dump
-          t
-    | Record t | Variant t ->
-        (Fmt.Dump.list (Fmt.Dump.pair Fmt.string pp_dump)) ppf t
-    | Opaque u -> Fmt.pf ppf "Opaque %a" Uuid.pp u
-    | Map (u, t) -> Fmt.pf ppf "Map (%a, %a)" Uuid.pp u pp_dump t
 
   let get_size = function
     | (`Int | `Int8 | `Int16 | `Int32 | `Int64) as n -> Boxed n
@@ -172,6 +111,80 @@ module Shape = struct
     | { bin_codec_uuid = None; _ } ->
         invalid_arg "Unversioned custom binary codec in typerep"
     | { bin_codec_uuid = Some u; _ } -> Opaque u
+
+  (** TODO: reorganise libraries so that we can use [ppx_repr] here *)
+  let len_t =
+    let open Type_combinators in
+    enum "len"
+      [
+        ("int", `Int);
+        ("int8", `Int8);
+        ("int16", `Int16);
+        ("int32", `Int32);
+        ("int64", `Int64);
+      ]
+
+  let size_t =
+    let open Type_combinators in
+    variant "size" (fun boxed fixed any -> function
+      | Boxed x -> boxed x | Fixed x -> fixed x | Any -> any)
+    |~ case1 "boxed" len_t (fun x -> Boxed x)
+    |~ case1 "fixed" int (fun x -> Fixed x)
+    |~ case0 "any" Any
+    |> sealv
+
+  let t =
+    let open Type_combinators in
+    mu (fun t ->
+        variant "shape"
+          (fun
+            empty
+            bool
+            char
+            int
+            int32
+            int64
+            float
+            option
+            pair
+            triple
+            contiguous
+            record
+            variant
+            opaque
+            map
+          -> function
+          | Empty -> empty
+          | Bool -> bool
+          | Char -> char
+          | Int -> int
+          | Int32 -> int32
+          | Int64 -> int64
+          | Float -> float
+          | Option x -> option x
+          | Pair (a, b) -> pair (a, b)
+          | Triple (a, b, c) -> triple (a, b, c)
+          | Contiguous (a, b) -> contiguous (a, b)
+          | Record x -> record x
+          | Variant x -> variant x
+          | Opaque x -> opaque x
+          | Map (a, b) -> map (a, b))
+        |~ case0 "empty" Empty
+        |~ case0 "bool" Bool
+        |~ case0 "char" Char
+        |~ case0 "int" Int
+        |~ case0 "int32" Int32
+        |~ case0 "int64" Int64
+        |~ case0 "float" Float
+        |~ case1 "option" t (fun x -> Option x)
+        |~ case1 "pair" (pair t t) (fun (a, b) -> Pair (a, b))
+        |~ case1 "triple" (triple t t t) (fun (a, b, c) -> Triple (a, b, c))
+        |~ case1 "contiguous" (pair size_t t) (fun (a, b) -> Contiguous (a, b))
+        |~ case1 "record" (list (pair string t)) (fun x -> Record x)
+        |~ case1 "variant" (list (pair string t)) (fun x -> Variant x)
+        |~ case1 "opaque" Uuid.t (fun x -> Opaque x)
+        |~ case1 "map" (pair Uuid.t t) (fun (a, b) -> Map (a, b))
+        |> sealv)
 end
 
 module Encode = struct

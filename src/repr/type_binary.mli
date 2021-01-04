@@ -34,9 +34,8 @@ module Shape : sig
       This can be used to ensure that changes to a type representation do not
       alter the binary representation of values of that type. *)
 
+  val t : t ty
   val of_type : _ ty -> t
-  val equal : t -> t -> bool
-  val pp_dump : Format.formatter -> t -> unit
 end
 
 val encode_bin : 'a t -> 'a encode_bin
