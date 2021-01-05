@@ -25,7 +25,7 @@ let test_basic () =
     shape_to_string Structural.tree_t
     |> Alcotest.(check string)
          "Foo"
-         {|Recursive (Variant ([Product ([Int; Var (1); Var (1)]); Empty]))|}
+         {|Recursive (Variant ([Product ([Int; Recur (1); Recur (1)]); Empty]))|}
   in
   ()
 
@@ -33,16 +33,18 @@ let digest typ =
   T.Binary_shape.of_type typ |> T.(unstage (short_hash Binary_shape.t))
 
 let test_basic_equivs () =
-  Alcotest.assert_ "Strings are equivalent to bytes"
-    (digest T.string = digest T.bytes);
+  Alcotest.assert_ "strings ≡ bytes" (digest T.string = digest T.bytes);
 
-  Alcotest.assert_ "Arrays are equivalent to lists"
+  Alcotest.assert_ "strings ≡ character arrays"
+    (digest T.string = digest T.(array char));
+
+  Alcotest.assert_ "arrays ≡ lists"
     (digest T.(list int) = digest T.(array int));
 
-  Alcotest.assert_ "Unsized arrays are not equivalent to tuples"
+  Alcotest.assert_ "unsized arrays !≡ tuples"
     (digest T.(array int) <> digest T.(pair int int));
 
-  Alcotest.assert_ "Sized arrays _are_ equivalent to tuples"
+  Alcotest.assert_ "sized arrays ≡ tuples"
     (digest T.(array ~len:(`Fixed 2) int) = digest T.(pair int int)
     && digest T.(array ~len:(`Fixed 3) int) = digest T.(triple int int int));
 
@@ -56,7 +58,7 @@ let test_algebraic_equivs () =
      end in
     digest T.uk_t = digest T.us_t);
 
-  Alcotest.assert_ "Records are equivalent to (non-monomorphic) tuples"
+  Alcotest.assert_ "records ≡ (non-monomorphic) tuples"
     (let module T = struct
        type a = { one : int; two : string; three : bytes } [@@deriving repr]
        type b = { uno : int; dos : string; tres : bytes } [@@deriving repr]
@@ -70,6 +72,13 @@ let test_algebraic_equivs () =
        type either' = Right of string | Left of int [@@deriving repr]
      end in
     digest T.either_t <> digest T.either'_t);
+
+  Alcotest.assert_ "Isomorphic tree types have equal shapes"
+    (let module T = struct
+       type a = Branch of int * a * a | Leaf of string [@@deriving repr]
+       type b = Branch' of int * b * b | Leaf' of string [@@deriving repr]
+     end in
+    digest T.a_t = digest T.b_t);
 
   ()
 

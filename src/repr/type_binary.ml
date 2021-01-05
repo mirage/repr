@@ -38,55 +38,6 @@ module List = struct
 end
 
 module Shape = struct
-  (* A monadic helper for the recursive traversal *)
-
-  module Type_scope : sig
-    type t
-    type k := Uuid.t
-    type v := [ `Recursion_level of int ]
-
-    val empty : t
-    val find : t -> k -> v option
-    val add : t -> k -> v -> t
-  end = struct
-    module M = Map.Make (Uuid)
-
-    type t = [ `Recursion_level of int ] M.t
-
-    let empty = M.empty
-    let find t k = M.find_opt k t
-    let add t k v = M.add k v t
-  end
-
-  module Unrolling : sig
-    type 'a t
-
-    val return : 'a -> 'a t
-    val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
-    val with_rec_point : Uuid.t -> 'a t -> 'a t
-    val lookup : Uuid.t -> [ `Index of int ] option t
-    val exec : 'a t -> 'a
-  end = struct
-    type 'a t = depth:int -> Type_scope.t -> 'a
-
-    let return x ~depth:_ _ = x
-
-    let ( let* ) x f ~depth t =
-      let a = x ~depth t in
-      f a ~depth t
-
-    let with_rec_point uuid inner ~depth t =
-      let t = Type_scope.add t uuid (`Recursion_level depth) in
-      inner ~depth:(depth + 1) t
-
-    let lookup uuid ~depth t =
-      match Type_scope.find t uuid with
-      | Some (`Recursion_level n) -> Some (`Index (depth - n))
-      | None -> None
-
-    let exec f = f ~depth:0 Type_scope.empty
-  end
-
   type size =
     | Boxed of [ `Int | `Int8 | `Int16 | `Int32 | `Int64 ]
     | Fixed of int
@@ -102,14 +53,18 @@ module Shape = struct
     | Float
     | Option of t
     | Contiguous of size * t
-    (* Describes both records and tuples. Invariant: the [t]'s are not equal,
+    (* Describes records and tuples. Invariant: the [t]'s are not equal,
        otherwise they would be [Contiguous] instead. *)
     | Product of t list
     | Variant of t list
+    (* Custom codecs and bijections must be versioned with UUIDs. *)
     | Opaque of Uuid.t
     | Map of Uuid.t * t
+    (* Recursion represented via De Bruijn indexing: [Recur n] indicates a
+       recursive occurrence of the [n]-th [Recursive] node above it in the
+       shape. *)
     | Recursive of t
-    | Var of int
+    | Recur of int
 
   (** TODO: reorganise libraries so that we can use [ppx_repr] here *)
   let len_t =
@@ -151,7 +106,7 @@ module Shape = struct
             opaque
             map
             recursive
-            var
+            recur
           -> function
           | Empty -> empty
           | Bool -> bool
@@ -167,7 +122,7 @@ module Shape = struct
           | Opaque x -> opaque x
           | Map (a, b) -> map (a, b)
           | Recursive x -> recursive x
-          | Var x -> var x)
+          | Recur x -> recur x)
         |~ case0 "empty" Empty
         |~ case0 "bool" Bool
         |~ case0 "char" Char
@@ -182,10 +137,63 @@ module Shape = struct
         |~ case1 "opaque" Uuid.t (fun x -> Opaque x)
         |~ case1 "map" (pair Uuid.t t) (fun (a, b) -> Map (a, b))
         |~ case1 "recursive" t (fun x -> Recursive x)
-        |~ case1 "var" int (fun x -> Var x)
+        |~ case1 "recur" int (fun x -> Recur x)
         |> sealv)
 
   let shape_equal = unstage (Type_ordered.equal t)
+
+  (** Deriving shapes from type reps is straightforward, but requires some care
+      with recursive types. We convert recursive loops to use De Bruijn indexing
+      by unfolding each one with a fresh placeholder and tracking recursion
+      depth so that we can replace the placeholders with the right index.
+
+      This is managed by the {!Unrolling} monad. *)
+
+  module Type_scope : sig
+    type t
+    type k := Uuid.t
+    type v := [ `Recursion_level of int ]
+
+    val empty : t
+    val find : t -> k -> v option
+    val add : t -> k -> v -> t
+  end = struct
+    module M = Map.Make (Uuid)
+
+    type t = [ `Recursion_level of int ] M.t
+
+    let empty = M.empty
+    let find t k = M.find_opt k t
+    let add t k v = M.add k v t
+  end
+
+  module Unrolling : sig
+    type 'a t
+
+    val return : 'a -> 'a t
+    val ( let+ ) : 'a t -> ('a -> 'b) -> 'b t
+    val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
+    val with_rec_point : Uuid.t -> 'a t -> 'a t
+    val lookup : Uuid.t -> [ `Index of int ] option t
+    val exec : 'a t -> 'a
+  end = struct
+    type 'a t = depth:int -> Type_scope.t -> 'a
+
+    let return x ~depth:_ _ = x
+    let ( let+ ) x f ~depth t = f (x ~depth t)
+    let ( let* ) x f ~depth t = f (x ~depth t) ~depth t
+
+    let with_rec_point uuid inner ~depth t =
+      let t = Type_scope.add t uuid (`Recursion_level depth) in
+      inner ~depth:(depth + 1) t
+
+    let lookup uuid ~depth t =
+      match Type_scope.find t uuid with
+      | Some (`Recursion_level n) -> Some (`Index (depth - n))
+      | None -> None
+
+    let exec f = f ~depth:0 Type_scope.empty
+  end
 
   type 'a shape_def = 'a -> t Unrolling.t
 
@@ -207,8 +215,8 @@ module Shape = struct
     | Custom c -> return (custom c)
     | Tuple x -> tuple x
     | Option x ->
-        let* x = of_type x in
-        return (Option x)
+        let+ x = of_type x in
+        Option x
     | List x -> len_v x
     | Array x -> len_v x
     | Record r -> record r
@@ -219,15 +227,15 @@ module Shape = struct
     | Self { self_unroll; _ } ->
         let id = gen_placeholder_id () in
         let placeholder : _ ty = Var id in
-        let* inner =
+        let+ inner =
           Unrolling.with_rec_point id (of_type (self_unroll placeholder))
         in
-        return (Recursive inner)
+        Recursive inner
     | Var id -> (
-        let* x = Unrolling.lookup id in
+        let+ x = Unrolling.lookup id in
         match x with
         | None -> failwith "Malformed environment"
-        | Some (`Index i) -> return (Var i))
+        | Some (`Index i) -> Recur i)
 
   and prim : type a. a prim -> t = function
     | Unit -> Empty
@@ -242,8 +250,8 @@ module Shape = struct
   and len_v : type a. a len_v shape_def =
     let open Unrolling in
     fun { len; v } ->
-      let* v = of_type v in
-      return (Contiguous (get_size len, v))
+      let+ v = of_type v in
+      Contiguous (get_size len, v)
 
   and product : t list -> t =
    fun components ->
@@ -254,19 +262,19 @@ module Shape = struct
   and tuple : type a. a tuple shape_def =
     let open Unrolling in
     fun typ ->
-      let* components =
+      let+ components =
         match typ with
         | Pair (a, b) ->
             let* a = of_type a in
-            let* b = of_type b in
-            return [ a; b ]
+            let+ b = of_type b in
+            [ a; b ]
         | Triple (a, b, c) ->
             let* a = of_type a in
             let* b = of_type b in
-            let* c = of_type c in
-            return [ a; b; c ]
+            let+ c = of_type c in
+            [ a; b; c ]
       in
-      return (product components)
+      product components
 
   and record : type a. a record shape_def =
    fun { rfields = Fields (fs, _); _ } ->
@@ -277,35 +285,35 @@ module Shape = struct
     let nil = return [] in
     let cons { ftype; _ } acc =
       let* acc = acc in
-      let* fshape = of_type ftype in
-      return (fshape :: acc)
+      let+ fshape = of_type ftype in
+      fshape :: acc
     in
-    let* components = Record_shape.fold { nil; cons } fs in
-    return (product components)
+    let+ components = Record_shape.fold { nil; cons } fs in
+    product components
 
   and variant : type a. a variant shape_def =
    fun v ->
     let open Unrolling in
-    let* cases =
+    let+ cases =
       Array.fold_right
         (fun c acc ->
           let* acc = acc in
           match c with
           | C0 _ -> return (Empty :: acc)
           | C1 { ctype1; _ } ->
-              let* cshape = of_type ctype1 in
-              return (cshape :: acc))
+              let+ cshape = of_type ctype1 in
+              cshape :: acc)
         v.vcases (return [])
     in
-    return (Variant cases)
+    Variant cases
 
   and map : type a b. (a, b) map shape_def =
     let open Unrolling in
     function
     | { uuid = None; _ } -> invalid_arg "Unversioned 'map' bijection in typerep"
     | { uuid = Some uuid; x; f = _; g = _; mwit = _ } ->
-        let* shape = of_type x in
-        return (Map (uuid, shape))
+        let+ shape = of_type x in
+        Map (uuid, shape)
 
   and custom : type a. a custom -> t = function
     | { bin_codec_uuid = None; _ } ->
