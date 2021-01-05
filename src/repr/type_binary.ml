@@ -26,6 +26,17 @@ module Uuid = struct
   let compare = String.compare
 end
 
+module List = struct
+  include List
+
+  let equal_elements =
+    let rec aux equal prev = function
+      | [] -> true
+      | x :: xs -> equal x prev && aux equal x xs
+    in
+    fun equal -> function [] -> true | hd :: tl -> aux equal hd tl
+end
+
 module Shape = struct
   (* A monadic helper for the recursive traversal *)
 
@@ -90,15 +101,91 @@ module Shape = struct
     | Int64
     | Float
     | Option of t
-    | Pair of t * t
-    | Triple of t * t * t
     | Contiguous of size * t
-    | Record of (string * t) list
-    | Variant of (string * t) list
+    (* Describes both records and tuples. Invariant: the [t]'s are not equal,
+       otherwise they would be [Contiguous] instead. *)
+    | Product of t list
+    | Variant of t list
     | Opaque of Uuid.t
     | Map of Uuid.t * t
     | Recursive of t
     | Var of int
+
+  (** TODO: reorganise libraries so that we can use [ppx_repr] here *)
+  let len_t =
+    let open Type_combinators in
+    enum "len"
+      [
+        ("int", `Int);
+        ("int8", `Int8);
+        ("int16", `Int16);
+        ("int32", `Int32);
+        ("int64", `Int64);
+      ]
+
+  let size_t =
+    let open Type_combinators in
+    variant "size" (fun boxed fixed any -> function
+      | Boxed x -> boxed x | Fixed x -> fixed x | Any -> any)
+    |~ case1 "boxed" len_t (fun x -> Boxed x)
+    |~ case1 "fixed" int (fun x -> Fixed x)
+    |~ case0 "any" Any
+    |> sealv
+
+  let t =
+    let open Type_combinators in
+    mu (fun t ->
+        variant "shape"
+          (fun
+            empty
+            bool
+            char
+            int
+            int32
+            int64
+            float
+            option
+            contiguous
+            product
+            variant
+            opaque
+            map
+            recursive
+            var
+          -> function
+          | Empty -> empty
+          | Bool -> bool
+          | Char -> char
+          | Int -> int
+          | Int32 -> int32
+          | Int64 -> int64
+          | Float -> float
+          | Option x -> option x
+          | Contiguous (a, b) -> contiguous (a, b)
+          | Product x -> product x
+          | Variant x -> variant x
+          | Opaque x -> opaque x
+          | Map (a, b) -> map (a, b)
+          | Recursive x -> recursive x
+          | Var x -> var x)
+        |~ case0 "empty" Empty
+        |~ case0 "bool" Bool
+        |~ case0 "char" Char
+        |~ case0 "int" Int
+        |~ case0 "int32" Int32
+        |~ case0 "int64" Int64
+        |~ case0 "float" Float
+        |~ case1 "option" t (fun x -> Option x)
+        |~ case1 "contiguous" (pair size_t t) (fun (a, b) -> Contiguous (a, b))
+        |~ case1 "product" (list t) (fun x -> Product x)
+        |~ case1 "variant" (list t) (fun x -> Variant x)
+        |~ case1 "opaque" Uuid.t (fun x -> Opaque x)
+        |~ case1 "map" (pair Uuid.t t) (fun (a, b) -> Map (a, b))
+        |~ case1 "recursive" t (fun x -> Recursive x)
+        |~ case1 "var" int (fun x -> Var x)
+        |> sealv)
+
+  let shape_equal = unstage (Type_ordered.equal t)
 
   type 'a shape_def = 'a -> t Unrolling.t
 
@@ -158,33 +245,43 @@ module Shape = struct
       let* v = of_type v in
       return (Contiguous (get_size len, v))
 
+  and product : t list -> t =
+   fun components ->
+    if List.equal_elements shape_equal components then
+      Contiguous (Fixed (List.length components), List.hd components)
+    else Product components
+
   and tuple : type a. a tuple shape_def =
     let open Unrolling in
-    function
-    | Pair (a, b) ->
-        let* a = of_type a in
-        let* b = of_type b in
-        return (Pair (a, b))
-    | Triple (a, b, c) ->
-        let* a = of_type a in
-        let* b = of_type b in
-        let* c = of_type c in
-        return (Triple (a, b, c))
+    fun typ ->
+      let* components =
+        match typ with
+        | Pair (a, b) ->
+            let* a = of_type a in
+            let* b = of_type b in
+            return [ a; b ]
+        | Triple (a, b, c) ->
+            let* a = of_type a in
+            let* b = of_type b in
+            let* c = of_type c in
+            return [ a; b; c ]
+      in
+      return (product components)
 
   and record : type a. a record shape_def =
    fun { rfields = Fields (fs, _); _ } ->
     let module Record_shape = Fields_folder (struct
-      type nonrec (_, _) t = (string * t) list Unrolling.t
+      type nonrec (_, _) t = t list Unrolling.t
     end) in
     let open Unrolling in
     let nil = return [] in
-    let cons { fname; ftype; _ } acc =
+    let cons { ftype; _ } acc =
       let* acc = acc in
       let* fshape = of_type ftype in
-      return ((fname, fshape) :: acc)
+      return (fshape :: acc)
     in
-    let* shape = Record_shape.fold { nil; cons } fs in
-    return (Record shape)
+    let* components = Record_shape.fold { nil; cons } fs in
+    return (product components)
 
   and variant : type a. a variant shape_def =
    fun v ->
@@ -194,10 +291,10 @@ module Shape = struct
         (fun c acc ->
           let* acc = acc in
           match c with
-          | C0 { cname0; ctag0 = _; c0 = _ } -> return ((cname0, Empty) :: acc)
-          | C1 { cname1; ctype1; ctag1 = _; cwit1 = _; c1 = _ } ->
+          | C0 _ -> return (Empty :: acc)
+          | C1 { ctype1; _ } ->
               let* cshape = of_type ctype1 in
-              return ((cname1, cshape) :: acc))
+              return (cshape :: acc))
         v.vcases (return [])
     in
     return (Variant cases)
@@ -216,86 +313,6 @@ module Shape = struct
     | { bin_codec_uuid = Some u; _ } -> Opaque u
 
   let of_type typ = Unrolling.exec (of_type typ)
-
-  (** TODO: reorganise libraries so that we can use [ppx_repr] here *)
-  let len_t =
-    let open Type_combinators in
-    enum "len"
-      [
-        ("int", `Int);
-        ("int8", `Int8);
-        ("int16", `Int16);
-        ("int32", `Int32);
-        ("int64", `Int64);
-      ]
-
-  let size_t =
-    let open Type_combinators in
-    variant "size" (fun boxed fixed any -> function
-      | Boxed x -> boxed x | Fixed x -> fixed x | Any -> any)
-    |~ case1 "boxed" len_t (fun x -> Boxed x)
-    |~ case1 "fixed" int (fun x -> Fixed x)
-    |~ case0 "any" Any
-    |> sealv
-
-  let t =
-    let open Type_combinators in
-    mu (fun t ->
-        variant "shape"
-          (fun
-            empty
-            bool
-            char
-            int
-            int32
-            int64
-            float
-            option
-            pair
-            triple
-            contiguous
-            record
-            variant
-            opaque
-            map
-            recursive
-            var
-          -> function
-          | Empty -> empty
-          | Bool -> bool
-          | Char -> char
-          | Int -> int
-          | Int32 -> int32
-          | Int64 -> int64
-          | Float -> float
-          | Option x -> option x
-          | Pair (a, b) -> pair (a, b)
-          | Triple (a, b, c) -> triple (a, b, c)
-          | Contiguous (a, b) -> contiguous (a, b)
-          | Record x -> record x
-          | Variant x -> variant x
-          | Opaque x -> opaque x
-          | Map (a, b) -> map (a, b)
-          | Recursive x -> recursive x
-          | Var x -> var x)
-        |~ case0 "empty" Empty
-        |~ case0 "bool" Bool
-        |~ case0 "char" Char
-        |~ case0 "int" Int
-        |~ case0 "int32" Int32
-        |~ case0 "int64" Int64
-        |~ case0 "float" Float
-        |~ case1 "option" t (fun x -> Option x)
-        |~ case1 "pair" (pair t t) (fun (a, b) -> Pair (a, b))
-        |~ case1 "triple" (triple t t t) (fun (a, b, c) -> Triple (a, b, c))
-        |~ case1 "contiguous" (pair size_t t) (fun (a, b) -> Contiguous (a, b))
-        |~ case1 "record" (list (pair string t)) (fun x -> Record x)
-        |~ case1 "variant" (list (pair string t)) (fun x -> Variant x)
-        |~ case1 "opaque" Uuid.t (fun x -> Opaque x)
-        |~ case1 "map" (pair Uuid.t t) (fun (a, b) -> Map (a, b))
-        |~ case1 "recursive" t (fun x -> Recursive x)
-        |~ case1 "var" int (fun x -> Var x)
-        |> sealv)
 end
 
 module Encode = struct
