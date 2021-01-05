@@ -22,11 +22,60 @@ module Uuid = struct
   type t = string
 
   let t = Type_combinators.string
-
   let of_string t = t
+  let compare = String.compare
 end
 
 module Shape = struct
+  (* A monadic helper for the recursive traversal *)
+
+  module Type_scope : sig
+    type t
+    type k := Uuid.t
+    type v := [ `Recursion_level of int ]
+
+    val empty : t
+    val find : t -> k -> v option
+    val add : t -> k -> v -> t
+  end = struct
+    module M = Map.Make (Uuid)
+
+    type t = [ `Recursion_level of int ] M.t
+
+    let empty = M.empty
+    let find t k = M.find_opt k t
+    let add t k v = M.add k v t
+  end
+
+  module Unrolling : sig
+    type 'a t
+
+    val return : 'a -> 'a t
+    val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
+    val with_rec_point : Uuid.t -> 'a t -> 'a t
+    val lookup : Uuid.t -> [ `Index of int ] option t
+    val exec : 'a t -> 'a
+  end = struct
+    type 'a t = depth:int -> Type_scope.t -> 'a
+
+    let return x ~depth:_ _ = x
+
+    let ( let* ) x f ~depth t =
+      let a = x ~depth t in
+      f a ~depth t
+
+    let with_rec_point uuid inner ~depth t =
+      let t = Type_scope.add t uuid (`Recursion_level depth) in
+      inner ~depth:(depth + 1) t
+
+    let lookup uuid ~depth t =
+      match Type_scope.find t uuid with
+      | Some (`Recursion_level n) -> Some (`Index (depth - n))
+      | None -> None
+
+    let exec f = f ~depth:0 Type_scope.empty
+  end
+
   type size =
     | Boxed of [ `Int | `Int8 | `Int16 | `Int32 | `Int64 ]
     | Fixed of int
@@ -48,25 +97,50 @@ module Shape = struct
     | Variant of (string * t) list
     | Opaque of Uuid.t
     | Map of Uuid.t * t
+    | Recursive of t
+    | Var of int
+
+  type 'a shape_def = 'a -> t Unrolling.t
 
   let get_size = function
     | (`Int | `Int8 | `Int16 | `Int32 | `Int64) as n -> Boxed n
     | `Fixed n -> Fixed n
     | `Unboxed -> Any
 
-  let rec of_type : type a. a ty -> t = function
-    | Prim p -> prim p
-    | Tuple e -> tuple e
-    | Option e -> Option (of_type e)
-    | List { len; v } -> Contiguous (get_size len, of_type v)
-    | Array { len; v } -> Contiguous (get_size len, of_type v)
+  let gen_placeholder_id : unit -> Uuid.t =
+    let counter = ref 0 in
+    fun () ->
+      incr counter;
+      string_of_int !counter
+
+  let rec of_type : type a. a ty shape_def =
+    let open Unrolling in
+    function
+    | Prim x -> return (prim x)
+    | Custom c -> return (custom c)
+    | Tuple x -> tuple x
+    | Option x ->
+        let* x = of_type x in
+        return (Option x)
+    | List x -> len_v x
+    | Array x -> len_v x
     | Record r -> record r
     | Variant v -> variant v
-    | Self { self_unroll; _ } -> of_type (self_unroll (Var "foo"))
     | Map m -> map m
-    | Custom c -> custom c
     | Boxed _ -> assert false
-    | Var _ -> assert false
+    (* Recursive terms *)
+    | Self { self_unroll; _ } ->
+        let id = gen_placeholder_id () in
+        let placeholder : _ ty = Var id in
+        let* inner =
+          Unrolling.with_rec_point id (of_type (self_unroll placeholder))
+        in
+        return (Recursive inner)
+    | Var id -> (
+        let* x = Unrolling.lookup id in
+        match x with
+        | None -> failwith "Malformed environment"
+        | Some (`Index i) -> return (Var i))
 
   and prim : type a. a prim -> t = function
     | Unit -> Empty
@@ -78,39 +152,70 @@ module Shape = struct
     | Float -> Float
     | String len | Bytes len -> Contiguous (get_size len, Char)
 
-  and tuple : type a. a tuple -> t = function
-    | Pair (a, b) -> Pair (of_type a, of_type b)
-    | Triple (a, b, c) -> Triple (of_type a, of_type b, of_type c)
+  and len_v : type a. a len_v shape_def =
+    let open Unrolling in
+    fun { len; v } ->
+      let* v = of_type v in
+      return (Contiguous (get_size len, v))
 
-  and record : type a. a record -> t =
+  and tuple : type a. a tuple shape_def =
+    let open Unrolling in
+    function
+    | Pair (a, b) ->
+        let* a = of_type a in
+        let* b = of_type b in
+        return (Pair (a, b))
+    | Triple (a, b, c) ->
+        let* a = of_type a in
+        let* b = of_type b in
+        let* c = of_type c in
+        return (Triple (a, b, c))
+
+  and record : type a. a record shape_def =
    fun { rfields = Fields (fs, _); _ } ->
     let module Record_shape = Fields_folder (struct
-      type nonrec (_, _) t = (string * t) list
+      type nonrec (_, _) t = (string * t) list Unrolling.t
     end) in
-    let nil = [] in
-    let cons { fname; ftype; _ } acc = (fname, of_type ftype) :: acc in
-    Record (Record_shape.fold { nil; cons } fs)
-
-  and variant : type a. a variant -> t =
-   fun v ->
-    let cases =
-      v.vcases
-      |> Array.map (function
-           | C0 { cname0; ctag0 = _; c0 = _ } -> (cname0, Empty)
-           | C1 { cname1; ctype1; ctag1 = _; cwit1 = _; c1 = _ } ->
-               (cname1, of_type ctype1))
-      |> Array.to_list
+    let open Unrolling in
+    let nil = return [] in
+    let cons { fname; ftype; _ } acc =
+      let* acc = acc in
+      let* fshape = of_type ftype in
+      return ((fname, fshape) :: acc)
     in
-    Variant cases
+    let* shape = Record_shape.fold { nil; cons } fs in
+    return (Record shape)
 
-  and map : type a b. (a, b) map -> t = function
+  and variant : type a. a variant shape_def =
+   fun v ->
+    let open Unrolling in
+    let* cases =
+      Array.fold_right
+        (fun c acc ->
+          let* acc = acc in
+          match c with
+          | C0 { cname0; ctag0 = _; c0 = _ } -> return ((cname0, Empty) :: acc)
+          | C1 { cname1; ctype1; ctag1 = _; cwit1 = _; c1 = _ } ->
+              let* cshape = of_type ctype1 in
+              return ((cname1, cshape) :: acc))
+        v.vcases (return [])
+    in
+    return (Variant cases)
+
+  and map : type a b. (a, b) map shape_def =
+    let open Unrolling in
+    function
     | { uuid = None; _ } -> invalid_arg "Unversioned 'map' bijection in typerep"
-    | { uuid = Some uuid; x; f = _; g = _; mwit = _ } -> Map (uuid, of_type x)
+    | { uuid = Some uuid; x; f = _; g = _; mwit = _ } ->
+        let* shape = of_type x in
+        return (Map (uuid, shape))
 
   and custom : type a. a custom -> t = function
     | { bin_codec_uuid = None; _ } ->
         invalid_arg "Unversioned custom binary codec in typerep"
     | { bin_codec_uuid = Some u; _ } -> Opaque u
+
+  let of_type typ = Unrolling.exec (of_type typ)
 
   (** TODO: reorganise libraries so that we can use [ppx_repr] here *)
   let len_t =
@@ -153,6 +258,8 @@ module Shape = struct
             variant
             opaque
             map
+            recursive
+            var
           -> function
           | Empty -> empty
           | Bool -> bool
@@ -168,7 +275,9 @@ module Shape = struct
           | Record x -> record x
           | Variant x -> variant x
           | Opaque x -> opaque x
-          | Map (a, b) -> map (a, b))
+          | Map (a, b) -> map (a, b)
+          | Recursive x -> recursive x
+          | Var x -> var x)
         |~ case0 "empty" Empty
         |~ case0 "bool" Bool
         |~ case0 "char" Char
@@ -184,6 +293,8 @@ module Shape = struct
         |~ case1 "variant" (list (pair string t)) (fun x -> Variant x)
         |~ case1 "opaque" Uuid.t (fun x -> Opaque x)
         |~ case1 "map" (pair Uuid.t t) (fun (a, b) -> Map (a, b))
+        |~ case1 "recursive" t (fun x -> Recursive x)
+        |~ case1 "var" int (fun x -> Var x)
         |> sealv)
 end
 
