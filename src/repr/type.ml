@@ -251,6 +251,13 @@ let result a b =
   |~ case1 "error" b (fun b -> Error b)
   |> sealv
 
+let either a b =
+  variant "either" (fun left right -> function
+    | Either.Left x -> left x | Either.Right x -> right x)
+  |~ case1 "left" a (fun a -> Either.Left a)
+  |~ case1 "right" b (fun b -> Either.Right b)
+  |> sealv
+
 let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash:h
     ?pre_hash:p t =
   let or_default ~op:generic_op = function

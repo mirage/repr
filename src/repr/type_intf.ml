@@ -69,6 +69,9 @@ module type DSL = sig
   val result : 'a t -> 'b t -> ('a, 'b) result t
   (** [result a b] is a representation of values of type [(a, b) result]. *)
 
+  val either : 'a t -> 'b t -> ('a, 'b) Either.t t
+  (** [either a b] is a representation of values of type [(a, b) Either.t]. *)
+
   (** An uninhabited type, defined as a variant with no constructors. *)
   type empty = |
 
