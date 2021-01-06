@@ -813,4 +813,5 @@ let () =
           ("test_duplicate_names", `Quick, test_duplicate_names);
           ("test_malformed_utf8", `Quick, test_malformed_utf8);
         ] );
+      ("binary_shape", Test_binary_shape.tests);
     ]

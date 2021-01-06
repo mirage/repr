@@ -2,6 +2,7 @@ open Staging
 
 module Types = struct
   type len = [ `Int | `Int8 | `Int16 | `Int32 | `Int64 | `Fixed of int ]
+  type uuid = string
   type 'a pp = 'a Fmt.t
   type 'a of_string = string -> ('a, [ `Msg of string ]) result
   type 'a to_string = 'a -> string
@@ -51,12 +52,16 @@ module Types = struct
     unboxed_encode_bin : 'a encode_bin;
     unboxed_decode_bin : 'a decode_bin;
     unboxed_size_of : 'a size_of;
+    (* unique identifier of binary codecs *)
+    bin_codec_uuid : uuid option;
   }
 
   and ('a, 'b) map = {
     x : 'a t;
     f : 'a -> 'b;
     g : 'b -> 'a;
+    (* uniquely identifies the pair [(f, g)] *)
+    uuid : uuid option;
     mwit : 'b Witness.t;
   }
 
@@ -165,6 +170,7 @@ module type Type_core = sig
     ?unboxed_encode_bin:'a encode_bin ->
     ?unboxed_decode_bin:'a decode_bin ->
     ?unboxed_size_of:'a size_of ->
+    ?bin_codec_uuid:uuid ->
     unit ->
     'a t
 
