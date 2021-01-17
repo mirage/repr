@@ -54,6 +54,6 @@ guarantee.
  (depends
   (repr (= :version))
   (crowbar (= 0.2))
-  (ppxlib (and (>= 0.12.0) (< 0.18.0))))
+  (ppxlib (and (>= 0.12.0))))
  (synopsis "Fuzz tests for the `repr` package")
  (description "Fuzz tests for the `repr` package"))
