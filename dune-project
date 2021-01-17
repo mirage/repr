@@ -45,8 +45,7 @@ guarantee.
   (ppx_repr (= :version))
   bechamel
   yojson
-  fpath
-  ppx_deriving_yojson)
+  fpath)
  (synopsis "Benchmarks for the `repr` package")
  (description "Benchmarks for the `repr` package"))
 

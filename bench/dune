@@ -2,9 +2,9 @@
  (name main)
  (public_name repr-bench)
  (package repr-bench)
- (libraries repr bechamel fpath yojson ppx_deriving_yojson.runtime unix)
+ (libraries repr bechamel fpath yojson unix)
  (preprocess
-  (pps ppx_repr ppx_deriving_yojson)))
+  (pps ppx_repr)))
 
 (rule
  (alias bench)
