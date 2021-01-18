@@ -19,13 +19,22 @@ type measurements = (metric * float) list
 let measurements_to_yojson ms =
   `Assoc (ms |> List.map (fun (m, v) -> (metric_to_string m, `Float v)))
 
-type output = { results : bench_result list }
-
-and bench_result = {
+type bench_result = {
   bench_name : string; [@key "name"]
   measurements : measurements; [@key "metrics"]
 }
-[@@deriving to_yojson]
+
+type output = { results : bench_result list }
+
+let bench_result_to_yojson { bench_name; measurements } =
+  `Assoc
+    [
+      ("bench_name", `String bench_name);
+      ("measurements", measurements_to_yojson measurements);
+    ]
+
+let output_to_yojson { results } =
+  `Assoc [ ("results", `List (List.map bench_result_to_yojson results)) ]
 
 (** Lift a binary function to operate over a larger type using an inner
     projection. *)

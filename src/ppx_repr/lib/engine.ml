@@ -259,21 +259,21 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     | Ptype_open -> Raise.Unsupported.type_open ~loc
 
   let parse_lib expr =
-    match expr with
-    | { pexp_desc = Pexp_construct ({ txt = Lident "None"; _ }, None); _ } ->
-        None
-    | {
-     pexp_desc =
-       Pexp_construct
-         ( { txt = Lident "Some"; _ },
-           Some { pexp_desc = Pexp_constant (Pconst_string (lib, None)); _ } );
-     _;
-    } ->
-        Some lib
-    | { pexp_loc = loc; _ } ->
-        Location.raise_errorf ~loc
+    let pattern =
+      let open Ast_pattern in
+      let none = map0 ~f:None @@ pexp_construct (lident (string "None")) none in
+      let some =
+        map1 ~f:Option.some
+        @@ pexp_construct (lident (string "Some")) (some (estring __))
+      in
+      none ||| some
+    in
+    Ast_pattern.parse pattern loc expr
+      (fun k -> k)
+      ~on_error:(fun () ->
+        Location.raise_errorf ~loc:expr.pexp_loc
           "Could not process `lib' argument: must be either `Some \"Lib\"' or \
-           `None'"
+           `None'")
 
   (* Remove duplicate elements from a list (preserving the order of the first
      occurrence of each duplicate). *)

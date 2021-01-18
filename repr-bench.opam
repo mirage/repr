@@ -14,7 +14,6 @@ depends: [
   "bechamel"
   "yojson"
   "fpath"
-  "ppx_deriving_yojson"
   "odoc" {with-doc}
 ]
 build: [

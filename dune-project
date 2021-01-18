@@ -31,7 +31,7 @@ guarantee.
  (name ppx_repr)
  (depends
   (repr (= :version))
-  (ppxlib (and (>= 0.12.0) (< 0.18.0)))
+  (ppxlib (>= 0.12.0))
   ; Test dependencies inherited from [repr] (see [test/repr/dune])
   (hex :with-test)
   (alcotest (and (>= 1.1.0) :with-test)))
@@ -45,8 +45,7 @@ guarantee.
   (ppx_repr (= :version))
   bechamel
   yojson
-  fpath
-  ppx_deriving_yojson)
+  fpath)
  (synopsis "Benchmarks for the `repr` package")
  (description "Benchmarks for the `repr` package"))
 
@@ -55,6 +54,6 @@ guarantee.
  (depends
   (repr (= :version))
   (crowbar (= 0.2))
-  (ppxlib (and (>= 0.12.0) (< 0.18.0))))
+  (ppxlib (and (>= 0.12.0))))
  (synopsis "Fuzz tests for the `repr` package")
  (description "Fuzz tests for the `repr` package"))
