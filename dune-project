@@ -32,6 +32,7 @@ guarantee.
  (depends
   (repr (= :version))
   (ppxlib (>= 0.12.0))
+  ppx_deriving
   ; Test dependencies inherited from [repr] (see [test/repr/dune])
   (hex :with-test)
   (alcotest (and (>= 1.1.0) :with-test)))
