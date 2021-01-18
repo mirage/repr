@@ -1,7 +1,7 @@
 ### 0.2.1 (2020-01-18)
 
 - Support Ppxlib versions >= 0.18.0. (#35, @CraigFe)
-- Add missing dependency on `ppx_deriving`. (#36, CraigFe)
+- Add missing dependency on `ppx_deriving`. (#36, @CraigFe)
 - Add a representation of the `Either.t` type. (#33, @CraigFe)
 
 ### 0.2.0 (2020-12-18)
