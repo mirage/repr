@@ -10,7 +10,7 @@ OCaml types and operations that are generic over those representations (`pp`,
 This library is currently experimental and provides no stability guarantee. The
 documentation is available [online][docs].
 
-[docs]: https://docs.mirage.io/repr/Repr/index.html
+[docs]: https://mirage.github.io/repr/repr/index.html
 
 ### Installation
 
