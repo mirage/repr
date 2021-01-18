@@ -1,4 +1,4 @@
-### 0.2.1 (2020-01-18)
+### 0.2.1 (2021-01-18)
 
 - Support Ppxlib versions >= 0.18.0. (#35, @CraigFe)
 - Add missing dependency on `ppx_deriving`. (#36, @CraigFe)
