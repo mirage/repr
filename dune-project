@@ -15,6 +15,7 @@
   (ocaml (>= 4.08.0))
   (fmt (>= 0.8.7))
   uutf
+  either
   (jsonm (>= 1.0.0))
   (base64 (>= 2.0.0)))
  (synopsis "Dynamic type representations. Provides no stability guarantee")
