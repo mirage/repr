@@ -19,7 +19,7 @@ let string = bytes
 let bytes = map [ string ] Bytes.of_string
 let triple a b c = map [ a; b; c ] (fun a b c -> (a, b, c))
 
-(* Untyped internal representation of Irmin values. *)
+(* Untyped internal representation of Repr values. *)
 type any_value =
   | VUnit of unit
   | VBool of bool
@@ -40,7 +40,7 @@ type any_value =
   | VVariant of dyn_variant
   | VEnum of dyn_variant
 
-(* Since we can't use "real" records and variants to test how Irmin serializes
+(* Since we can't use "real" records and variants to test how Repr serializes
    and deserializes them, we instead represent records with a hashtable of all
    their fields, and variants as the name of the current constructor and its value. *)
 and dyn_record = (string * (string, any_value) Hashtbl.t[@opaque])
@@ -89,7 +89,7 @@ and show_dyn_record (n, t) =
 and show_dyn_variant (n, c, v) =
   fmt "{ name: %S; current_case: %S; value: %S }" n c (show_any_value v)
 
-(** Internal representation of Irmin types. *)
+(** Internal representation of Repr types. *)
 type 'a t =
   | TUnit : unit t
   | TBool : bool t
@@ -242,7 +242,7 @@ let is_valid_utf8 str =
     true
   with Utf8_failure -> false
 
-(** Ensure that a [string list] is suited for Irmin field names. *)
+(** Ensure that a [string list] is suited for Repr field names. *)
 let guard_strings l =
   guard
     (List.length l <= 5
@@ -250,7 +250,7 @@ let guard_strings l =
     && is_unique_list ~cmp:String.compare l);
   l
 
-(** Ensure that a [(string * 'a) list] is suited for Irmin field names. *)
+(** Ensure that a [(string * 'a) list] is suited for Repr field names. *)
 let guard_keys l =
   List.map fst l |> guard_strings |> ignore;
   l
@@ -290,7 +290,7 @@ let any_type_gen =
           map [ string; tags_gen ] (fun s ts -> AT (TEnum (s, ts)));
         ])
 
-(** Convert a [t] into its [Irmin.Type] counterpart. *)
+(** Convert a [t] into its [Repr.ty] counterpart. *)
 let rec t_to_repr : type a. a t -> a T.ty = function
   | TUnit -> T.unit
   | TBool -> T.bool
@@ -312,7 +312,7 @@ let rec t_to_repr : type a. a t -> a T.ty = function
   | TVariant (n, cs) -> repr_variant n cs
   | TEnum (n, cs) -> repr_enum n cs
 
-(** Dynamically build an Irmin record (assuming it has 1 to 5 fields). *)
+(** Dynamically build a Repr record (assuming it has 1 to 5 fields). *)
 and repr_record : string -> field list -> dyn_record T.t = [%impl_record 5]
 
 (** Create a [dyn_record] from a list of [string * any_value] pairs. *)
@@ -333,10 +333,10 @@ and new_dyn_record_getter : type a. string -> string -> a t -> dyn_record -> a =
     let wrapped = Hashtbl.find curr_table field_name in
     unwrap field_type wrapped
 
-(** Dynamically build an Irmin variant (assuming it has 1 to 5 cases). *)
+(** Dynamically build a Repr variant (assuming it has 1 to 5 cases). *)
 and repr_variant : string -> case list -> dyn_variant T.t = [%impl_variant 5]
 
-(** Dynamically build an Irmin enum (assuming it has 1 to 5 cases). *)
+(** Dynamically build a Repr enum (assuming it has 1 to 5 cases). *)
 and repr_enum : string -> string list -> dyn_variant T.t =
  fun n ts -> repr_variant n (List.map (fun t -> (t, ACT Case0)) ts)
 
@@ -362,7 +362,7 @@ let rec t_to_value_gen : type a. a t -> a gen = function
   | TVariant (n, cs) -> repr_variant_gen n cs
   | TEnum (n, ts) -> repr_enum_gen n ts
 
-(** Create a generator for an Irmin record with the given specification. *)
+(** Create a generator for a Repr record with the given specification. *)
 and repr_record_gen : string -> field list -> dyn_record gen =
  fun record_name fields ->
   let rec fields_gen = function
@@ -373,7 +373,7 @@ and repr_record_gen : string -> field list -> dyn_record gen =
   in
   map [ fields_gen fields ] (fun fs' -> new_dyn_record record_name fs')
 
-(** Create a generator for an Irmin variant with the given specification. *)
+(** Create a generator for a Repr variant with the given specification. *)
 and repr_variant_gen : string -> case list -> dyn_variant gen =
  fun variant_name cases ->
   let rec cases_gen = function
@@ -386,7 +386,7 @@ and repr_variant_gen : string -> case list -> dyn_variant gen =
   in
   choose (cases_gen cases)
 
-(** Create a generator for an Irmin enum with the given specification. *)
+(** Create a generator for a Repr enum with the given specification. *)
 and repr_enum_gen : string -> string list -> dyn_variant gen =
  fun n ts -> repr_variant_gen n (List.map (fun t -> (t, ACT Case0)) ts)
 
