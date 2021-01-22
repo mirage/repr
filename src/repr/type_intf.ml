@@ -89,17 +89,21 @@ module type DSL = sig
   val record : string -> 'b -> ('a, 'b, 'b) open_record
   (** [record n f] is an incomplete representation of the record called [n] of
       type ['a] with constructor [f]. To complete the representation, add fields
-      with {!(|+)} and then seal the record with {!sealr}. *)
+      with {!(|+)} and then seal the record with {!sealr}.
+
+      The name [n] is used for non-binary encoding/decoding and for pretty
+      printing. *)
 
   type ('a, 'b) field
   (** The type for fields holding values of type ['b] and belonging to a record
       of type ['a]. *)
 
   val field : string -> 'a t -> ('b -> 'a) -> ('b, 'a) field
-  (** [field n t g] is the representation of the field [n] of type [t] with
-      getter [g]. {b Raises.} [Invalid_argument] if [n] is not valid UTF-8.
+  (** [field n t g] is the representation of the field called [n] of type [t]
+      with getter [g]. {b Raises.} [Invalid_argument] if [n] is not valid UTF-8.
 
-      The name [n] must not be used by any other [field] in the record.
+      The name [n] is used for non-binary encoding/decoding and for pretty
+      printing. It must not be used by any other [field] in the record.
 
       For instance:
 
@@ -141,7 +145,10 @@ module type DSL = sig
   (** [variant n p] is an incomplete representation of the variant type called
       [n] of type ['a] using [p] to deconstruct values. To complete the
       representation, add cases with {!(|~)} and then seal the variant with
-      {!sealv}. *)
+      {!sealv}.
+
+      The name [n] is used for non-binary encoding/decoding and for pretty
+      printing. *)
 
   type ('a, 'b) case
   (** The type for representing variant cases of type ['a] with patterns of type
@@ -155,7 +162,8 @@ module type DSL = sig
       arguments and name [n]. {b Raises.} [Invalid_argument] if [n] is not valid
       UTF-8.
 
-      The name [n] must not by used by any other [case0] in the record.
+      The name [n] is used for non-binary encoding/decoding and for pretty
+      printing. It must not by used by any other [case0] in the record.
 
       For instance:
 
@@ -170,7 +178,8 @@ module type DSL = sig
       argument of type [t] and name [n]. {b Raises.} [Invalid_argument] if [n]
       is not valid UTF-8.
 
-      The name [n] must not by used by any other [case1] in the record.
+      The name [n] is used for non-binary encoding/decoding and for pretty
+      printing. It must not by used by any other [case1] in the record.
 
       For instance:
 
@@ -212,11 +221,13 @@ module type DSL = sig
         let t = enum "t" [ ("Foo", Foo); ("Bar", Bar); ("Toto", Toto) ]
       ]}
 
-      {b Raises.} [Invalid_argument] if two or more cases share the same name. *)
+      The name [n] and the case names are used for non-binary encoding/decoding
+      and for pretty printing. {b Raises.} [Invalid_argument] if two or more
+      cases share the same name. *)
 
   (** {1:recursive Recursive definitions}
 
-      [Type] allows a limited description of recursive records and variants.
+      [Repr] allows a limited description of recursive records and variants.
 
       {b TODO}: describe the limitations, e.g. only regular recursion and no use
       of the generics inside the [mu*] functions and the usual caveats with
@@ -273,10 +284,28 @@ module type DSL = sig
   (** The type for staged operations. *)
 
   val stage : 'a -> 'a staged
-  (** [stage x] stages [x]. *)
+  (** [stage x] stages [x] where [x] would typically be a partially applied
+      function. *)
 
   val unstage : 'a staged -> 'a
-  (** [unstage x] unstages [x]. *)
+  (** [unstage x] unstages [x].
+
+      Both [stage] and [unstage] are implemented with the identity function.
+
+      As the {{!generics} generic operations} tend to be used repeatedly with
+      the same left-most parameters, this type trick encourages the user to
+      apply them only once for performance reasons.
+
+      For instance:
+
+      {[
+        let t = Repr.(pair int bool)
+        let compare = Repr.(unstage (compare t))
+
+        let sorted_list =
+          List.init 42_000 (fun _ -> (Random.int 100_000, Random.bool ()))
+          |> List.sort compare
+      ]} *)
 
   (** {1:generics Generic Operations}
 
@@ -327,12 +356,12 @@ module type DSL = sig
     (** The type for JSON decoder. *)
 
     val decoder : ?encoding:[< Jsonm.encoding ] -> [< Jsonm.src ] -> decoder
-    (** Same as {!Jsonm.decoder}. *)
+    (** Same as [Jsonm.decoder]. *)
 
     val decode :
       decoder ->
       [> `Await | `End | `Error of Jsonm.error | `Lexeme of Jsonm.lexeme ]
-    (** Same as {!Jsonm.decode}. *)
+    (** Same as [Jsonm.decode]. *)
 
     val rewind : decoder -> Jsonm.lexeme -> unit
     (** [rewind d l] rewinds [l] on top of the current state of [d]. This allows

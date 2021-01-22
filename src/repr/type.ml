@@ -40,7 +40,7 @@ let short_hash = function
       pre_hash x (fun s -> h := Hashtbl.seeded_hash !h s);
       !h
 
-(* Combinators for Irmin types *)
+(* Combinators for Repr types *)
 
 let unit = Prim Unit
 let bool = Prim Bool
