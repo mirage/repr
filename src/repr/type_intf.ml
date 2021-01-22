@@ -284,8 +284,8 @@ module type DSL = sig
   (** The type for staged operations. *)
 
   val stage : 'a -> 'a staged
-  (** [stage x] stages [x] where [x] would typically be a partially applied
-      function. *)
+  (** [stage x] stages [x], where [x] would typically be a function that is
+      expensive to construct. *)
 
   val unstage : 'a staged -> 'a
   (** [unstage x] unstages [x].
@@ -294,7 +294,7 @@ module type DSL = sig
 
       As the {{!generics} generic operations} tend to be used repeatedly with
       the same left-most parameters, this type trick encourages the user to
-      apply them only once for performance reasons.
+      specialise them only once for performance reasons.
 
       For instance:
 
