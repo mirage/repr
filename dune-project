@@ -17,7 +17,7 @@
   uutf
   either
   (jsonm (>= 1.0.0))
-  (base64 (>= 2.0.0)))
+  (base64 (>= 3.0.0)))
  (synopsis "Dynamic type representations. Provides no stability guarantee")
  (description "\
 This package defines a library of combinators for building dynamic type
