@@ -3,6 +3,12 @@ open Ppxlib
 let ( >> ) f g x = g (f x)
 let ( >|= ) x f = List.map f x
 
+module Option = struct
+  include Option
+
+  let to_bool : unit option -> bool = function Some () -> true | None -> false
+end
+
 module Make (A : Ast_builder.S) : sig
   val compose_all : ('a -> 'a) list -> 'a -> 'a
   (** Left-to-right composition of a list of functions. *)
