@@ -1,3 +1,9 @@
+### Unreleased
+
+- Add combinators for standard library container types: `ref`, `Lazy.t`,
+  `Seq.t`, `Queue.t`, `Stack.t`, `Hashtbl.t`, `Set.t` and `Map.t`.
+  (#TODO, @CraigFe)
+
 ### 0.2.1 (2021-01-18)
 
 - Support Ppxlib versions >= 0.18.0. (#35, @CraigFe)
