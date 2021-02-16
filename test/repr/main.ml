@@ -5,6 +5,7 @@ let id x = x
 type foo = { a : int; b : int }
 type bar = { c : int option; d : int option option }
 
+let ( >> ) f g x = g (f x)
 let to_bin_string t = T.unstage (T.to_bin_string t)
 let of_bin_string t = T.unstage (T.of_bin_string t)
 let encode_bin t = T.unstage (T.encode_bin t)
@@ -790,6 +791,94 @@ let test_malformed_utf8 () =
       let open T in
       ignore (enum "foo" [ ("\128\255\255\r\012\247", `A) ]))
 
+(* Test round-trip serialisation for standard library containers as derived by {!Repr}. *)
+
+let rec seq_equal (a : _ Seq.t) (b : _ Seq.t) =
+  match (a (), b ()) with
+  | Cons (x, xf), Cons (y, yf) -> x = y && seq_equal xf yf
+  | Nil, Nil -> true
+  | _, _ -> false
+
+let test_stdlib_containers () =
+  let round_trip ~name ~typ ~equal ~sample:pre =
+    let via_json = Repr.to_json_string typ >> Repr.of_json_string typ in
+    match via_json pre with
+    | Error (`Msg m) -> failwith m
+    | Ok post ->
+        Alcotest.(check bool) ("Round trip for " ^ name) true (equal pre post)
+  in
+
+  let () =
+    let name = "Seq.t" in
+    let typ = [%typ: int Seq.t] in
+    let sample = List.to_seq [ 1; 2; 3; 4; 5 ] in
+    round_trip ~name ~typ ~equal:seq_equal ~sample
+  in
+
+  let () =
+    let name = "Stack.t" in
+    let typ = [%typ: int Stack.t] in
+    let equal a b = seq_equal (Stack.to_seq a) (Stack.to_seq b) in
+    let sample = [ 5; 4; 3; 2; 1 ] |> List.to_seq |> Stack.of_seq in
+    round_trip ~name ~typ ~equal ~sample
+  in
+
+  let () =
+    let name = "Queue.t" in
+    let typ = [%typ: int Queue.t] in
+    let equal a b = seq_equal (Queue.to_seq a) (Queue.to_seq b) in
+    let sample = [ 5; 4; 3; 2; 1 ] |> List.to_seq |> Queue.of_seq in
+    round_trip ~name ~typ ~equal ~sample
+  in
+
+  let () =
+    let name = "Hashtbl.t" in
+    let typ = [%typ: (int, string) Hashtbl.t] in
+    let equal a b =
+      let exception False in
+      try
+        Hashtbl.iter
+          (fun k v ->
+            match Hashtbl.find_opt b k with
+            | Some v' when v = v' -> Hashtbl.remove b k
+            | _ -> raise False)
+          a;
+        Hashtbl.length b = 0
+      with False -> false
+    in
+    let sample =
+      [ (1, "1a"); (2, "2"); (3, "3a"); (1, "1b"); (3, "3b") ]
+      |> List.to_seq
+      |> Hashtbl.of_seq
+    in
+    round_trip ~name ~typ ~equal ~sample
+  in
+
+  let () =
+    let name = "Set.t" in
+    let module Set = Set.Make (Int) in
+    let typ = Repr.set (module Set) Repr.int in
+    let sample = Set.of_list [ 1; 2; 3; 4; 5 ] in
+    round_trip ~name ~typ ~equal:Set.equal ~sample
+  in
+
+  let () =
+    let name = "Map.t" in
+    let module Map = struct
+      include Map.Make (Int)
+
+      let key_t = Repr.int
+    end in
+    let module Of_map = Repr.Of_map (Map) in
+    let typ = Of_map.t Repr.string in
+    let sample =
+      [ (1, "1"); (2, "2"); (3, "3"); (4, "4") ] |> List.to_seq |> Map.of_seq
+    in
+    round_trip ~name ~typ ~equal:(Map.equal String.equal) ~sample
+  in
+
+  ()
+
 let () =
   Alcotest.run "repr"
     [
@@ -812,5 +901,6 @@ let () =
           ("test_variants", `Quick, test_variants);
           ("test_duplicate_names", `Quick, test_duplicate_names);
           ("test_malformed_utf8", `Quick, test_malformed_utf8);
+          ("test_stdlib_containers", `Quick, test_stdlib_containers);
         ] );
     ]
