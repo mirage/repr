@@ -398,7 +398,13 @@ let seq : type a. a t -> a Seq.t t =
     List.of_seq
 
 let stack : type a. a t -> a Stack.t t =
- fun a -> map (seq a) Stack.of_seq Stack.to_seq
+  (* Built-in [Stack.of_seq] adds elements bottom-to-top, which flips the stack. We must re-flip it afterwards. *)
+  let flip_stack s_rev =
+    let s = Stack.create () in
+    Stack.iter (fun a -> Stack.push a s) s_rev;
+    s
+  in
+  fun a -> map (seq a) (fun s -> Stack.of_seq s |> flip_stack) Stack.to_seq
 
 let queue : type a. a t -> a Queue.t t =
  fun a -> map (seq a) Queue.of_seq Queue.to_seq
