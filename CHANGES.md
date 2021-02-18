@@ -1,3 +1,13 @@
+### Unreleased
+
+- Add combinators for standard library container types: `ref`, `Lazy.t`,
+  `Seq.t`, `Queue.t`, `Stack.t`, `Hashtbl.t`, `Set.t` and `Map.t`.
+  (#43, @CraigFe)
+
+- Improve PPX `Repr.t` generation for types in the standard library. References
+  to e.g. `Bool.t` or `Stdlib.Int32.t` will be resolved to the corresponding
+  combinators. (#43, @CraigFe)
+
 ### 0.2.1 (2021-01-18)
 
 - Support Ppxlib versions >= 0.18.0. (#35, @CraigFe)

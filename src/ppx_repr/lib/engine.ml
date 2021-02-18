@@ -16,27 +16,11 @@
 
 open Ppxlib
 include Engine_intf
-module SSet = Set.Make (String)
 
-let repr_types =
-  SSet.of_list
-    [
-      "unit";
-      "bool";
-      "char";
-      "int";
-      "int32";
-      "int64";
-      "float";
-      "string";
-      "bytes";
-      "list";
-      "array";
-      "option";
-      "pair";
-      "triple";
-      "result";
-    ]
+let map_lident f = function
+  | Lapply _ -> invalid_arg "Lident.Lapply not supported"
+  | Ldot (l, s) -> Ldot (l, f s)
+  | Lident s -> Lident (f s)
 
 module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
   type state = {
@@ -90,46 +74,17 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
       typ false
 
   let rec derive_core typ =
-    let* { rec_flag; type_name; repr_name; rec_detected; lib; var_repr } =
-      ask
-    in
+    let* { type_name; lib; var_repr; _ } = ask in
     let loc = typ.ptyp_loc in
     match typ.ptyp_desc with
     | Ptyp_constr ({ txt = const_name; _ }, args) -> (
         match Attribute.get Attributes.repr typ with
         | Some e -> return e
         | None ->
-            let lident =
-              match const_name with
-              | Lident const_name ->
-                  let name =
-                    (* If this type is the one we are deriving and the 'nonrec'
-                       keyword hasn't been used, replace with the repr
-                       name *)
-                    if
-                      rec_flag <> Nonrecursive
-                      && String.equal const_name type_name
-                    then (
-                      rec_detected := true;
-                      repr_name
-                      (* If not a base type, assume a composite repr with the
-                         same naming convention *))
-                    else
-                      let nobuiltin =
-                        match Attribute.get Attributes.nobuiltin typ with
-                        | Some () -> true
-                        | None -> false
-                      in
-                      if nobuiltin || not (SSet.mem const_name repr_types) then
-                        repr_name_of_type_name const_name
-                      else in_lib ~lib const_name
-                  in
-                  Located.lident name
-              | Ldot (lident, name) ->
-                  let name = repr_name_of_type_name name in
-                  Located.mk @@ Ldot (lident, name)
-              | Lapply _ -> invalid_arg "Lident.Lapply not supported"
+            let nobuiltin =
+              Option.to_bool (Attribute.get Attributes.nobuiltin typ)
             in
+            let* lident = derive_lident ~nobuiltin const_name in
             let+ cons_args =
               args >|= derive_core |> sequence |> map all_unlabelled
             in
@@ -215,29 +170,23 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     in
     Algebraic.(encode Polyvariant) ~subderive ~lib ~type_name:name rowfields
 
-  let derive_lident :
-      ?repr:expression ->
-      ?nobuiltin:unit ->
-      longident ->
-      (expression, state) Reader.t =
-   fun ?repr ?nobuiltin txt ->
-    let+ { lib; _ } = ask in
-    let nobuiltin = match nobuiltin with Some () -> true | None -> false in
-    match repr with
-    | Some e -> e
-    | None -> (
-        match txt with
-        | Lident cons_name ->
-            if (not nobuiltin) && SSet.mem cons_name repr_types then
-              evar (in_lib ~lib cons_name)
-            else
-              (* If not a basic type, assume a composite
-                 repr /w same naming convention *)
-              evar (repr_name_of_type_name cons_name)
-        | Ldot (lident, cons_name) ->
-            pexp_ident
-              (Located.mk @@ Ldot (lident, repr_name_of_type_name cons_name))
-        | Lapply _ -> invalid_arg "Lident.Lapply not supported")
+  and derive_lident :
+      nobuiltin:bool -> longident -> (longident loc, state) Reader.t =
+   fun ~nobuiltin txt ->
+    let+ { lib; type_name; rec_flag; rec_detected; repr_name; _ } = ask in
+    match (rec_flag, txt) with
+    | Recursive, Lident const_name when String.equal const_name type_name ->
+        (* If this type is the one we are deriving and the 'nonrec'
+           keyword hasn't been used, replace with the repr
+           name *)
+        rec_detected := true;
+        Located.lident repr_name
+    | _ -> (
+        match (nobuiltin, Dsl.type_to_combinator_name txt) with
+        | true, (Some _ | None) | false, None ->
+            map_lident repr_name_of_type_name txt |> Located.mk
+        | false, Some combinator_name ->
+            in_lib ~lib combinator_name |> Located.lident)
 
   let derive_type_decl : type_declaration -> (expression, state) Reader.t =
    fun typ ->
@@ -248,10 +197,17 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
         | Some c -> (
             match c.ptyp_desc with
             (* No need to open library module *)
-            | Ptyp_constr ({ txt; loc = _ }, []) ->
-                let repr = Attribute.get Attributes.repr c
-                and nobuiltin = Attribute.get Attributes.nobuiltin c in
-                derive_lident ?repr ?nobuiltin txt
+            | Ptyp_constr ({ txt; loc = _ }, []) -> (
+                match Attribute.get Attributes.repr c with
+                | Some repr -> return repr
+                | None ->
+                    let nobuiltin =
+                      match Attribute.get Attributes.nobuiltin c with
+                      | Some () -> true
+                      | None -> false
+                    in
+                    let+ name = derive_lident ~nobuiltin txt in
+                    pexp_ident name)
             (* Type constructor: list, tuple, etc. *)
             | _ -> derive_core c))
     | Ptype_variant cs -> derive_variant cs

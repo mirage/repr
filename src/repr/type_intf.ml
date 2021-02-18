@@ -72,6 +72,60 @@ module type DSL = sig
   val either : 'a t -> 'b t -> ('a, 'b) Either.t t
   (** [either a b] is a representation of values of type [(a, b) Either.t]. *)
 
+  val seq : 'a t -> 'a Seq.t t
+  (** [seq t] is a representation of sequences of values of type [t]. *)
+
+  val ref : 'a t -> 'a ref t
+  (** [ref t] is a representation of references to values of type [t].
+
+      {b Note}: derived deserialisation functions will not preserve reference
+      sharing. *)
+
+  val lazy_t : 'a t -> 'a Lazy.t t
+  (** [lazy_t t] is a representation of lazy values of type [t].
+
+      {b Note}: derived deserialisation functions on the resulting type will not
+      be lazy. *)
+
+  val queue : 'a t -> 'a Queue.t t
+  (** [queue t] is a representation of queues of values of type [t]. *)
+
+  val stack : 'a t -> 'a Stack.t t
+  (** [stack t] is a representation of stacks of values of type [t]. *)
+
+  val hashtbl : 'k t -> 'v t -> ('k, 'v) Hashtbl.t t
+  (** [hashtbl k v] is a representation of hashtables with keys of type [k] and
+      values of type [v]. *)
+
+  val set :
+    (module Set.S with type elt = 'elt and type t = 'set) -> 'elt t -> 'set t
+  (** [set (module Set) elt] is a representation of sets with elements of type
+      [elt]. See {!Of_set} for a functorised equivalent of this function. *)
+
+  (** Functor for building representatives of {i sets} from the standard
+      library. *)
+  module Of_set (Set : sig
+    type elt
+
+    val elt_t : elt t
+
+    include Set.S with type elt := elt
+  end) : sig
+    val t : Set.t t
+  end
+
+  (** Functor for building representatives of {i maps} from the standard
+      library. *)
+  module Of_map (Map : sig
+    type key
+
+    val key_t : key t
+
+    include Map.S with type key := key
+  end) : sig
+    val t : 'v t -> 'v Map.t t
+  end
+
   (** An uninhabited type, defined as a variant with no constructors. *)
   type empty = |
 
@@ -554,6 +608,9 @@ module type DSL = sig
     ('b -> 'a) ->
     ('a -> 'b) ->
     'a t
+  (** This combinator allows defining a representative of one type in terms of
+      another by supplying coercions between them. For a representative of
+      [Stdlib.Map], see {!Of_map}. *)
 
   type 'a ty = 'a t
 

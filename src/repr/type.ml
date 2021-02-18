@@ -371,3 +371,66 @@ module Unboxed = struct
 
   let size_of = Type_size.unboxed
 end
+
+let ref : type a. a t -> a ref t = fun a -> map a ref (fun t -> !t)
+let lazy_t : type a. a t -> a Lazy.t t = fun a -> map a Lazy.from_val Lazy.force
+
+let seq : type a. a t -> a Seq.t t =
+ fun a ->
+  let elt_equal = unstage @@ equal a in
+  let elt_compare = unstage @@ compare a in
+  let rec compare (s1 : a Seq.t) (s2 : a Seq.t) =
+    match (s1 (), s2 ()) with
+    | Nil, Nil -> 0
+    | Cons _, Nil -> 1
+    | Nil, Cons _ -> -1
+    | Cons (x, xf), Cons (y, yf) ->
+        let ord = elt_compare x y in
+        if ord <> 0 then ord else compare xf yf
+  in
+  let rec equal (s1 : a Seq.t) (s2 : a Seq.t) =
+    match (s1 (), s2 ()) with
+    | Nil, Nil -> true
+    | Cons _, Nil | Nil, Cons _ -> false
+    | Cons (x, xf), Cons (y, yf) -> elt_equal x y && equal xf yf
+  in
+  map ~compare:(stage compare) ~equal:(stage equal) (list a) List.to_seq
+    List.of_seq
+
+let stack : type a. a t -> a Stack.t t =
+  (* Built-in [Stack.of_seq] adds elements bottom-to-top, which flips the stack. We must re-flip it afterwards. *)
+  let flip_stack s_rev =
+    let s = Stack.create () in
+    Stack.iter (fun a -> Stack.push a s) s_rev;
+    s
+  in
+  fun a -> map (seq a) (fun s -> Stack.of_seq s |> flip_stack) Stack.to_seq
+
+let queue : type a. a t -> a Queue.t t =
+ fun a -> map (seq a) Queue.of_seq Queue.to_seq
+
+let hashtbl : type k v. k t -> v t -> (k, v) Hashtbl.t t =
+ fun k v -> map (seq (pair k v)) Hashtbl.of_seq Hashtbl.to_seq
+
+let set (type set elt) (module Set : Set.S with type elt = elt and type t = set)
+    (elt : elt t) : set t =
+  map (seq elt) Set.of_seq Set.to_seq
+
+module Of_set (Set : sig
+  include Set.S
+
+  val elt_t : elt ty
+end) =
+struct
+  let t = set (module Set) Set.elt_t
+end
+
+module Of_map (Map : sig
+  include Map.S
+
+  val key_t : key ty
+end) =
+struct
+  let t : type v. v t -> v Map.t t =
+   fun v -> map (seq (pair Map.key_t v)) Map.of_seq Map.to_seq
+end
