@@ -579,6 +579,9 @@ module type DSL = sig
     ('b -> 'a) ->
     ('a -> 'b) ->
     'a t
+  (** This combinator allows defining a representative of one type in terms of
+      another by supplying coercions between them. For a representative of
+      [Stdlib.Map], see {!Of_map}. *)
 
   type 'a ty = 'a t
 
