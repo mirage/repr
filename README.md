@@ -8,9 +8,10 @@ OCaml types and operations that are generic over those representations (`pp`,
 `to_string`, `compare` etc.)
 
 This library is currently experimental and provides no stability guarantee. The
-documentation is available [online][docs].
+API is available [online][api]. A detailed documentation can be found [here][docs].
 
-[docs]: https://mirage.github.io/repr/repr/index.html
+[api]: https://mirage.github.io/repr/repr/index.html
+[docs](documentation/documentation.org)
 
 ### Installation
 
