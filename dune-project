@@ -4,6 +4,7 @@
 (strict_package_deps)
 
 (name repr)
+(version 0.2.1-6-g99f8146-dirty)
 (source (github mirage/repr))
 (license ISC)
 (authors "Thomas Gazagnaire" "Craig Ferguson")
