@@ -8,6 +8,9 @@
   to e.g. `Bool.t` or `Stdlib.Int32.t` will be resolved to the corresponding
   combinators. (#43, @CraigFe)
 
+- Add support for deriving mutually-recursive pairs of type representations
+  with `ppx_repr`. (#42, @CraigFe)
+
 ### 0.2.1 (2021-01-18)
 
 - Support Ppxlib versions >= 0.18.0. (#35, @CraigFe)

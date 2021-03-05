@@ -50,6 +50,53 @@
  (action
   (diff nobuiltin_nonempty.expected nobuiltin_nonempty.actual)))
 
+; -------- Test: `recursion_more_than_two.ml` --------
+
+
+
+; Run the PPX on the `.ml` file
+(rule
+ (targets recursion_more_than_two.actual)
+ (deps
+  (:pp pp.exe)
+  (:input recursion_more_than_two.ml))
+ (action
+  ; expect the process to fail, capturing stderr
+  (with-stderr-to
+   %{targets}
+   (bash "! ./%{pp} -no-color --impl %{input}"))))
+
+; Compare the post-processed output to the .expected file
+(rule
+ (alias runtest)
+ (package ppx_repr)
+ (action
+  (diff recursion_more_than_two.expected recursion_more_than_two.actual)))
+
+; -------- Test: `recursion_with_type_parameters.ml` --------
+
+
+
+; Run the PPX on the `.ml` file
+(rule
+ (targets recursion_with_type_parameters.actual)
+ (deps
+  (:pp pp.exe)
+  (:input recursion_with_type_parameters.ml))
+ (action
+  ; expect the process to fail, capturing stderr
+  (with-stderr-to
+   %{targets}
+   (bash "! ./%{pp} -no-color --impl %{input}"))))
+
+; Compare the post-processed output to the .expected file
+(rule
+ (alias runtest)
+ (package ppx_repr)
+ (action
+  (diff recursion_with_type_parameters.expected
+    recursion_with_type_parameters.actual)))
+
 ; -------- Test: `unsupported_tuple_size.ml` --------
 
 

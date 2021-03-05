@@ -1,0 +1,51 @@
+module Non_recursive_group :
+  sig
+    type nonrec t0
+    and t1
+    and t2[@@deriving repr]
+    include
+      sig val t0_t : t0 Repr.t val t1_t : t1 Repr.t val t2_t : t2 Repr.t end
+    [@@ocaml.doc "@inline"][@@merlin.hide ]
+  end =
+  struct
+    type nonrec t0 = unit
+    and t1 = unit
+    and t2 = unit[@@deriving repr]
+    include
+      struct
+        let (t0_t, (t1_t, t2_t)) = (Repr.unit, (Repr.unit, Repr.unit))
+      end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end 
+module Recursive_group :
+  sig
+    type even
+    and odd[@@deriving repr]
+    include sig val even_t : even Repr.t val odd_t : odd Repr.t end[@@ocaml.doc
+                                                                    "@inline"]
+    [@@merlin.hide ]
+  end =
+  struct
+    type odd =
+      | Odd of even option 
+    and even =
+      | Even of odd option [@@deriving repr]
+    include
+      struct
+        let (odd_t, even_t) =
+          Repr.mu2
+            (fun odd_t ->
+               fun even_t ->
+                 ((Repr.sealv
+                     (Repr.(|~)
+                        (Repr.variant "odd"
+                           (fun odd -> function | Odd x1 -> odd x1))
+                        (Repr.case1 "Odd" (Repr.option even_t)
+                           (fun x1 -> Odd x1)))),
+                   (Repr.sealv
+                      (Repr.(|~)
+                         (Repr.variant "even"
+                            (fun even -> function | Even x1 -> even x1))
+                         (Repr.case1 "Even" (Repr.option odd_t)
+                            (fun x1 -> Even x1))))))
+      end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end 

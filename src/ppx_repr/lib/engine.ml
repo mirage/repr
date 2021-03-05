@@ -59,6 +59,10 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     let mu = evar (match lib with Some s -> s ^ ".mu" | None -> "mu") in
     [%expr [%e mu] (fun [%p pvar fparam] -> [%e e])]
 
+  let mutually_recursive ~lib (e1, n1) (e2, n2) =
+    let mu2 = evar (match lib with Some s -> s ^ ".mu2" | None -> "mu2") in
+    [%expr [%e mu2] (fun [%p pvar n1] [%p pvar n2] -> ([%e e1], [%e e2]))]
+
   let repr_name_of_type_name = function "t" -> "t" | x -> x ^ "_t"
   let in_lib ~lib x = match lib with Some lib -> lib ^ "." ^ x | None -> x
 
@@ -108,7 +112,7 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
           let+ inner = derive_core c in
           recursive ~lib var inner)
         else derive_core c
-    | _ -> invalid_arg "unsupported"
+    | Ptyp_object _ | Ptyp_class _ -> invalid_arg "unsupported"
 
   and derive_tuple args =
     let* { lib; _ } = ask in
@@ -296,9 +300,8 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     in
     run (derive_core typ) env |> lambda tvars
 
-  let derive_sig ?name ?lib input_ast =
-    match input_ast with
-    | _, [ typ ] ->
+  let derive_sig ?name ?lib (_rec_flag, type_declarations) =
+    ListLabels.map type_declarations ~f:(fun typ ->
         let type_name = typ.ptype_name.txt in
         let name =
           Located.mk
@@ -318,45 +321,91 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
           combinator_type_of_type_declaration typ ~f:(fun ~loc:_ t ->
               ptyp_constr ty_lident [ t ])
         in
-        [ psig_value (value_description ~name ~type_ ~prim:[]) ]
-    | _ -> invalid_arg "Multiple type declarations not supported"
+        psig_value (value_description ~name ~type_ ~prim:[]))
 
-  let derive_str ?name ?lib input_ast =
-    match input_ast with
-    | rec_flag, [ typ ] ->
-        let tparams =
-          typ.ptype_params
-          |> List.map (function
-               | { ptyp_desc = Ptyp_var v; _ }, _ -> v
-               | { ptyp_desc = Ptyp_any; _ }, _ -> "_"
-               | _ -> assert false)
+  let repr_of_type_decl ~(handle_recursion : bool) ~(lib : string option)
+      ~rec_flag typ repr_name :
+      pattern * expression * [ `Param_required of bool ] =
+    let tparams =
+      typ.ptype_params
+      |> List.map (function
+           | { ptyp_desc = Ptyp_var v; _ }, _ -> v
+           | { ptyp_desc = Ptyp_any; _ }, _ -> "_"
+           | _ -> assert false)
+    in
+    let env =
+      let type_name = typ.ptype_name.txt in
+      let rec_detected = ref false in
+      let var_repr =
+        ref (function
+          | `Any -> Raise.Unsupported.type_any ~loc
+          | `Var v -> if List.mem v tparams then Some (evar v) else None)
+      in
+      { rec_flag; type_name; repr_name; rec_detected; lib; var_repr }
+    in
+    let expr = run (derive_type_decl typ) env in
+    (* If the type is syntactically self-referential, wrap with [mu] *)
+    let expr =
+      if handle_recursion && !(env.rec_detected) then
+        recursive ~lib:env.lib env.repr_name expr
+      else expr
+    in
+    let expr = lambda tparams expr in
+    let pat = pvar env.repr_name in
+    (pat, expr, `Param_required (List.length tparams > 0))
+
+  let derive_str ?name ?lib = function
+    | Recursive, [] -> assert false
+    | Recursive, tds when List.length tds > 2 ->
+        failwith "Mutually-recursive groups of size > 2 supported"
+    | rec_flag, type_declarations ->
+        let multiple_tds = List.length type_declarations > 1 in
+        let repr_names =
+          match (name, multiple_tds) with
+          | Some _, true ->
+              failwith "Cannot specify name of mutually-recursive group"
+          | Some n, false -> [ n ]
+          | None, _ ->
+              ListLabels.map type_declarations ~f:(fun typ ->
+                  repr_name_of_type_name typ.ptype_name.txt)
         in
-        let env =
-          let type_name = typ.ptype_name.txt in
-          let repr_name =
-            match name with
-            | Some s -> s
-            | None -> repr_name_of_type_name type_name
-          in
-          let rec_detected = ref false in
-          let var_repr =
-            ref (function
-              | `Any -> Raise.Unsupported.type_any ~loc
-              | `Var v -> if List.mem v tparams then Some (evar v) else None)
-          in
-          { rec_flag; type_name; repr_name; rec_detected; lib; var_repr }
+        let pats, named_exprs =
+          (* If there is only one type declaration – and it's potentially
+             recursive – we might want to add a [mu] combinator inside the repr
+             derivation.
+
+             Mutually-recursive declarations are handled separately with [mu2]
+             combinators below. *)
+          let handle_recursion = rec_flag = Recursive && not multiple_tds in
+          ListLabels.map2 type_declarations repr_names ~f:(fun typ repr_name ->
+              let pat, expr, `Param_required pr =
+                repr_of_type_decl ~rec_flag ~handle_recursion ~lib typ repr_name
+              in
+              if pr && multiple_tds then
+                failwith
+                  "Can't support mutually-recursive types with type parameters";
+              (pat, (expr, repr_name)))
+          |> List.split
         in
-        let expr = run (derive_type_decl typ) env in
-        (* If the type is syntactically self-referential and the user has not
-           asserted 'nonrec' in the type declaration, wrap in a 'mu'
-           combinator *)
-        let expr =
-          if !(env.rec_detected) && rec_flag == Recursive then
-            recursive ~lib:env.lib env.repr_name expr
-          else expr
+        let pat, expr =
+          match (pats, named_exprs) with
+          | [ p1 ], [ (e1, _) ] -> (p1, e1)
+          | ps, es ->
+              let pat =
+                List.reduce_exn ps ~f:(fun p1 p2 -> [%pat? [%p p1], [%p p2]])
+              in
+              let expr =
+                if rec_flag = Recursive then
+                  match es with
+                  | [ e1; e2 ] -> mutually_recursive ~lib e1 e2
+                  | _ ->
+                      (* Recursive groups of size n > 2 rejected above *)
+                      assert false
+                else
+                  List.map fst es
+                  |> List.reduce_exn ~f:(fun e1 e2 -> [%expr [%e e1], [%e e2]])
+              in
+              (pat, expr)
         in
-        let expr = lambda tparams expr in
-        let pat = pvar env.repr_name in
         [ pstr_value Nonrecursive [ value_binding ~pat ~expr ] ]
-    | _ -> invalid_arg "Multiple type declarations not supported"
 end
