@@ -37,6 +37,9 @@ guarantee.
   ; Test dependencies inherited from [repr] (see [test/repr/dune])
   (hex :with-test)
   (alcotest (and (>= 1.1.0) :with-test)))
+ ;; See https://github.com/mirage/repr/issues/48
+ ;; Can be removed once using Ppxlib >= 0.16.0
+ (conflicts (ocaml-migrate-parsetree (= 1.7.1)))
  (synopsis "PPX deriver for type representations")
  (description "PPX deriver for type representations"))
 
