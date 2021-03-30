@@ -324,7 +324,7 @@ module Decode = struct
             (ofs, Some x))
 
   module Record_decoder = Fields_folder (struct
-    type ('a, 'b) t = string -> int -> 'b -> 'a res [@@deriving branded]
+    type ('a, 'b) t = string -> int -> 'b -> 'a res
   end)
 
   let rec t : type a. a t -> a decode_bin = function
