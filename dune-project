@@ -1,7 +1,6 @@
 (lang dune 2.7)
 (generate_opam_files true)
 (allow_approximate_merlin)
-(strict_package_deps)
 
 (name repr)
 (source (github mirage/repr))
