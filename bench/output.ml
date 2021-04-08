@@ -29,8 +29,8 @@ type output = { results : bench_result list }
 let bench_result_to_yojson { bench_name; measurements } =
   `Assoc
     [
-      ("bench_name", `String bench_name);
-      ("measurements", measurements_to_yojson measurements);
+      ("name", `String bench_name);
+      ("metrics", measurements_to_yojson measurements);
     ]
 
 let output_to_yojson { results } =
