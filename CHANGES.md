@@ -11,7 +11,7 @@
 - Add support for deriving mutually-recursive pairs of type representations
   with `ppx_repr`. (#42, @CraigFe)
 
-- Add a JSON object combinator: `Json.assoc` (#FILLME, @Ngoguey42)
+- Add a JSON object combinator: `Json.assoc` (#53, @Ngoguey42)
 
 ### 0.2.1 (2021-01-18)
 
