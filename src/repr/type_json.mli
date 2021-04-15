@@ -25,3 +25,6 @@ val decode_jsonm : 'a t -> Jsonm.decoder -> ('a, [ `Msg of string ]) result
 
 val decode_lexemes :
   'a t -> Jsonm.lexeme list -> ('a, [ `Msg of string ]) result
+
+val encode_assoc : 'a t -> (string * 'a) list encode_json
+val decode_assoc : 'a t -> (string * 'a) list decode_json

@@ -203,6 +203,24 @@ let test_json_float () =
   let x = T.of_json_string T.float "\"-inf\"" |> Result.get_ok in
   Alcotest.(check (float Float.epsilon)) "-inf from JSON" Float.neg_infinity x
 
+let test_json_assoc () =
+  let t = T.Json.assoc T.float in
+  let test_back_and_forth name x y =
+    let name' = name ^ " decoding" in
+    let name = name ^ " encoding" in
+    let y' = T.to_json_string t x in
+    Alcotest.(check string) name y y';
+    let x' = T.of_json_string t y' |> Result.get_ok in
+    Alcotest.(check (list (pair string (float Float.epsilon)))) name' x x'
+  in
+  test_back_and_forth "Empty object" [] "{}";
+  test_back_and_forth "1 entry encoding" [ ("k", 42.) ] "{\"k\":42}";
+  test_back_and_forth "3 entries encoding"
+    [ ("k", 41.); ("v", 42.); ("w", 43.) ]
+    "{\"k\":41,\"v\":42,\"w\":43}";
+  test_back_and_forth "Duplicate keys encoding" [ ("k", 42.); ("k", 43.) ]
+    "{\"k\":42,\"k\":43}"
+
 let l =
   let hex =
     T.map (T.string_of (`Fixed 3)) ~pp:pp_hex ~of_string:of_hex_string id id
@@ -889,6 +907,7 @@ let () =
           ("json", `Quick, test_json);
           ("json_option", `Quick, test_json_option);
           ("json_float", `Quick, test_json_float);
+          ("json_assoc", `Quick, test_json_assoc);
           ("bin", `Quick, test_bin);
           ("to_string", `Quick, test_to_string);
           ("pp_dump", `Quick, test_pp_dump);

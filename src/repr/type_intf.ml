@@ -420,6 +420,11 @@ module type DSL = sig
     val rewind : decoder -> Jsonm.lexeme -> unit
     (** [rewind d l] rewinds [l] on top of the current state of [d]. This allows
         to put back lexemes already seen. *)
+
+    val assoc : 'a t -> (string * 'a) list t
+    (** [assoc v] is the typerepr of an association list (assoc) where keys are
+        strings and values are of typerepr [v]. The JSON codec represents such
+        an assoc as a JSON object. *)
   end
 
   type 'a encode_json = Jsonm.encoder -> 'a -> unit

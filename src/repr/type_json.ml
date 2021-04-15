@@ -147,6 +147,18 @@ module Encode = struct
         lexeme e (`Name c.cname1);
         t c.ctype1 e v;
         lexeme e `Oe
+
+  let assoc : type a. a t -> (string * a) list encode_json =
+   fun a ->
+    let encode_a = t a in
+    fun e l ->
+      lexeme e `Os;
+      List.iter
+        (fun (k, v) ->
+          lexeme e (`Name k);
+          encode_a e v)
+        l;
+      lexeme e `Oe
 end
 
 module Decode = struct
@@ -387,6 +399,19 @@ module Decode = struct
         aux 0 >>= fun c ->
         expect_lexeme e `Oe >|= fun () -> c
     | l -> error e l "`Name"
+
+  let assoc : type a. a t -> (string * a) list decode_json =
+   fun a ->
+    let decode_a = t a in
+    fun e ->
+      expect_lexeme e `Os >>= fun () ->
+      let rec aux acc =
+        lexeme e >>= function
+        | `Oe -> Ok acc
+        | `Name k -> decode_a e >>= fun v -> aux ((k, v) :: acc)
+        | l -> error e l "(`Name | `Oe)"
+      in
+      aux [] >|= List.rev
 end
 
 let encode = Encode.t
@@ -403,3 +428,5 @@ let pp ?minify t ppf x =
 let to_string ?minify t x = Fmt.to_to_string (pp ?minify t) x
 let of_string x s = Decode.(t x @@ Json.decoder (`String s))
 let decode_lexemes x ls = Decode.(t x @@ Json.decoder_of_lexemes ls)
+let encode_assoc = Encode.assoc
+let decode_assoc = Decode.assoc
