@@ -422,9 +422,9 @@ module type DSL = sig
         to put back lexemes already seen. *)
 
     val assoc : 'a t -> (string * 'a) list t
-    (** [assoc v] is the typerepr of an association list (assoc) where keys are
-        strings and values are of typerepr [v]. The JSON codec represents such
-        an assoc as a JSON object. *)
+    (** [assoc v] is the typerepr of an association list (assoc) in which keys
+        are strings and values are of typerepr [v]. The JSON codec represents
+        such an assoc as a JSON object. *)
   end
 
   type 'a encode_json = Jsonm.encoder -> 'a -> unit
