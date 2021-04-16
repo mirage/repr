@@ -372,6 +372,15 @@ module Unboxed = struct
   let size_of = Type_size.unboxed
 end
 
+module Json = struct
+  include Json
+
+  let assoc : type a. a t -> (string * a) list t =
+   fun a ->
+    let json = (Type_json.encode_assoc a, Type_json.decode_assoc a) in
+    list (pair string a) |> like ~json
+end
+
 let ref : type a. a t -> a ref t = fun a -> map a ref (fun t -> !t)
 let lazy_t : type a. a t -> a Lazy.t t = fun a -> map a Lazy.from_val Lazy.force
 
