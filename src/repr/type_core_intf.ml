@@ -5,7 +5,7 @@ module Types = struct
   type 'a pp = 'a Fmt.t
   type 'a of_string = string -> ('a, [ `Msg of string ]) result
   type 'a to_string = 'a -> string
-  type 'a encode_json = Jsonm.encoder -> 'a -> unit
+  type 'a encode_jsonm = Jsonm.encoder -> 'a -> unit
   type json_decoder = { mutable lexemes : Jsonm.lexeme list; d : Jsonm.decoder }
   type 'a decode_json = json_decoder -> ('a, [ `Msg of string ]) result
   type 'a bin_seq = 'a -> (string -> unit) -> unit
@@ -37,7 +37,7 @@ module Types = struct
     cwit : [ `Type of 'a t | `Witness of 'a Witness.t ];
     pp : 'a pp;
     of_string : 'a of_string;
-    encode_json : 'a encode_json;
+    encode_jsonm : 'a encode_jsonm;
     decode_json : 'a decode_json;
     short_hash : 'a short_hash;
     pre_hash : 'a encode_bin;
@@ -153,7 +153,7 @@ module type Type_core = sig
   val partial :
     ?pp:'a pp ->
     ?of_string:'a of_string ->
-    ?encode_json:'a encode_json ->
+    ?encode_jsonm:'a encode_jsonm ->
     ?decode_json:'a decode_json ->
     ?short_hash:'a short_hash ->
     ?pre_hash:'a pre_hash ->

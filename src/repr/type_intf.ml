@@ -427,7 +427,7 @@ module type DSL = sig
         such an assoc as a JSON object. *)
   end
 
-  type 'a encode_json = Jsonm.encoder -> 'a -> unit
+  type 'a encode_jsonm = Jsonm.encoder -> 'a -> unit
   (** The type for JSON encoders. *)
 
   type 'a decode_json = Json.decoder -> ('a, [ `Msg of string ]) result
@@ -435,7 +435,7 @@ module type DSL = sig
 
   val pp_json : ?minify:bool -> 'a t -> 'a Fmt.t
   (** Similar to {!dump} but pretty-prints the JSON representation instead of
-      the OCaml one. See {!encode_json} for details about the encoding.
+      the OCaml one. See {!encode_jsonm} for details about the encoding.
 
       For instance:
 
@@ -460,8 +460,8 @@ module type DSL = sig
       {b NOTE:} this will automatically convert JSON fragments to valid JSON
       objects by adding an enclosing array if necessary. *)
 
-  val encode_json : 'a t -> Jsonm.encoder -> 'a -> unit
-  (** [encode_json t e] encodes [t] into the
+  val encode_jsonm : 'a t -> Jsonm.encoder -> 'a -> unit
+  (** [encode_jsonm t e] encodes [t] into the
       {{:http://erratique.ch/software/jsonm} jsonm} encoder [e]. The encoding is
       a relatively straightforward translation of the OCaml structure into JSON.
       The main highlights are:
@@ -483,17 +483,20 @@ module type DSL = sig
       responsibility of the caller to ensure that the encoded JSON fragment fits
       properly into a well-formed JSON object. *)
 
-  val decode_json : 'a t -> Jsonm.decoder -> ('a, [ `Msg of string ]) result
-  (** [decode_json t e] decodes values of type [t] from the
+  val decode_jsonm : 'a t -> Jsonm.decoder -> ('a, [ `Msg of string ]) result
+  (** [decode_jsonm t e] decodes values of type [t] from the
       {{:http://erratique.ch/software/jsonm} jsonm} decoder [e]. *)
 
-  val decode_json_lexemes :
+  val decode_jsonm_lexemes :
     'a t -> Jsonm.lexeme list -> ('a, [ `Msg of string ]) result
-  (** [decode_json_lexemes] is similar to {!decode_json} but uses an already
+  (** [decode_jsonm_lexemes] is similar to {!decode_jsonm} but uses an already
       decoded list of JSON lexemes instead of a decoder. *)
 
+  val decode_json : 'a t -> 'a decode_json
+  (** TODO *)
+
   val to_json_string : ?minify:bool -> 'a t -> 'a -> string
-  (** [to_json_string] is {!encode_json} with a string encoder. *)
+  (** [to_json_string] is {!encode_jsonm} with a string encoder. *)
 
   val of_json_string : 'a t -> string -> ('a, [ `Msg of string ]) result
   (** [of_json_string] is {!decode_json} with a string decoder .*)
@@ -576,7 +579,7 @@ module type DSL = sig
   val v :
     pp:'a pp ->
     of_string:'a of_string ->
-    json:'a encode_json * 'a decode_json ->
+    json:'a encode_jsonm * 'a decode_json ->
     bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     equal:'a equal ->
@@ -589,7 +592,7 @@ module type DSL = sig
   val like :
     ?pp:'a pp ->
     ?of_string:'a of_string ->
-    ?json:'a encode_json * 'a decode_json ->
+    ?json:'a encode_jsonm * 'a decode_json ->
     ?bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?equal:'a equal ->
@@ -602,7 +605,7 @@ module type DSL = sig
   val map :
     ?pp:'a pp ->
     ?of_string:'a of_string ->
-    ?json:'a encode_json * 'a decode_json ->
+    ?json:'a encode_jsonm * 'a decode_json ->
     ?bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?equal:'a equal ->

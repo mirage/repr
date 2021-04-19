@@ -35,7 +35,7 @@ end
 
 let partial ?(pp = fun _ -> failwith "`pp` not implemented")
     ?(of_string = fun _ -> failwith "`of_string` not implemented")
-    ?(encode_json = fun _ -> failwith "`encode_json` not implemented")
+    ?(encode_jsonm = fun _ -> failwith "`encode_jsonm` not implemented")
     ?(decode_json = fun _ -> failwith "`decode_json` not implemented")
     ?(short_hash =
       stage (fun ?seed:_ _ -> failwith "`short_hash` not implemented"))
@@ -56,7 +56,7 @@ let partial ?(pp = fun _ -> failwith "`pp` not implemented")
       cwit = `Witness (Witness.make ());
       pp;
       of_string;
-      encode_json;
+      encode_jsonm;
       decode_json;
       short_hash;
       pre_hash;
