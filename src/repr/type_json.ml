@@ -82,9 +82,9 @@ module Encode = struct
         o e x;
         lexeme e `Oe
 
-  let rec t : type a. a t -> a encode_json = function
+  let rec t : type a. a t -> a encode_jsonm = function
     | Self s -> t s.self_fix
-    | Custom c -> c.encode_json
+    | Custom c -> c.encode_jsonm
     | Map b -> map b
     | Boxed x -> t x
     | Prim t -> prim t
@@ -96,16 +96,16 @@ module Encode = struct
     | Variant v -> variant v
     | Var v -> raise (Unbound_type_variable v)
 
-  and tuple : type a. a tuple -> a encode_json = function
+  and tuple : type a. a tuple -> a encode_jsonm = function
     | Pair (x, y) -> pair (t x) (t y)
     | Triple (x, y, z) -> triple (t x) (t y) (t z)
 
-  and map : type a b. (a, b) map -> b encode_json =
+  and map : type a b. (a, b) map -> b encode_jsonm =
    fun { x; g; _ } ->
     let encode = t x in
     fun e u -> encode e (g u)
 
-  and prim : type a. a prim -> a encode_json = function
+  and prim : type a. a prim -> a encode_jsonm = function
     | Unit -> unit
     | Bool -> bool
     | Char -> char
@@ -116,7 +116,7 @@ module Encode = struct
     | String _ -> string
     | Bytes _ -> bytes
 
-  and record : type a. a record -> a encode_json =
+  and record : type a. a record -> a encode_jsonm =
    fun r ->
     let fields = fields r in
     fun e x ->
@@ -135,10 +135,10 @@ module Encode = struct
         fields;
       lexeme e `Oe
 
-  and variant : type a. a variant -> a encode_json =
+  and variant : type a. a variant -> a encode_jsonm =
    fun v e x -> case_v e (v.vget x)
 
-  and case_v : type a. a case_v encode_json =
+  and case_v : type a. a case_v encode_jsonm =
    fun e c ->
     match c with
     | CV0 c -> string e c.cname0
@@ -148,7 +148,7 @@ module Encode = struct
         t c.ctype1 e v;
         lexeme e `Oe
 
-  let assoc : type a. a t -> (string * a) list encode_json =
+  let assoc : type a. a t -> (string * a) list encode_jsonm =
    fun a ->
     let encode_a = t a in
     fun e l ->

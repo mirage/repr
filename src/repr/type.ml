@@ -62,7 +62,7 @@ let boxed t = Boxed t
 
 let v ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
     ~pre_hash () =
-  let encode_json, decode_json = json in
+  let encode_jsonm, decode_json = json in
   let encode_bin, decode_bin, size_of = bin in
   let unboxed_encode_bin, unboxed_decode_bin, unboxed_size_of =
     match unboxed_bin with None -> bin | Some b -> b
@@ -73,7 +73,7 @@ let v ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
       pp;
       of_string;
       pre_hash;
-      encode_json;
+      encode_jsonm;
       decode_json;
       encode_bin;
       decode_bin;
@@ -264,7 +264,7 @@ let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash:h
     | Some x -> x
     | None -> generic_op t
   in
-  let encode_json, decode_json =
+  let encode_jsonm, decode_json =
     let ( >|= ) l f = match l with Ok l -> Ok (f l) | Error _ as e -> e in
     let join = function Error _ as e -> e | Ok x -> x in
     match json with
@@ -316,7 +316,7 @@ let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash:h
       cwit = `Type t;
       pp;
       of_string;
-      encode_json;
+      encode_jsonm;
       decode_json;
       encode_bin;
       decode_bin;
@@ -356,10 +356,12 @@ let pp, pp_dump, pp_ty, to_string, of_string =
 let ( to_json_string,
       of_json_string,
       pp_json,
-      encode_json,
+      encode_jsonm,
+      decode_jsonm,
       decode_json,
-      decode_json_lexemes ) =
-  Type_json.(to_string, of_string, pp, encode, decode_jsonm, decode_lexemes)
+      decode_jsonm_lexemes ) =
+  Type_json.
+    (to_string, of_string, pp, encode, decode_jsonm, decode, decode_lexemes)
 
 let encode_bin, decode_bin, to_bin_string, of_bin_string =
   Type_binary.(encode_bin, decode_bin, to_bin_string, of_bin_string)

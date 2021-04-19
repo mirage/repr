@@ -75,7 +75,7 @@ let of_hex_string x = Ok (Hex.to_string (`Hex x))
 let hex = T.map T.string ~pp:pp_hex ~of_string:of_hex_string id id
 
 let hex2 =
-  let encode_json e x =
+  let encode_jsonm e x =
     let encode x = ignore (Jsonm.encode e (`Lexeme x)) in
     encode `As;
     encode (`String x);
@@ -101,7 +101,7 @@ let hex2 =
         Alcotest.failf "invalid strings: %a %a" Jsonm.pp_lexeme x
           Jsonm.pp_lexeme y
   in
-  T.map T.string ~json:(encode_json, decode_json) id id
+  T.map T.string ~json:(encode_jsonm, decode_json) id id
 
 let error = Alcotest.testable (fun ppf (`Msg e) -> Fmt.string ppf e) ( = )
 let ok x = Alcotest.result x error
