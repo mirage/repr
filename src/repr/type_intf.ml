@@ -571,9 +571,9 @@ module type DSL = sig
     (** Same as {!size_of} for unboxed values. *)
   end
 
-  (** {1 Custom converters} *)
+  (** {1 Abstract types} *)
 
-  val v :
+  val abstract :
     pp:'a pp ->
     of_string:'a of_string ->
     json:'a encode_json * 'a decode_json ->
@@ -585,6 +585,39 @@ module type DSL = sig
     pre_hash:'a encode_bin ->
     unit ->
     'a t
+  (** The representation of an {i abstract} type, with an internal structure
+      that is opaque to Repr, that supports the generic operations above. *)
+
+  (** {2 Overriding specific operations}
+
+      For a given type representation, each generic operation can be implemented
+      in one of the following ways: *)
+
+  type 'a impl =
+    | Structural
+        (** The automatic implementation derived from the type structure. *)
+    | Custom of 'a  (** A hand-written implementation. *)
+    | Undefined
+        (** An unimplemented operation that raises {!Unsupported_operation} when
+            invoked. *)
+
+  exception Unsupported_operation of string
+
+  val partially_abstract :
+    pp:'a pp impl ->
+    of_string:'a of_string impl ->
+    json:('a encode_json * 'a decode_json) impl ->
+    bin:('a encode_bin * 'a decode_bin * 'a size_of) impl ->
+    unboxed_bin:('a encode_bin * 'a decode_bin * 'a size_of) impl ->
+    equal:'a equal impl ->
+    compare:'a compare impl ->
+    short_hash:'a short_hash impl ->
+    pre_hash:'a encode_bin impl ->
+    'a t ->
+    'a t
+  (** [partially_abstract t] is a partially-abstract type with internal
+      representation [t]. The named arguments specify the implementation of each
+      of the generic operations on this type. *)
 
   val like :
     ?pp:'a pp ->
@@ -598,6 +631,11 @@ module type DSL = sig
     ?pre_hash:'a encode_bin ->
     'a t ->
     'a t
+  (** A wrapper around {!partially_abstract} with each operation defaulting to
+      [`Structural] and admitting a [`Custom] override.
+
+      {b Note}: if [~compare] is passed and [~equal] is not then the default
+      equality function [(fun x y -> compare x y = 0)] will be used. *)
 
   val map :
     ?pp:'a pp ->

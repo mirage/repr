@@ -549,7 +549,7 @@ let test_pp_ty () =
       let equal = T.stage @@ fun _ _ -> assert false in
       let compare = T.stage @@ fun _ _ -> assert false in
       let hdr f = T.stage f in
-      T.v ~pp:a2 ~of_string:a1 ~json:(a2, a1)
+      T.abstract ~pp:a2 ~of_string:a1 ~json:(a2, a1)
         ~bin:(hdr a2, hdr a2, hdr a1)
         ~equal ~compare
         ~short_hash:(T.stage (fun ?seed:_ -> a1))

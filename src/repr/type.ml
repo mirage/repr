@@ -60,7 +60,7 @@ let triple a b c = Tuple (Triple (a, b, c))
 let option a = Option a
 let boxed t = Boxed t
 
-let v ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
+let abstract ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
     ~pre_hash () =
   let encode_json, decode_json = json in
   let encode_bin, decode_bin, size_of = bin in
@@ -258,18 +258,24 @@ let either a b =
   |~ case1 "right" b (fun b -> Either.Right b)
   |> sealv
 
-let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash:h
-    ?pre_hash:p t =
-  let or_default ~op:generic_op = function
-    | Some x -> x
-    | None -> generic_op t
-  in
+exception Unsupported_operation of string
+
+let undefined name _ = raise (Unsupported_operation name)
+let undefined' name = stage (undefined name)
+
+type 'a impl = Structural | Custom of 'a | Undefined
+
+let fold_impl ~undefined ~structural = function
+  | Custom x -> x
+  | Undefined -> undefined ()
+  | Structural -> structural ()
+
+let partially_abstract ~pp ~of_string ~json ~bin ~unboxed_bin ~equal ~compare
+    ~short_hash:short_hash_t ~pre_hash:pre_hash_t t : _ t =
   let encode_json, decode_json =
-    let ( >|= ) l f = match l with Ok l -> Ok (f l) | Error _ as e -> e in
-    let join = function Error _ as e -> e | Ok x -> x in
-    match json with
-    | Some (x, y) -> (x, y)
-    | None -> (
+    fold_impl json
+      ~undefined:(fun () -> (undefined "encode_json", undefined "decode_json"))
+      ~structural:(fun () ->
         let rec is_prim : type a. a t -> bool = function
           | Self s -> is_prim s.self_fix
           | Map m -> is_prim m.x
@@ -277,40 +283,65 @@ let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash:h
           | _ -> false
         in
         match (t, pp, of_string) with
-        | ty, Some pp, Some of_string when is_prim ty ->
+        | ty, Custom pp, Custom of_string when is_prim ty ->
+            let ( >|= ) x f = Result.map f x in
+            let join = function Error _ as e -> e | Ok x -> x in
             let ty = string in
-            ( (fun ppf u -> Type_json.encode ty ppf (Fmt.to_to_string pp u)),
-              fun buf -> Type_json.decode ty buf >|= of_string |> join )
+            let encode ppf u =
+              Type_json.encode ty ppf (Fmt.to_to_string pp u)
+            in
+            let decode buf = Type_json.decode ty buf >|= of_string |> join in
+            (encode, decode)
         | _ -> (Type_json.encode t, Type_json.decode t))
   in
-  let pp = or_default ~op:Type_pp.t pp in
-  let of_string = or_default ~op:Type_pp.of_string of_string in
+  let pp =
+    fold_impl pp
+      ~structural:(fun () -> Type_pp.t t)
+      ~undefined:(fun () -> undefined "pp")
+  in
+  let of_string =
+    fold_impl of_string
+      ~structural:(fun () -> Type_pp.of_string t)
+      ~undefined:(fun () -> undefined "of_string")
+  in
   let encode_bin, decode_bin, size_of =
-    match bin with
-    | Some (x, y, z) -> (x, y, z)
-    | None -> (Type_binary.encode_bin t, Type_binary.decode_bin t, Type_size.t t)
+    fold_impl bin
+      ~undefined:(fun () ->
+        (undefined' "encode_bin", undefined' "decode_bin", undefined' "size_of"))
+      ~structural:(fun () ->
+        (Type_binary.encode_bin t, Type_binary.decode_bin t, Type_size.t t))
   in
   let unboxed_encode_bin, unboxed_decode_bin, unboxed_size_of =
-    match unboxed_bin with
-    | Some (x, y, z) -> (x, y, z)
-    | None ->
+    fold_impl unboxed_bin
+      ~undefined:(fun () ->
+        ( undefined' "Unboxed.encode_bin",
+          undefined' "Unboxed.decode_bin",
+          undefined' "Unboxed.size_of" ))
+      ~structural:(fun () ->
         ( Type_binary.Unboxed.encode_bin t,
           Type_binary.Unboxed.decode_bin t,
-          Type_size.unboxed t )
+          Type_size.unboxed t ))
   in
   let equal =
-    match equal with
-    | Some x -> x
-    | None -> (
-        match compare with
-        | Some f ->
-            let f = unstage f in
-            stage (fun x y -> f x y = 0)
-        | None -> Type_ordered.equal t)
+    fold_impl equal
+      ~undefined:(fun () -> undefined' "equal")
+      ~structural:(fun () -> Type_ordered.equal t)
   in
-  let compare = or_default ~op:Type_ordered.compare compare in
-  let short_hash = match h with Some x -> x | None -> short_hash t in
-  let pre_hash = match p with Some x -> x | None -> encode_bin in
+  let compare =
+    fold_impl compare
+      ~undefined:(fun () -> undefined' "compare")
+      ~structural:(fun () -> Type_ordered.compare t)
+  in
+  let short_hash =
+    fold_impl short_hash_t
+      ~undefined:(fun () -> stage (fun ?seed:_ -> undefined "short_hash" ()))
+      ~structural:(fun () -> short_hash t)
+  in
+  let pre_hash =
+    fold_impl pre_hash_t
+      ~undefined:(fun () -> undefined' "pre_hash")
+      ~structural:(fun () -> encode_bin)
+  in
   Custom
     {
       cwit = `Type t;
@@ -329,6 +360,31 @@ let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash:h
       unboxed_decode_bin;
       unboxed_size_of;
     }
+
+let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
+    ?pre_hash t =
+  let to_impl = function None -> Structural | Some x -> Custom x in
+  let equal =
+    match equal with
+    | Some x -> Custom x
+    | None -> (
+        match compare with
+        | Some f ->
+            Custom
+              (let f = unstage f in
+               stage (fun x y -> f x y = 0))
+        | None -> Structural)
+  in
+  let pp = to_impl pp
+  and json = to_impl json
+  and of_string = to_impl of_string
+  and bin = to_impl bin
+  and unboxed_bin = to_impl unboxed_bin
+  and compare = to_impl compare
+  and short_hash = to_impl short_hash
+  and pre_hash = to_impl pre_hash in
+  partially_abstract ~pp ~json ~of_string ~bin ~unboxed_bin ~equal ~compare
+    ~short_hash ~pre_hash t
 
 let map ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
     ?pre_hash x f g =
@@ -407,7 +463,8 @@ let seq : type a. a t -> a Seq.t t =
     List.of_seq
 
 let stack : type a. a t -> a Stack.t t =
-  (* Built-in [Stack.of_seq] adds elements bottom-to-top, which flips the stack. We must re-flip it afterwards. *)
+  (* Built-in [Stack.of_seq] adds elements bottom-to-top, which flips the stack.
+     We must re-flip it afterwards. *)
   let flip_stack s_rev =
     let s = Stack.create () in
     Stack.iter (fun a -> Stack.push a s) s_rev;
