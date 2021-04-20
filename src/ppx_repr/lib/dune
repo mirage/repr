@@ -1,6 +1,6 @@
 (library
  (name ppx_repr_lib)
  (public_name ppx_repr.lib)
- (libraries ppxlib)
+ (libraries ppxlib fmt)
  (preprocess
   (pps ppxlib.metaquot)))

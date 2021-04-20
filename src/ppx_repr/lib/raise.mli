@@ -26,4 +26,5 @@ module Unsupported : sig
   val type_extension : loc:location -> core_type -> _
   val type_alias : loc:location -> core_type -> _
   val type_any : loc:location -> _
+  val plugin : loc:location -> supported:string list -> string -> _
 end

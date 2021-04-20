@@ -27,8 +27,9 @@ struct
     let (module S) = Ast_builder.make loc in
     f (module Engine.Located (Attributes) (S) : Engine.S)
 
-  let deriving_args () =
-    Deriving.Args.(empty +> arg "name" (estring __) +> arg "lib" __)
+  let args () =
+    let open Deriving.Args in
+    Meta_deriving.Args.[ arg "name" (estring __); arg "lib" __ ]
 
   let library =
     lazy
@@ -45,24 +46,22 @@ struct
          ~doc;
        library)
 
-  let register_deriver () =
+  let register_deriver
+      ?plugins:(supported_plugins = Meta_deriving.Plugin.defaults) () =
     let library = Lazy.force library in
     let str_type_decl =
       let attributes = Attributes.all in
-      Deriving.Generator.make ~attributes (deriving_args ())
-        ( with_engine @@ fun (module L) input_ast name lib ->
-          let lib =
-            match lib with Some s -> L.parse_lib s | None -> !library
-          in
-          L.derive_str ?name ?lib input_ast )
+      Meta_deriving.make_generator ~attributes ~supported_plugins
+        ~args:(args ())
+        ( with_engine @@ fun (module L) plugins input_ast name lib ->
+          let lib = Option.fold lib ~some:L.parse_lib ~none:!library in
+          L.derive_str ~plugins ~name ~lib input_ast )
     in
     let sig_type_decl =
-      Deriving.Generator.make (deriving_args ())
-        ( with_engine @@ fun (module L) input_ast name lib ->
-          let lib =
-            match lib with Some s -> L.parse_lib s | None -> !library
-          in
-          L.derive_sig ?name ?lib input_ast )
+      Meta_deriving.make_generator ~supported_plugins ~args:(args ())
+        ( with_engine @@ fun (module L) plugins input_ast name lib ->
+          let lib = Option.fold lib ~some:L.parse_lib ~none:!library in
+          L.derive_sig ~plugins ~name ~lib input_ast )
     in
     Deriving.add ~str_type_decl ~sig_type_decl T.namespace |> Deriving.ignore
 

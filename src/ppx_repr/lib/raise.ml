@@ -61,4 +61,10 @@ module Unsupported = struct
 
   let type_any ~loc =
     Location.raise_errorf ~loc "%s: anonymous type variable unsupported." name
+
+  let plugin ~loc ~supported found =
+    Location.raise_errorf ~loc
+      "%s: unsupported deriver plugin %s. Registered plugins: %a" name found
+      Fmt.(Dump.list string)
+      supported
 end

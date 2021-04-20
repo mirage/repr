@@ -22,6 +22,8 @@ let map_lident f = function
   | Ldot (l, s) -> Ldot (l, f s)
   | Lident s -> Lident (f s)
 
+let repr_name_of_type_name = function "t" -> "t" | x -> x ^ "_t"
+
 module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
   type state = {
     rec_flag : rec_flag;
@@ -59,11 +61,13 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     let mu = evar (match lib with Some s -> s ^ ".mu" | None -> "mu") in
     [%expr [%e mu] (fun [%p pvar fparam] -> [%e e])]
 
+  type name = { typ : string; repr : string }
+
   let mutually_recursive ~lib (e1, n1) (e2, n2) =
     let mu2 = evar (match lib with Some s -> s ^ ".mu2" | None -> "mu2") in
-    [%expr [%e mu2] (fun [%p pvar n1] [%p pvar n2] -> ([%e e1], [%e e2]))]
+    [%expr
+      [%e mu2] (fun [%p pvar n1.repr] [%p pvar n2.repr] -> ([%e e1], [%e e2]))]
 
-  let repr_name_of_type_name = function "t" -> "t" | x -> x ^ "_t"
   let in_lib ~lib x = match lib with Some lib -> lib ^ "." ^ x | None -> x
 
   let contains_tvar tvar typ =
@@ -300,8 +304,8 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     in
     run (derive_core typ) env |> lambda tvars
 
-  let derive_sig ?name ?lib (_rec_flag, type_declarations) =
-    ListLabels.map type_declarations ~f:(fun typ ->
+  let derive_sig ~plugins ~name ~lib (_rec_flag, type_declarations) =
+    ListLabels.concat_map type_declarations ~f:(fun typ ->
         let type_name = typ.ptype_name.txt in
         let name =
           Located.mk
@@ -321,11 +325,32 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
           combinator_type_of_type_declaration typ ~f:(fun ~loc:_ t ->
               ptyp_constr ty_lident [ t ])
         in
-        psig_value (value_description ~name ~type_ ~prim:[]))
+        let plugin_derivations =
+          let td = name_type_params_in_td typ in
+          let params =
+            ListLabels.map td.ptype_params ~f:(function v, _ ->
+                ptyp_constr ty_lident [ v ])
+          in
+          let ctyp = core_type_of_type_declaration td in
+          ListLabels.map plugins
+            ~f:(Meta_deriving.Plugin.derive_sig ~loc ~type_name ~params ~ctyp)
+        in
+        psig_value (value_description ~name ~type_ ~prim:[])
+        :: plugin_derivations)
+
+  module Typerep_derivation = struct
+    type t = { params : string list; body : expression }
+    (** A typerep derivation is an expression defined in terms of combinators,
+        potentially scoped inside a list of parameters (if the corresponding
+        type has type parameters). *)
+
+    let to_expr ?(transform_body = Fun.id) t =
+      lambda t.params (transform_body t.body)
+  end
 
   let repr_of_type_decl ~(handle_recursion : bool) ~(lib : string option)
       ~rec_flag typ repr_name :
-      pattern * expression * [ `Param_required of bool ] =
+      pattern * Typerep_derivation.t * [ `Param_required of bool ] =
     let tparams =
       typ.ptype_params
       |> List.map (function
@@ -350,26 +375,30 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
         recursive ~lib:env.lib env.repr_name expr
       else expr
     in
-    let expr = lambda tparams expr in
+    let expr = Typerep_derivation.{ params = tparams; body = expr } in
     let pat = pvar env.repr_name in
     (pat, expr, `Param_required (List.length tparams > 0))
 
-  let derive_str ?name ?lib = function
+  let derive_str ~plugins ~name ~lib = function
     | Recursive, [] -> assert false
     | Recursive, tds when List.length tds > 2 ->
         failwith "Mutually-recursive groups of size > 2 supported"
     | rec_flag, type_declarations ->
         let multiple_tds = List.length type_declarations > 1 in
         let repr_names =
-          match (name, multiple_tds) with
-          | Some _, true ->
+          match (name, type_declarations) with
+          | _, [] -> assert false
+          | Some _, _ :: _ :: _ ->
               failwith "Cannot specify name of mutually-recursive group"
-          | Some n, false -> [ n ]
+          | Some repr, [ typ ] -> [ { repr; typ = typ.ptype_name.txt } ]
           | None, _ ->
               ListLabels.map type_declarations ~f:(fun typ ->
-                  repr_name_of_type_name typ.ptype_name.txt)
+                  let typ = typ.ptype_name.txt in
+                  let repr = repr_name_of_type_name typ in
+                  { typ; repr })
         in
-        let pats, named_exprs =
+
+        let pats, named_treps =
           (* If there is only one type declaration – and it's potentially
              recursive – we might want to add a [mu] combinator inside the repr
              derivation.
@@ -377,35 +406,47 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
              Mutually-recursive declarations are handled separately with [mu2]
              combinators below. *)
           let handle_recursion = rec_flag = Recursive && not multiple_tds in
-          ListLabels.map2 type_declarations repr_names ~f:(fun typ repr_name ->
+          ListLabels.map2 type_declarations repr_names ~f:(fun typ name ->
               let pat, expr, `Param_required pr =
-                repr_of_type_decl ~rec_flag ~handle_recursion ~lib typ repr_name
+                repr_of_type_decl ~rec_flag ~handle_recursion ~lib typ name.repr
               in
               if pr && multiple_tds then
                 failwith
                   "Can't support mutually-recursive types with type parameters";
-              (pat, (expr, repr_name)))
+              (pat, (expr, name)))
           |> List.split
         in
         let pat, expr =
-          match (pats, named_exprs) with
-          | [ p1 ], [ (e1, _) ] -> (p1, e1)
+          match (pats, named_treps) with
+          | [ p1 ], [ (e1, _) ] -> (p1, Typerep_derivation.to_expr e1)
           | ps, es ->
               let pat =
                 List.reduce_exn ps ~f:(fun p1 p2 -> [%pat? [%p p1], [%p p2]])
               in
               let expr =
                 if rec_flag = Recursive then
-                  match es with
-                  | [ e1; e2 ] -> mutually_recursive ~lib e1 e2
+                  match (es : (Typerep_derivation.t * name) list) with
+                  | [ (e1, n1); (e2, n2) ] ->
+                      (* Mutual recursion with type parameters rejected above *)
+                      assert (e1.params = []);
+                      assert (e2.params = []);
+                      mutually_recursive ~lib (e1.body, n1) (e2.body, n2)
                   | _ ->
                       (* Recursive groups of size n > 2 rejected above *)
                       assert false
                 else
-                  List.map fst es
+                  List.map (fst >> Typerep_derivation.to_expr) es
                   |> List.reduce_exn ~f:(fun e1 e2 -> [%expr [%e e1], [%e e2]])
               in
               (pat, expr)
         in
-        [ pstr_value Nonrecursive [ value_binding ~pat ~expr ] ]
+        let plugin_derivations =
+          ListLabels.concat_map named_treps ~f:(fun (typerep, name) ->
+              ListLabels.map plugins ~f:(fun plugin ->
+                  Meta_deriving.Plugin.derive_str ~loc ~type_name:name.typ
+                    ~params:typerep.Typerep_derivation.params
+                    ~expr:typerep.Typerep_derivation.body plugin))
+        in
+        pstr_value Nonrecursive [ value_binding ~pat ~expr ]
+        :: plugin_derivations
 end

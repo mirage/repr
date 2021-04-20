@@ -254,6 +254,38 @@
  (action
   (run ./lib_relocated.exe)))
 
+; -------- Test: `meta_deriving.ml` --------
+
+; The PPX-dependent executable under test
+(executable
+ (name meta_deriving)
+ (modules meta_deriving)
+ (preprocess (pps ppx_repr))
+ (libraries repr))
+
+; Run the PPX on the `.ml` file
+(rule
+ (targets meta_deriving.actual)
+ (deps
+  (:pp pp.exe)
+  (:input meta_deriving.ml))
+ (action
+  (run ./%{pp} -deriving-keep-w32 both --impl %{input} -o %{targets})))
+
+; Compare the post-processed output to the .expected file
+(rule
+ (alias runtest)
+ (package ppx_repr)
+ (action
+  (diff meta_deriving.expected meta_deriving.actual)))
+
+; Ensure that the post-processed executable runs correctly
+(rule
+ (alias runtest)
+ (package ppx_repr)
+ (action
+  (run ./meta_deriving.exe)))
+
 ; -------- Test: `module.ml` --------
 
 ; The PPX-dependent executable under test
