@@ -11,9 +11,9 @@
 
 * Current encoding
 
-Encoding right now has the following type: ~'a -> (string -> unit) -> unit~
+Encoding right now has the following type: ~`a -> (string -> unit) -> unit~
 
-If you provide a value ~v~ of type ~'a~ and a function ~f~ to handle a string (that is the encoding of ~v~) it will apply ~f~ to the encoding of ~v~.
+If you provide a value ~v~ of type ~`a~ and a function ~f~ to handle a string (that is the encoding of ~v~) it will apply ~f~ to the encoding of ~v~.
 
 ** Example
 
