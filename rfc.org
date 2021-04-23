@@ -1,0 +1,211 @@
+#+TITLE:     Repr Encoding
+#+AUTHOR:    mattiasdrp
+#+EMAIL:     mattias@tarides.com
+#+DESCRIPTION: This document documents the Repr encoding and the solutions to make it zero(or one)-copy
+#+KEYWORDS:  repr, ocaml
+
+#+begin_src ocaml :results none :exports never
+  #use "topfind" ;;
+  #require "repr";;
+#+end_src
+
+* Current encoding
+
+Encoding right now has the following type: ~'a -> (string -> unit) -> unit~
+
+If you provide a value ~v~ of type ~'a~ and a function ~f~ to handle a string (that is the encoding of ~v~) it will apply ~f~ to the encoding of ~v~.
+
+** Example
+
+#+begin_src ocaml :results value verbatim :exports both :eval no-export
+  let buf = Buffer.create 2;;
+
+  let () =
+       Repr.((unstage @@ encode_bin int) 2 (Buffer.add_string buf));
+       Repr.((unstage @@ encode_bin int) 3 (Buffer.add_string buf));
+       Repr.((unstage @@ encode_bin int) 4 (Buffer.add_string buf));
+       Format.eprintf "%S@." (Buffer.contents buf)
+#+end_src
+
+#+RESULTS:
+: "\002\003\004"
+
+We created a new buffer ~buf~ and provided ~encode_bin~ the function to write in this buffer the encoding that it generated.
+
+Now, if we want to decode from this buffer:
+
+#+begin_src ocaml :results value verbatim :exports both :eval no-export
+  let () =
+    let buf_str = Buffer.contents buf in
+    let off, a = Repr.((unstage @@ decode_bin int) buf_str 0) in
+    let off, b = Repr.((unstage @@ decode_bin int) buf_str off) in
+    let _, c = Repr.((unstage @@ decode_bin int) buf_str off) in
+    Format.eprintf "%d %d %d@." a b c
+#+end_src
+
+#+RESULTS:
+: 2 3 4
+
+The decoder knows exactly the number of bytes it needs to read, will decode this number of bytes from the provided string and return the new offset where the remaining data should be.
+
+** Problem
+
+Now, as you can see, there's a flaw. ~encode_bin~ takes a function of type ~string -> unit~. This means that it needs to create this string to provide it to the function. Summarised, this would look like this:
+
+- Caller wants to encode a value ~v~
+- Caller has a buffer in which the encoding of ~v~ will be written
+- Caller provides ~encode_bin~ with a function to write in this buffer
+- ~encode_bin~ encodes ~v~ as a string
+- ~encode_bin~ applies the function it was provided to the string
+- the string is now useless and can be garbage collected
+
+As you can see in these implementations:
+
+#+begin_src ocaml :exports code :eval non-export
+  let int64 i =
+    let b = Bytes.create 8 in
+    Bytes.set_int64_be b 0 i;
+    unsafe_add_bytes b
+
+  let float f = int64 (Int64.bits_of_float f)
+#+end_src
+
+#+RESULTS:
+: Line 4, characters 2-18:
+: 4 |   unsafe_add_bytes b
+:       ^^^^^^^^^^^^^^^^
+: Error: Unbound value unsafe_add_bytes
+
+These functions allocate a new byte and end with creating a partial execution waiting for the ~string -> unit~ function
+
+This way of doing looks like it's doing useless allocations but how can we get rid of them?
+
+* Solution 1 - One-copy
+
+** Summary
+
+Let Repr allocate a big buffer and write in it letting the caller know at each offset and how many bytes it wrote. The caller can then read in this buffer (that we would call ~intermediate buffer~) to write in its own output (be it a file, a buffer, a stream etc).
+
+** Pros
+
+- The caller doesn't need to provide a write function, just the value and its type
+- The caller has full control on its output (where, when, how they want to write in it)
+
+** Cons
+
+- Since we don't want any extra allocation, when returning the buffer, the offset and the length to the caller we need to avoid allocating a triple for it
+
+This is usually bypassed with continuation passing style:
+
+#+begin_src ocaml :results none :exports code :eval no-export
+let f i j = if i > j then (j, i) else (i, j)
+#+end_src
+
+If we compile with ~ocamlopt -c -dcmm main.ml~ we obtain the following output:
+
+#+begin_src :eval no-export
+(function{main.ml:1,6-44} camlMain__f_81 (i/83: val j/84: val)
+ (if
+   (!= (extcall "caml_greaterthan"{main.ml:1,15-20} i/83 j/84 int,int->val)
+     1)
+   (alloc{main.ml:1,26-32} 2048 j/84 i/83)
+   (alloc{main.ml:1,38-44} 2048 i/83 j/84)))
+#+end_src
+
+Whereas if we write the following function:
+
+#+begin_src ocaml :results none :exports code :eval no-export
+let f k i j = if i > j then k j i else k i j
+#+end_src
+
+We obtain the following output (notice that there are no more allocations):
+
+#+begin_src :eval never-export
+(function{main.ml:1,6-44} camlMain__f_81 (k/83: val i/84: val j/85: val)
+ (if
+   (!= (extcall "caml_greaterthan"{main.ml:1,17-22} i/84 j/85 int,int->val)
+     1)
+   (app{main.ml:1,28-33} "caml_apply2" j/85 i/84 k/83 val)
+   (app{main.ml:1,39-44} "caml_apply2" i/84 j/85 k/83 val)))
+#+end_src
+
+The inconvenient of this way of doing is that it makes a bit harder to use but no allocation is performed (if we don't do it wrong as we'll see right now)
+
+*** Continuation implementation
+
+*Summary:* The continuation ~k~ needs to be a declared function and not a lambda-expression. Lambda-expressions will be created at each execution of ~f~ leading to a worst behaviour in allocations.
+
+**** Example
+
+#+begin_src ocaml :results none :exports code :eval no-export
+let f i j = if i > j then (j, i) else (i, j)
+
+let () =
+  Memtrace.trace_if_requested ();
+  let r = ref 0 in
+  for i = 1 to 1_000_000 do
+    let x, y = f i (i + 1) in
+    r := !r + y - x
+  done;
+  Format.eprintf "%d" !r
+#+end_src
+
+When executing with memtrace we obtain roughly 23M of allocations. If we refactor it to use naive CPS:
+
+#+begin_src ocaml :results none :exports code :eval no-export
+let f i j k = if i > j then k j i else k i j
+
+let () =
+  Memtrace.trace_if_requested ();
+  let r = ref 0 in
+  for i = 1 to 1_000_000 do
+    f i (i + 1) (fun x y -> r := !r + y - x)
+  done;
+  Format.eprintf "%d" !r
+#+end_src
+
+Memtrace will tell us that we allocated roughly 46M. A less naive solution:
+
+#+begin_src ocaml :results none :exports code :eval no-export
+let f i j k = if i > j then k j i else k i j
+
+let () =
+  Memtrace.trace_if_requested ();
+  let r = ref 0 in
+  let add_data x y = r := !r + y - x in
+  for i = 1 to 1_000_000 do
+    f i (i + 1) add_data
+  done;
+  Format.eprintf "%d" !r
+#+end_src
+
+Leading, this time, to 0M of allocations.
+
+* Solution 2 - Zero-copy
+
+** Summary
+
+Repr won't do any allocation. The caller should provide Repr a way to write exactly where it wants and Repr will write the encoding piece by piece directly in the caller owned output (once again, a file, a buffer, a stream etc)
+
+The solution should do something summarised like this:
+
+- Caller wants to encode a value ~v~
+- Caller has an output in which the encoding of ~v~ will be written
+- Caller provides ~encode_bin~ with a function ~f~ to write in this buffer
+- ~encode_bin~ encodes ~v~ directly in the buffer with the function ~f~
+- ~encode_bin~ returns telling the caller how many bytes it wrote allowing the caller to know where the new offset is
+
+** Pros
+
+- No allocations at all from the library. This leads to a finer control over allocations from anyone using it.
+
+** Cons
+
+- The caller needs to provide a way to write in its output
+  - Simple solution: assume we're appending in a buffer and just ask for the pointer to this caller-allocated buffer
+  - Pretty solution: create a functor with all the needed functions to write integers, characters, strings etc
+
+
+* Conclusion
+
+I'd rather implement the second solution since I'm not a huge fan of allocating from Repr. This is clearly a more complicated (implementation wise) solution but a much prettier one.
