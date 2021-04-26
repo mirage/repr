@@ -401,6 +401,20 @@ module type DSL = sig
   val of_string : 'a t -> 'a of_string
   (** [of_string t] parses values of type [t]. *)
 
+  val random : 'a t -> (unit -> 'a) staged
+  (** [random t] is a random value generator for values of type [t]. For bounded
+      types, values are sampled uniformly; for unbounded ones (lists, strings
+      etc.), the length is first chosen according to a geometric distribution.
+
+      Derived generators use the global PRNG state provided by
+      {!Stdlib.Random.get_state}.
+
+      NOTE: this generator may fail to terminate when sampling a recursive type. *)
+
+  val random_state : 'a t -> (Random.State.t -> 'a) staged
+  (** [random_state] is a variant of {!random} that takes an explicit PRNG state
+      to use for random generation. *)
+
   (** {2 JSON converters} *)
 
   module Json : sig

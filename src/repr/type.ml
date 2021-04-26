@@ -420,6 +420,7 @@ let ( to_json_string,
 let encode_bin, decode_bin, to_bin_string, of_bin_string =
   Type_binary.(encode_bin, decode_bin, to_bin_string, of_bin_string)
 
+let random, random_state = Type_random.(of_global, of_state)
 let size_of = Type_size.t
 
 module Unboxed = struct
