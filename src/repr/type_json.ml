@@ -43,7 +43,9 @@ module Encode = struct
 
   let float e f =
     match classify_float f with
-    | FP_nan | FP_infinite -> lexeme e (`String (string_of_float f))
+    | FP_nan -> lexeme e (`String "nan")
+    | FP_infinite when Float.sign_bit f -> lexeme e (`String "-inf")
+    | FP_infinite -> lexeme e (`String "inf")
     | _ -> lexeme e (`Float f)
 
   let int e i = float e (float_of_int i)

@@ -190,6 +190,8 @@ let test_json_option () =
     x
 
 let test_json_float () =
+  let x = T.to_json_string T.float (-.Float.nan) in
+  Alcotest.(check string) "-NaN to JSON" "\"nan\"" x;
   let x = T.to_json_string T.float Float.nan in
   Alcotest.(check string) "NaN to JSON" "\"nan\"" x;
   let x = T.to_json_string T.float Float.infinity in

@@ -18,6 +18,9 @@
 
 - Add a JSON object combinator: `Json.assoc` (#53, @Ngoguey42)
 
+- Drop the payload of NaN floating point values during JSON encoding. `-nan`
+  strings are not emitted any more. (#55, @Ngoguey42)
+
 ### 0.2.1 (2021-01-18)
 
 - Support Ppxlib versions >= 0.18.0. (#35, @CraigFe)
