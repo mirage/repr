@@ -29,3 +29,23 @@ let fix_staged2 :
   and backptr1 e = unstage (Lazy.force here |> fst) e
   and backptr2 e = unstage (Lazy.force here |> snd) e in
   Lazy.force here
+
+let fix_staged_oc :
+    type a b c.
+    ((a -> b -> c) staged -> (a -> b -> c) staged) -> (a -> b -> c) staged =
+ fun unroll ->
+  let rec here = lazy (unroll (stage backptr))
+  and backptr e = unstage (Lazy.force here) e in
+  Lazy.force here
+
+let fix_staged_oc2 :
+    type a b c d e f.
+    (((a -> b -> c) staged as 'f1) ->
+    ((d -> e -> f) staged as 'f2) ->
+    'f1 * 'f2) ->
+    'f1 * 'f2 =
+ fun unroll ->
+  let rec here = lazy (unroll (stage backptr1) (stage backptr2))
+  and backptr1 e = unstage (Lazy.force here |> fst) e
+  and backptr2 e = unstage (Lazy.force here |> snd) e in
+  Lazy.force here

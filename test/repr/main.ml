@@ -282,6 +282,42 @@ let test_bin () =
       Alcotest.(check string) (Fmt.str "decoding %S" v) v v')
     varints
 
+module ZCF = Repr.Zc_type_binary
+
+module Out_channel :
+  ZCF.Output_channel with type out_channel = Stdlib.out_channel = struct
+  type out_channel = Stdlib.out_channel
+
+  let output_char = output_char
+  let output_string = output_string
+  let output_bytes = output_bytes
+  let output = output
+  let output_substring = output_substring
+  let output_byte = output_byte
+  let output_binary_int = output_binary_int
+  let output_value = output_value
+end
+
+module ZC = ZCF.ZC_encode (Out_channel)
+
+let zc_encode_bin t = T.Staging.unstage (ZC.encode_bin t)
+let zc_decode_bin t = T.Staging.unstage (ZC.decode_bin t)
+
+let cmp_encodings v tt tzc =
+  let fd_in, fd_out = Unix.pipe () in
+  let ic = Unix.in_channel_of_descr fd_in in
+  let oc = Unix.out_channel_of_descr fd_out in
+  let size = Option.get @@ size_of tt v in
+  let buf = Buffer.create size in
+  encode_bin tt v (Buffer.add_string buf);
+  zc_encode_bin tzc oc v;
+  let byt = Bytes.create size in
+  flush oc;
+  let _ = input ic byt 0 size in
+  Alcotest.(check bytes) "" (Buffer.to_bytes buf) byt
+
+let test_zc_encode () = cmp_encodings "foo" T.string ZC.string
+
 module Algebraic = struct
   (* Dummy algebraic types and corresponding type representations *)
 
@@ -936,6 +972,7 @@ let () =
           ("json_float", `Quick, test_json_float);
           ("json_assoc", `Quick, test_json_assoc);
           ("bin", `Quick, test_bin);
+          ("zc_encode", `Quick, test_zc_encode);
           ("to_string", `Quick, test_to_string);
           ("pp_dump", `Quick, test_pp_dump);
           ("pp_ty", `Quick, test_pp_ty);

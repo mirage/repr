@@ -206,6 +206,60 @@ The solution should do something summarised like this:
   - Pretty solution: create a functor with all the needed functions to write integers, characters, strings etc
 
 
+* Observations
+
+
+#+begin_src ocaml :results none :exports code :eval no-export
+    Bytes.set_uint32_be b 0 i was previously used
+
+    let set_uint32_be = set_int32_be
+
+    let set_int32_be b i x =
+      if not Sys.big_endian then set_int32_ne b i (swap32 x)
+      else set_int32_ne b i x
+
+    external swap32 : int32 -> int32 = "%bswap_int32"
+
+    static int32_t caml_swap32(int32_t x)
+    {
+      return (((x & 0x000000FF) << 24) |
+              ((x & 0x0000FF00) << 8) |
+              ((x & 0x00FF0000) >> 8) |
+              ((x & 0xFF000000) >> 24));
+    }
+
+    (* swap(C1C2C3C4) = C4C3C2C1 *)
+
+    external set_int32_ne : bytes -> int -> int32 -> unit = "%caml_bytes_set32"
+
+    CAMLprim value caml_bytes_set32(value str, value index, value newval)
+    {
+      unsigned char b1, b2, b3, b4;
+      intnat val;
+      intnat idx = Long_val(index);
+      if (idx < 0 || idx + 3 >= caml_string_length(str)) caml_array_bound_error();
+      val = Int32_val(newval);
+    #ifdef ARCH_BIG_ENDIAN
+      b1 = 0xFF & val >> 24;
+      b2 = 0xFF & val >> 16;
+      b3 = 0xFF & val >> 8;
+      b4 = 0xFF & val;
+    #else
+      b4 = 0xFF & val >> 24;
+      b3 = 0xFF & val >> 16;
+      b2 = 0xFF & val >> 8;
+      b1 = 0xFF & val;
+    #endif
+      Byte_u(str, idx) = b1;
+      Byte_u(str, idx + 1) = b2;
+      Byte_u(str, idx + 2) = b3;
+      Byte_u(str, idx + 3) = b4;
+      return Val_unit;
+    }
+#+end_src
+
+This shows that whatever the architecture, the encoding will be written according to the endianness of the system
+
 * Conclusion
 
 I'd rather implement the second solution since I'm not a huge fan of allocating from Repr. This is clearly a more complicated (implementation wise) solution but a much prettier one.

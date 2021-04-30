@@ -12,3 +12,9 @@ val fix_staged2 :
   ('f1 -> 'f2 -> 'f1 * 'f2) ->
   ((_ -> _) staged as 'f1) * ((_ -> _) staged as 'f2)
 (** Generalises {!fix_staged} to handle mutually recursive definitions. *)
+
+val fix_staged_oc : ('f -> 'f) -> ((_ -> _ -> _) staged as 'f)
+
+val fix_staged_oc2 :
+  ('f1 -> 'f2 -> 'f1 * 'f2) ->
+  ((_ -> _ -> _) staged as 'f1) * ((_ -> _ -> _) staged as 'f2)
