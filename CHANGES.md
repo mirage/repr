@@ -1,9 +1,9 @@
-### Unreleased
+### 0.3.0 (2021-04-30)
 
-- `Repr.v` is now called `Repr.abstract`. (#TODO, @CraigFe)
+- `Repr.v` is now called `Repr.abstract`. (#52, @CraigFe)
 
 - Added `Repr.partially_abstract`, a helper combinator for constructing type
-  representations with overridden operations. (#TODO, @CraigFe)
+  representations with overridden operations. (#52, @CraigFe)
 
 - Add combinators for standard library container types: `ref`, `Lazy.t`,
   `Seq.t`, `Queue.t`, `Stack.t`, `Hashtbl.t`, `Set.t` and `Map.t`.
