@@ -1,3 +1,8 @@
+### Unreleased
+
+- Add `Repr.{random,random_state}`, a pair of generic functions for sampling
+  random instances of representable types. (#58, @CraigFe)
+
 ### 0.3.0 (2021-04-30)
 
 - `Repr.v` is now called `Repr.abstract`. (#52, @CraigFe)

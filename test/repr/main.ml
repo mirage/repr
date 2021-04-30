@@ -1,5 +1,14 @@
 module T = Repr
 
+module Alcotest = struct
+  include Alcotest
+
+  let gcheck ?pos typ msg a b =
+    let equal = T.(unstage (equal typ)) in
+    let pp = T.pp_dump typ in
+    check ?pos (testable pp equal) msg a b
+end
+
 let id x = x
 
 type foo = { a : int; b : int }
@@ -589,6 +598,22 @@ let test_equal () =
   Alcotest.(check bool) "eq3" (equal_y 3 1) true;
   Alcotest.(check bool) "eq4" (equal_y 0 0) false
 
+let test_random () =
+  let s1 = Random.State.make_self_init () in
+  let s2 = Random.State.copy s1 in
+  let test ~__POS__:pos typ =
+    let random = T.(unstage (random_state typ)) in
+    let v1 = random s1 and v2 = random s2 in
+    Alcotest.(gcheck ~pos typ)
+      "Random generator should be deterministic given common PRNG state" v1 v2
+  in
+  test ~__POS__ [%typ: unit * bool * char];
+  test ~__POS__ [%typ: int * int32 * int64];
+  test ~__POS__ [%typ: float * string * bytes];
+  test ~__POS__ [%typ: int option list];
+  test ~__POS__ [%typ: (bool, string) result array];
+  test ~__POS__ [%typ: [ `Nil | `Cons of int * 'a ] as 'a]
+
 let test_int () =
   let test dx x =
     let tt = Alcotest.testable (T.pp dx) T.(unstage (equal dx)) in
@@ -916,6 +941,7 @@ let () =
           ("pp_ty", `Quick, test_pp_ty);
           ("compare", `Quick, test_compare);
           ("equal", `Quick, test_equal);
+          ("random", `Quick, test_random);
           ("ints", `Quick, test_int);
           ("decode", `Quick, test_decode);
           ("size_of", `Quick, test_size);
