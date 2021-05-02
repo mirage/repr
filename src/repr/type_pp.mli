@@ -14,11 +14,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Brands
 open Type_core
-module Fmt : Branded.S1 with type 'a t = 'a Fmt.t
+module Attr : Attribute.S1 with type 'a t = 'a Fmt.t
 
-val attr_pp : Fmt.br Attribute.t
 val t : 'a t -> 'a Fmt.t
 val dump : 'a t -> 'a Fmt.t
 val ty : 'a t Fmt.t

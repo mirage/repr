@@ -6,6 +6,9 @@ module Types = struct
   type 'a pp = 'a Fmt.t
   type 'a of_string = string -> ('a, [ `Msg of string ]) result
   type 'a to_string = 'a -> string
+  type 'a encode_json = Jsonm.encoder -> 'a -> unit
+  type json_decoder = { mutable lexemes : Jsonm.lexeme list; d : Jsonm.decoder }
+  type 'a decode_json = json_decoder -> ('a, [ `Msg of string ]) result
   type 'a bin_seq = 'a -> (string -> unit) -> unit
   type 'a pre_hash = 'a bin_seq staged
   type 'a encode_bin = 'a bin_seq staged
@@ -14,23 +17,6 @@ module Types = struct
   type 'a compare = ('a -> 'a -> int) staged
   type 'a equal = ('a -> 'a -> bool) staged
   type 'a short_hash = (?seed:int -> 'a -> int) staged
-
-  module Attribute = Type_attribute
-
-  module Encode_json = struct
-    type 'a t = Jsonm.encoder -> 'a -> unit [@@deriving branded]
-
-    let attr : br Attribute.t = Attribute.create ~name:"encode_json"
-  end
-
-  type json_decoder = { mutable lexemes : Jsonm.lexeme list; d : Jsonm.decoder }
-
-  module Decode_json = struct
-    type 'a t = json_decoder -> ('a, [ `Msg of string ]) result
-    [@@deriving branded]
-
-    let attr : br Attribute.t = Attribute.create ~name:"decode_json"
-  end
 
   type 'a t =
     | Var : string -> 'a t
@@ -164,8 +150,11 @@ module type Type_core = sig
     val fold : 'a t -> ('a, 'c) fields -> ('a, 'c) Acc.t
   end
 
-  val fold_variant : ('a, 'b) Case_folder.t -> 'a variant -> ('a -> 'b) staged
+  module Encode_json : Attribute.S1 with type 'a t = 'a encode_json
+  module Decode_json : Attribute.S1 with type 'a t = 'a decode_json
+
   val annotate : 'a t -> key:'f Attribute.t -> data:('a, 'f) app -> 'a t
+  val fold_variant : ('a, 'b) Case_folder.t -> 'a variant -> ('a -> 'b) staged
 
   val partial :
     ?pp:'a pp ->

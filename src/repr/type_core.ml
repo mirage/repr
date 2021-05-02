@@ -33,13 +33,23 @@ module Json = struct
     | [] -> Jsonm.decode e.d
 end
 
+module Encode_json = Attribute.Make1 (struct
+  type 'a t = Jsonm.encoder -> 'a -> unit
+
+  let name = "encode_json"
+end)
+
+module Decode_json = Attribute.Make1 (struct
+  type 'a t = json_decoder -> ('a, [ `Msg of string ]) result
+
+  let name = "decode_json"
+end)
+
 let annotate t ~key ~data =
   match t with
   | Attributes t ->
-      Attributes { t with attrs = Type_attribute.Map.add t.attrs ~key ~data }
-  | t ->
-      Attributes
-        { attrs = Type_attribute.Map.singleton key data; attr_type = t }
+      Attributes { t with attrs = Attribute.Map.add t.attrs ~key ~data }
+  | t -> Attributes { attrs = Attribute.Map.singleton key data; attr_type = t }
 
 let partial ?(pp = fun _ -> failwith "`pp` not implemented")
     ?(of_string = fun _ -> failwith "`of_string` not implemented")

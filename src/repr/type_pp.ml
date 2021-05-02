@@ -14,18 +14,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Brands
 open Type_core
 
-module Fmt = struct
-  include Fmt
+module Attr = Attribute.Make1 (struct
+  type 'a t = 'a Fmt.t
 
-  include Branded.Make1 (struct
-    type nonrec 'a t = 'a t
-  end)
-end
-
-let attr_pp : Fmt.br Attribute.t = Attribute.create ~name:"pp"
+  let name = "pp"
+end)
 
 (* Polyfill for [Float.is_nan] which is only >=4.08. *)
 let is_nan x = Float.classify_float x = FP_nan
@@ -74,9 +69,9 @@ let dump t =
     | Record r -> record r ppf x
     | Variant v -> variant v ppf x
     | Attributes { attrs; attr_type = t } -> (
-        match Type_attribute.Map.find attrs attr_pp with
+        match Attr.find_attr attrs with
         | None -> aux t ppf x
-        | Some pp -> (Fmt.prj pp) ppf x)
+        | Some pp -> pp ppf x)
     | Boxed t -> aux t ppf x
   and map : type a b. (a, b) map -> b pp = fun l ppf x -> aux l.x ppf (l.g x)
   and prim : type a. a prim -> a pp =

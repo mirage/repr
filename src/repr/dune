@@ -1,5 +1,4 @@
 (library
  (name repr)
  (public_name repr)
- (libraries base64 fmt jsonm uutf either brands)
- (preprocess (pps ppx_brands)))
+ (libraries base64 fmt jsonm uutf either brands))

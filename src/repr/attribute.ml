@@ -1,3 +1,4 @@
+include Attribute_intf
 open Brands
 
 module Key = struct
@@ -70,4 +71,21 @@ module Map = struct
         match Witness.eq k.wit k'.wit with None -> None | Some Refl -> Some v)
 end
 
+module Make1 (T : sig
+  type 'a t
+
+  val name : string
+end) =
+struct
+  include T
+  include Branded.Make1 (T)
+
+  let attr : br Key.t = Key.create ~name
+
+  let find_attr map =
+    match Map.find map attr with None -> None | Some x -> Some (prj x)
+end
+
 include Key
+
+module type S1 = S1 with type 'a attr := 'a t and type 'a map := 'a Map.t
