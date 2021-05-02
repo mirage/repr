@@ -17,8 +17,6 @@
 open Type_core
 
 val pp : ?minify:bool -> 'a t -> 'a Fmt.t
-val attr_encode : Encode_json.br Attribute.t
-val attr_decode : Decode_json.br Attribute.t
 val to_string : ?minify:bool -> 'a t -> 'a to_string
 val of_string : 'a t -> 'a of_string
 val encode : 'a t -> 'a Encode_json.t

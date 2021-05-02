@@ -76,8 +76,6 @@ let abstract ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
       pp;
       of_string;
       pre_hash;
-      encode_json;
-      decode_json;
       encode_bin;
       decode_bin;
       size_of;
@@ -88,6 +86,8 @@ let abstract ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
       unboxed_decode_bin;
       unboxed_size_of;
     }
+  |> annotate ~key:Encode_json.attr ~data:(Encode_json.inj encode_json)
+  |> annotate ~key:Decode_json.attr ~data:(Decode_json.inj decode_json)
 
 (* fix points *)
 
@@ -345,13 +345,11 @@ let partially_abstract ~pp ~of_string ~json ~bin ~unboxed_bin ~equal ~compare
       ~undefined:(fun () -> undefined' "pre_hash")
       ~structural:(fun () -> encode_bin)
   in
-  Custom
+  Type_core.Custom
     {
       cwit = `Type t;
       pp;
       of_string;
-      encode_json;
-      decode_json;
       encode_bin;
       decode_bin;
       size_of;
@@ -363,6 +361,8 @@ let partially_abstract ~pp ~of_string ~json ~bin ~unboxed_bin ~equal ~compare
       unboxed_decode_bin;
       unboxed_size_of;
     }
+  |> annotate ~key:Encode_json.attr ~data:(Encode_json.inj encode_json)
+  |> annotate ~key:Decode_json.attr ~data:(Decode_json.inj decode_json)
 
 let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
     ?pre_hash t =

@@ -35,7 +35,7 @@ module Map = struct
   let empty () = empty
   let is_empty = is_empty
   let mem t k = mem (E k) t
-  let add t k v = add (E k) (B (k, v)) t
+  let add t ~key ~data = add (E key) (B (key, data)) t
 
   let update :
       type a f.

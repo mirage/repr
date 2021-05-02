@@ -6,18 +6,6 @@ module Types = struct
   type 'a pp = 'a Fmt.t
   type 'a of_string = string -> ('a, [ `Msg of string ]) result
   type 'a to_string = 'a -> string
-
-  module Encode_json = struct
-    type 'a t = Jsonm.encoder -> 'a -> unit [@@deriving branded]
-  end
-
-  type json_decoder = { mutable lexemes : Jsonm.lexeme list; d : Jsonm.decoder }
-
-  module Decode_json = struct
-    type 'a t = json_decoder -> ('a, [ `Msg of string ]) result
-    [@@deriving branded]
-  end
-
   type 'a bin_seq = 'a -> (string -> unit) -> unit
   type 'a pre_hash = 'a bin_seq staged
   type 'a encode_bin = 'a bin_seq staged
@@ -28,6 +16,21 @@ module Types = struct
   type 'a short_hash = (?seed:int -> 'a -> int) staged
 
   module Attribute = Type_attribute
+
+  module Encode_json = struct
+    type 'a t = Jsonm.encoder -> 'a -> unit [@@deriving branded]
+
+    let attr : br Attribute.t = Attribute.create ~name:"encode_json"
+  end
+
+  type json_decoder = { mutable lexemes : Jsonm.lexeme list; d : Jsonm.decoder }
+
+  module Decode_json = struct
+    type 'a t = json_decoder -> ('a, [ `Msg of string ]) result
+    [@@deriving branded]
+
+    let attr : br Attribute.t = Attribute.create ~name:"decode_json"
+  end
 
   type 'a t =
     | Var : string -> 'a t
@@ -52,8 +55,6 @@ module Types = struct
     cwit : [ `Type of 'a t | `Witness of 'a Witness.t ];
     pp : 'a pp;
     of_string : 'a of_string;
-    encode_json : 'a Encode_json.t;
-    decode_json : 'a Decode_json.t;
     short_hash : 'a short_hash;
     pre_hash : 'a encode_bin;
     compare : 'a compare;
@@ -164,7 +165,7 @@ module type Type_core = sig
   end
 
   val fold_variant : ('a, 'b) Case_folder.t -> 'a variant -> ('a -> 'b) staged
-  val annotate : 'a t -> 'f Attribute.t -> ('a, 'f) app -> 'a t
+  val annotate : 'a t -> key:'f Attribute.t -> data:('a, 'f) app -> 'a t
 
   val partial :
     ?pp:'a pp ->

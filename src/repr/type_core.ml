@@ -33,11 +33,13 @@ module Json = struct
     | [] -> Jsonm.decode e.d
 end
 
-let annotate t k v =
+let annotate t ~key ~data =
   match t with
   | Attributes t ->
-      Attributes { t with attrs = Type_attribute.Map.add t.attrs k v }
-  | t -> Attributes { attrs = Type_attribute.Map.singleton k v; attr_type = t }
+      Attributes { t with attrs = Type_attribute.Map.add t.attrs ~key ~data }
+  | t ->
+      Attributes
+        { attrs = Type_attribute.Map.singleton key data; attr_type = t }
 
 let partial ?(pp = fun _ -> failwith "`pp` not implemented")
     ?(of_string = fun _ -> failwith "`of_string` not implemented")
@@ -62,8 +64,6 @@ let partial ?(pp = fun _ -> failwith "`pp` not implemented")
       cwit = `Witness (Witness.make ());
       pp;
       of_string;
-      encode_json;
-      decode_json;
       short_hash;
       pre_hash;
       compare;
@@ -75,6 +75,8 @@ let partial ?(pp = fun _ -> failwith "`pp` not implemented")
       unboxed_decode_bin;
       unboxed_size_of;
     }
+  |> annotate ~key:Encode_json.attr ~data:(Encode_json.inj encode_json)
+  |> annotate ~key:Decode_json.attr ~data:(Decode_json.inj decode_json)
 
 let rec fields_aux : type a b. (a, b) fields -> a a_field list = function
   | F0 -> []

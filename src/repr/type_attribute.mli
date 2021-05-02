@@ -13,7 +13,7 @@ module Map : sig
   val empty : unit -> _ t
   val is_empty : _ t -> bool
   val mem : 'a t -> 'f key -> bool
-  val add : 'a t -> 'f key -> ('a, 'f) data -> 'a t
+  val add : 'a t -> key:'f key -> data:('a, 'f) data -> 'a t
 
   val update :
     'a t -> 'f key -> (('a, 'f) data option -> ('a, 'f) data option) -> 'a t

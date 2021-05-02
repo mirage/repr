@@ -7,6 +7,8 @@ module Alcotest = struct
     let equal = T.(unstage (equal typ)) in
     let pp = T.pp_dump typ in
     check ?pos (testable pp equal) msg a b
+
+  let string = testable Fmt.Dump.string String.equal
 end
 
 let id x = x
