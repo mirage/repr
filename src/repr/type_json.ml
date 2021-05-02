@@ -17,6 +17,15 @@
 open Type_core
 open Utils
 
+type 'a encode_json = 'a Encode_json.t
+type 'a decode_json = 'a Decode_json.t
+
+let attr_encode : Encode_json.br Attribute.t =
+  Attribute.create ~name:"encode_json"
+
+let attr_decode : Decode_json.br Attribute.t =
+  Attribute.create ~name:"decode_json"
+
 module Encode = struct
   let lexeme e l = ignore (Jsonm.encode e (`Lexeme l))
 
@@ -89,6 +98,10 @@ module Encode = struct
     | Custom c -> c.encode_json
     | Map b -> map b
     | Boxed x -> t x
+    | Attributes { attr_type = x; attrs } -> (
+        match Attribute.Map.find attrs attr_encode with
+        | None -> t x
+        | Some t -> Encode_json.prj t)
     | Prim t -> prim t
     | List l -> list (t l.v)
     | Array a -> array (t a.v)
@@ -299,6 +312,10 @@ module Decode = struct
     | Map b -> map b
     | Prim t -> prim t
     | Boxed x -> t x
+    | Attributes { attr_type = x; attrs } -> (
+        match Attribute.Map.find attrs attr_decode with
+        | None -> t x
+        | Some f -> Decode_json.prj f)
     | List l -> list (t l.v)
     | Array a -> array (t a.v)
     | Tuple t -> tuple t

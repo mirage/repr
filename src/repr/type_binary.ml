@@ -130,6 +130,7 @@ module Encode = struct
     | Map b -> map ~boxed:true b
     | Prim t -> prim ~boxed:true t
     | Boxed b -> t b
+    | Attributes { attr_type = x; _ } -> t x
     | List l -> list (t l.v) l.len
     | Array a -> array (t a.v) a.len
     | Tuple t -> tuple t
@@ -144,6 +145,7 @@ module Encode = struct
     | Map b -> map ~boxed:false b
     | Prim t -> prim ~boxed:false t
     | Boxed b -> t b
+    | Attributes { attr_type = x; _ } -> unboxed x
     | List l -> list (t l.v) l.len
     | Array a -> array (t a.v) a.len
     | Tuple t -> tuple t
@@ -333,6 +335,7 @@ module Decode = struct
     | Map b -> map ~boxed:true b
     | Prim t -> prim ~boxed:true t
     | Boxed b -> t b
+    | Attributes { attr_type = x; _ } -> t x
     | List l -> list (t l.v) l.len
     | Array a -> array (t a.v) a.len
     | Tuple t -> tuple t
@@ -347,6 +350,7 @@ module Decode = struct
     | Map b -> map ~boxed:false b
     | Prim t -> prim ~boxed:false t
     | Boxed b -> t b
+    | Attributes { attr_type = x; _ } -> unboxed x
     | List l -> list (t l.v) l.len
     | Array a -> array (t a.v) a.len
     | Tuple t -> tuple t

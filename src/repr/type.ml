@@ -19,6 +19,9 @@ include Type_core
 include Staging
 open Utils
 
+type 'a encode_json = 'a Encode_json.t
+type 'a decode_json = 'a Decode_json.t
+
 let pre_hash t =
   let rec aux : type a. a t -> a encode_bin = function
     | Self s -> aux s.self_fix

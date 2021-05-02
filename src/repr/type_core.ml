@@ -33,6 +33,12 @@ module Json = struct
     | [] -> Jsonm.decode e.d
 end
 
+let annotate t k v =
+  match t with
+  | Attributes t ->
+      Attributes { t with attrs = Type_attribute.Map.add t.attrs k v }
+  | t -> Attributes { attrs = Type_attribute.Map.singleton k v; attr_type = t }
+
 let partial ?(pp = fun _ -> failwith "`pp` not implemented")
     ?(of_string = fun _ -> failwith "`of_string` not implemented")
     ?(encode_json = fun _ -> failwith "`encode_json` not implemented")

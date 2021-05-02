@@ -1,3 +1,4 @@
+open Brands
 open Staging
 
 module Types = struct
@@ -5,9 +6,18 @@ module Types = struct
   type 'a pp = 'a Fmt.t
   type 'a of_string = string -> ('a, [ `Msg of string ]) result
   type 'a to_string = 'a -> string
-  type 'a encode_json = Jsonm.encoder -> 'a -> unit
+
+  module Encode_json = struct
+    type 'a t = Jsonm.encoder -> 'a -> unit [@@deriving branded]
+  end
+
   type json_decoder = { mutable lexemes : Jsonm.lexeme list; d : Jsonm.decoder }
-  type 'a decode_json = json_decoder -> ('a, [ `Msg of string ]) result
+
+  module Decode_json = struct
+    type 'a t = json_decoder -> ('a, [ `Msg of string ]) result
+    [@@deriving branded]
+  end
+
   type 'a bin_seq = 'a -> (string -> unit) -> unit
   type 'a pre_hash = 'a bin_seq staged
   type 'a encode_bin = 'a bin_seq staged
@@ -17,9 +27,12 @@ module Types = struct
   type 'a equal = ('a -> 'a -> bool) staged
   type 'a short_hash = (?seed:int -> 'a -> int) staged
 
+  module Attribute = Type_attribute
+
   type 'a t =
     | Var : string -> 'a t
     | Self : 'a self -> 'a t
+    | Attributes : 'a attributes -> 'a t
     | Custom : 'a custom -> 'a t
     | Map : ('a, 'b) map -> 'b t
     | Prim : 'a prim -> 'a t
@@ -33,12 +46,14 @@ module Types = struct
 
   and 'a len_v = { len : len; v : 'a t }
 
+  and 'a attributes = { attrs : 'a Attribute.Map.t; attr_type : 'a t }
+
   and 'a custom = {
     cwit : [ `Type of 'a t | `Witness of 'a Witness.t ];
     pp : 'a pp;
     of_string : 'a of_string;
-    encode_json : 'a encode_json;
-    decode_json : 'a decode_json;
+    encode_json : 'a Encode_json.t;
+    decode_json : 'a Decode_json.t;
     short_hash : 'a short_hash;
     pre_hash : 'a encode_bin;
     compare : 'a compare;
@@ -149,12 +164,13 @@ module type Type_core = sig
   end
 
   val fold_variant : ('a, 'b) Case_folder.t -> 'a variant -> ('a -> 'b) staged
+  val annotate : 'a t -> 'f Attribute.t -> ('a, 'f) app -> 'a t
 
   val partial :
     ?pp:'a pp ->
     ?of_string:'a of_string ->
-    ?encode_json:'a encode_json ->
-    ?decode_json:'a decode_json ->
+    ?encode_json:'a Encode_json.t ->
+    ?decode_json:'a Decode_json.t ->
     ?short_hash:'a short_hash ->
     ?pre_hash:'a pre_hash ->
     ?compare:'a compare ->
