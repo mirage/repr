@@ -54,8 +54,6 @@ module Refl = struct
     | Variant a, Variant b -> Witness.eq a.vwit b.vwit
     | Var v, _ | _, Var v -> raise (Unbound_type_variable v)
     | Attributes a, Attributes b -> t a.attr_type b.attr_type
-    | Boxed a, b -> t a b
-    | a, Boxed b -> t a b
     | ( ( Map _ | Custom _ | Prim _ | Array _ | List _ | Tuple _ | Option _
         | Record _ | Variant _ | Attributes _ ),
         _ ) ->
@@ -137,7 +135,6 @@ module Equal = struct
     | Custom c -> c.equal
     | Map m -> map m
     | Attributes { attr_type = x; _ } -> t x
-    | Boxed x -> t x
     | Prim p -> prim p
     | List l -> list (t l.v)
     | Array x -> array (t x.v)
@@ -287,7 +284,6 @@ module Compare = struct
     | Self s -> self s
     | Custom c -> c.compare
     | Map m -> map m
-    | Boxed x -> t x
     | Attributes { attr_type = x; _ } -> t x
     | Prim p -> (prim [@inlined]) p
     | List l -> list (t l.v)

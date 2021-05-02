@@ -91,7 +91,6 @@ module Encode = struct
     | Self s -> t s.self_fix
     | Custom _ -> failwith "Unimplemented operation: encode_json"
     | Map b -> map b
-    | Boxed x -> t x
     | Attributes { attr_type = x; attrs } -> (
         match Attribute.Map.find attrs Encode_json.attr with
         | None -> t x
@@ -304,7 +303,6 @@ module Decode = struct
     | Self s -> t s.self_fix
     | Map b -> map b
     | Prim t -> prim t
-    | Boxed x -> t x
     | Attributes { attr_type = x; attrs } -> (
         match Attribute.Map.find attrs Decode_json.attr with
         | None -> t x

@@ -61,7 +61,9 @@ let array ?(len = `Int) v = Array { v; len }
 let pair a b = Tuple (Pair (a, b))
 let triple a b c = Tuple (Triple (a, b, c))
 let option a = Option a
-let boxed t = Boxed t
+
+let boxed t =
+  annotate ~key:Type_binary.Boxed.attr ~data:(Type_binary.Boxed.inj ()) t
 
 let abstract ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
     ~pre_hash () =

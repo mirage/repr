@@ -31,7 +31,6 @@ module Types = struct
     | Option : 'a t -> 'a option t
     | Record : 'a record -> 'a t
     | Variant : 'a variant -> 'a t
-    | Boxed : 'a t -> 'a t
 
   and 'a len_v = { len : len; v : 'a t }
 

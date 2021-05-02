@@ -72,7 +72,6 @@ let dump t =
         match Attr.find_attr attrs with
         | None -> aux t ppf x
         | Some pp -> pp ppf x)
-    | Boxed t -> aux t ppf x
   and map : type a b. (a, b) map -> b pp = fun l ppf x -> aux l.x ppf (l.g x)
   and prim : type a. a prim -> a pp =
    fun t ppf x ->
@@ -169,7 +168,6 @@ let ty : type a. a t Fmt.t =
         Fmt.pf ppf "@[Attributes<%a> (%a)@]"
           Fmt.(list ~sep:semi string)
           names ty t
-    | Boxed b -> Fmt.pf ppf "@[Boxed (%a)@]" ty b
     | Map m -> Fmt.pf ppf "@[Map (%a)@]" ty m.x
     | Prim p -> Fmt.pf ppf "@[%a@]" prim p
     | List l -> Fmt.pf ppf "@[%a list%a@]" ty l.v len l.len
