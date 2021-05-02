@@ -415,6 +415,14 @@ module type DSL = sig
   (** [random_state] is a variant of {!random} that takes an explicit PRNG state
       to use for random generation. *)
 
+  type 'a ty = 'a t
+
+  (** Attributes provide a mechanism for attaching metadata to type
+      representations. *)
+  module Attribute : sig
+    val set_random : (Random.State.t -> 'a) -> 'a ty -> 'a ty
+  end
+
   (** {2 JSON converters} *)
 
   module Json : sig
@@ -668,8 +676,6 @@ module type DSL = sig
   (** This combinator allows defining a representative of one type in terms of
       another by supplying coercions between them. For a representative of
       [Stdlib.Map], see {!Of_map}. *)
-
-  type 'a ty = 'a t
 
   module type S = sig
     type t

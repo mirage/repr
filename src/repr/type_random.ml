@@ -2,6 +2,12 @@ open Type_core
 open Staging
 module R = Random.State
 
+module Attr = Attribute.Make1 (struct
+  type 'a t = R.t -> 'a
+
+  let name = "random"
+end)
+
 type 'a random = (R.t -> 'a) staged
 
 let ( let+ ) x f =
@@ -68,7 +74,8 @@ let rec t : type a. a t -> a random = function
   | Option x -> option x
   | Record x -> record x
   | Variant x -> variant x
-  | Attributes { attr_type; _ } -> t attr_type
+  | Attributes { attr_type; attrs } -> (
+      match Attr.find_attr attrs with None -> t attr_type | Some f -> stage f)
   | Self x -> stage (fun s -> (* improperly staged *) unstage (t x.self_fix) s)
   | Custom _ -> failwith "Cannot generate random instance of Custom type"
   | Var v -> raise (Unbound_type_variable v)

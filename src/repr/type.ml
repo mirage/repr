@@ -443,6 +443,11 @@ module Json = struct
     list (pair string a) |> like ~json
 end
 
+module Attribute = struct
+  let set_random f ty =
+    annotate ~key:Type_random.Attr.attr ~data:(Type_random.Attr.inj f) ty
+end
+
 let ref : type a. a t -> a ref t = fun a -> map a ref (fun t -> !t)
 let lazy_t : type a. a t -> a Lazy.t t = fun a -> map a Lazy.from_val Lazy.force
 
