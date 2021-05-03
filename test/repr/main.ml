@@ -310,7 +310,7 @@ let cmp_encodings v tt tzc =
   let size = Option.get @@ size_of tt v in
   let buf = Buffer.create size in
   encode_bin tt v (Buffer.add_string buf);
-  zc_encode_bin tzc oc v;
+  zc_encode_bin tzc v oc;
   let byt = Bytes.create size in
   flush oc;
   let _ = input ic byt 0 size in

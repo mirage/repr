@@ -1,5 +1,11 @@
 open Staging
 
+module Dispatch = struct
+  type 'a t =
+    | Base : 'a staged -> 'a t
+    | Arrow : { arg_wit : 'b Witness.t; f : ('b -> 'a) staged } -> 'a t
+end
+
 module type Output_channel = sig
   type out_channel
 
@@ -21,7 +27,7 @@ module Types (OC : Output_channel) = struct
   type 'a encode_json = Jsonm.encoder -> 'a -> unit
   type json_decoder = { mutable lexemes : Jsonm.lexeme list; d : Jsonm.decoder }
   type 'a decode_json = json_decoder -> ('a, [ `Msg of string ]) result
-  type 'a bin_seq = OC.out_channel -> 'a -> unit
+  type 'a bin_seq = 'a -> OC.out_channel -> unit
   type 'a pre_hash = 'a bin_seq staged
   type 'a encode_bin = 'a bin_seq staged
   type 'a decode_bin = (string -> int -> int * 'a) staged
@@ -185,4 +191,28 @@ module Types (OC : Output_channel) = struct
     | F1 (h, t) -> Field h :: fields_aux t
 
   let fields r = match r.rfields with Fields (f, _) -> fields_aux f
+
+  let fold_variant :
+      type a f. (a, f) Case_folder.t -> a variant -> (a -> f) staged =
+   fun folder v_typ ->
+    let cases =
+      Array.map
+        (function
+          | C0 c0 -> Dispatch.Base (folder.c0 c0)
+          | C1 c1 -> Dispatch.Arrow { arg_wit = c1.cwit1; f = folder.c1 c1 })
+        v_typ.vcases
+    in
+    stage (fun v ->
+        match v_typ.vget v with
+        | CV0 { ctag0; _ } -> (
+            match cases.(ctag0) with
+            | Dispatch.Base x -> unstage x
+            | _ -> assert false)
+        | CV1 ({ ctag1; cwit1; _ }, v) -> (
+            match cases.(ctag1) with
+            | Dispatch.Arrow { f; arg_wit } -> (
+                match Witness.cast cwit1 arg_wit v with
+                | Some v -> unstage f v
+                | None -> assert false)
+            | _ -> assert false))
 end

@@ -5,107 +5,107 @@ open Utils
 module ZC_encode (OC : Output_channel) = struct
   include Zc_type_core.Types (OC)
 
-  let byte oc n = OC.output_char oc (Char.unsafe_chr n)
-  let unit _oc () = ()
-  let add_string oc s = OC.output_string oc s
-  let char oc c = byte oc (Char.code c)
-  let unsafe_add_bytes oc b = OC.output_bytes oc b
+  let byte n oc = OC.output_char oc (Char.unsafe_chr n)
+  let unit () _oc = ()
+  let add_string s oc = OC.output_string oc s
+  let char c oc = byte (Char.code c) oc
+  let unsafe_add_bytes b oc = OC.output_bytes oc b
 
-  let int8 oc i =
+  let int8 i oc =
     assert (i < 256);
-    byte oc i
+    byte i oc
 
-  let int16 oc i =
+  let int16 i oc =
     OC.output_byte oc (i lsr 8);
     OC.output_byte oc i
 
-  let int32 oc (i : int32) =
+  let int32 (i : int32) oc =
     let i = Int32.to_int i in
     for s = 3 downto 0 do
       OC.output_byte oc (i lsr (s * 8))
     done
 
-  let int64 oc (i : int64) =
+  let int64 (i : int64) oc =
     let i = Int64.to_int i in
     for s = 7 downto 0 do
       OC.output_byte oc (i lsr (s * 8))
     done
 
-  let float oc f = int64 oc (Int64.bits_of_float f)
-  let bool oc b = char oc (if b then '\255' else '\000')
+  let float f = int64 (Int64.bits_of_float f)
+  let bool b = char (if b then '\255' else '\000')
 
-  let int oc i =
+  let int i oc =
     let rec aux n =
-      if n >= 0 && n < 128 then byte oc n
+      if n >= 0 && n < 128 then byte n oc
       else
         let out = 128 lor (n land 127) in
-        byte oc out;
+        byte out oc;
         aux (n lsr 7)
     in
     aux i
 
-  let len oc n i =
+  let len n i oc =
     match n with
-    | `Int -> int oc i
-    | `Int8 -> int8 oc i
-    | `Int16 -> int16 oc i
-    | `Int32 -> int32 oc (Int32.of_int i)
-    | `Int64 -> int64 oc (Int64.of_int i)
-    | `Fixed _ -> unit oc ()
-    | `Unboxed -> unit oc ()
+    | `Int -> int i oc
+    | `Int8 -> int8 i oc
+    | `Int16 -> int16 i oc
+    | `Int32 -> int32 (Int32.of_int i) oc
+    | `Int64 -> int64 (Int64.of_int i) oc
+    | `Fixed _ -> unit () oc
+    | `Unboxed -> unit () oc
 
   let unboxed_string _ = stage add_string
 
   let boxed_string n =
-    stage @@ fun oc s ->
+    stage @@ fun s oc ->
     let i = String.length s in
-    len oc n i;
-    add_string oc s
+    len n i oc;
+    add_string s oc
 
   let string boxed = if boxed then boxed_string else unboxed_string
-  let unboxed_bytes _ = stage @@ fun oc b -> add_string oc (Bytes.to_string b)
+  let unboxed_bytes _ = stage @@ fun b oc -> add_string (Bytes.to_string b) oc
 
   let boxed_bytes n =
-    stage @@ fun oc s ->
+    stage @@ fun s oc ->
     let i = Bytes.length s in
-    len oc n i;
-    unsafe_add_bytes oc s
+    len n i oc;
+    unsafe_add_bytes s oc
 
   let bytes boxed = if boxed then boxed_bytes else unboxed_bytes
 
   let list l n =
     let l = unstage l in
-    stage (fun oc x ->
-        len oc n (List.length x);
-        List.iter (fun e -> l oc e) x)
+    stage (fun x oc ->
+        len n (List.length x) oc;
+        List.iter (fun e -> l e oc) x)
 
   let array l n =
     let l = unstage l in
-    stage (fun oc x ->
-        len oc n (Array.length x);
-        Array.iter (fun e -> l oc e) x)
+    stage (fun x oc ->
+        len n (Array.length x) oc;
+        Array.iter (fun e -> l e oc) x)
 
   let pair a b =
     let a = unstage a and b = unstage b in
-    stage (fun oc (x, y) ->
-        a oc x;
-        b oc y)
+    stage (fun (x, y) oc ->
+        a x oc;
+        b y oc)
 
   let triple a b c =
     let a = unstage a and b = unstage b and c = unstage c in
-    stage (fun oc (x, y, z) ->
-        a oc x;
-        b oc y;
-        c oc z)
+    stage (fun (x, y, z) oc ->
+        a x oc;
+        b y oc;
+        c z oc)
 
   let option o =
     let o = unstage o in
-    stage (fun oc v ->
+    stage (fun v oc ->
         match v with
-        | None -> char oc '\000'
+        | None -> char '\000' oc
         | Some x ->
-            char oc '\255';
-            o oc x)
+            char '\255' oc;
+            o x oc)
 
   let rec t : type a. a t -> a encode_bin = function
     | Self s -> fst (self s)
@@ -148,7 +148,7 @@ module ZC_encode (OC : Output_channel) = struct
   and map : type a b. boxed:bool -> (a, b) map -> b encode_bin =
    fun ~boxed { x; g; _ } ->
     let encode_bin = unstage (if boxed then t x else unboxed x) in
-    stage (fun oc u -> encode_bin oc (g u))
+    stage (fun u oc -> encode_bin (g u) oc)
 
   and prim : type a. boxed:bool -> a prim -> a encode_bin =
    fun ~boxed -> function
@@ -164,23 +164,23 @@ module ZC_encode (OC : Output_channel) = struct
 
   and record : type a. a record -> a encode_bin =
    fun r ->
-    let field_encoders : (OC.out_channel -> a -> unit) list =
+    let field_encoders : (a -> OC.out_channel -> unit) list =
       fields r
       |> List.map @@ fun (Field f) ->
          let field_encode = unstage (t f.ftype) in
-         fun oc x -> field_encode oc (f.fget x)
+         fun x -> field_encode (f.fget x)
     in
-    stage (fun oc x -> List.iter (fun f -> f oc x) field_encoders)
+    stage (fun x oc -> List.iter (fun f -> f x oc) field_encoders)
 
-  (* and variant : type a. a variant -> a encode_bin =
-   *   let c0 oc { ctag0; _ } = stage (int oc ctag0) in
-   *   let c1 c =
-   *     let encode_arg = unstage (t c.ctype1) in
-   *     stage (fun oc v ->
-   *         int oc c.ctag1;
-   *         encode_arg oc v)
-   *   in
-   *   fun v -> fold_variant { c0; c1 } v *)
+  and variant : type a. a variant -> a encode_bin =
+    let c0 { ctag0; _ } = stage (int ctag0) in
+    let c1 c =
+      let encode_arg = unstage (t c.ctype1) in
+      stage (fun v oc ->
+          int c.ctag1 oc;
+          encode_arg v oc)
+    in
+    fun v -> fold_variant { c0; c1 } v
 
   let encode_bin = t
   let decode_bin = t
