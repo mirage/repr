@@ -282,42 +282,6 @@ let test_bin () =
       Alcotest.(check string) (Fmt.str "decoding %S" v) v v')
     varints
 
-module ZCF = Repr.Zc_type_binary
-
-module Out_channel :
-  ZCF.Output_channel with type out_channel = Stdlib.out_channel = struct
-  type out_channel = Stdlib.out_channel
-
-  let output_char = output_char
-  let output_string = output_string
-  let output_bytes = output_bytes
-  let output = output
-  let output_substring = output_substring
-  let output_byte = output_byte
-  let output_binary_int = output_binary_int
-  let output_value = output_value
-end
-
-module ZC = ZCF.ZC_encode (Out_channel)
-
-let zc_encode_bin t = T.Staging.unstage (ZC.encode_bin t)
-let zc_decode_bin t = T.Staging.unstage (ZC.decode_bin t)
-
-let cmp_encodings v tt tzc =
-  let fd_in, fd_out = Unix.pipe () in
-  let ic = Unix.in_channel_of_descr fd_in in
-  let oc = Unix.out_channel_of_descr fd_out in
-  let size = Option.get @@ size_of tt v in
-  let buf = Buffer.create size in
-  encode_bin tt v (Buffer.add_string buf);
-  zc_encode_bin tzc v oc;
-  let byt = Bytes.create size in
-  flush oc;
-  let _ = input ic byt 0 size in
-  Alcotest.(check bytes) "" (Buffer.to_bytes buf) byt
-
-let test_zc_encode () = cmp_encodings "foo" T.string ZC.string
-
 module Algebraic = struct
   (* Dummy algebraic types and corresponding type representations *)
 
@@ -709,6 +673,63 @@ let test_decode () =
   decode ~off:2 "xx\002aa" (Ok "aa");
   decode ~off:2 "xx\000aaaaa" (Ok "")
 
+module ZCF = Repr.Zc_type_binary
+
+module IO_channel :
+  ZCF.IO_channel
+    with type out_channel = Stdlib.out_channel
+     and type in_channel = Bytes.t = struct
+  type out_channel = Stdlib.out_channel
+
+  let append_char = output_char
+  let append_string = output_string
+  let append_bytes = output_bytes
+  let append = output
+  let append_substring = output_substring
+  let append_byte = output_byte
+  let append_binary_int = output_binary_int
+  let append_value = output_value
+
+  type in_channel = Bytes.t
+
+  (** [input_byte ic off] is [byte] *)
+  let input_byte = Bytes.get_uint8
+
+  (** [input_char ic off] is [char] *)
+  let input_char = Bytes.get
+
+  let blit = Bytes.blit
+end
+
+module ZC = ZCF.Make_serde (IO_channel)
+
+let zc_encode_bin t = T.Staging.unstage (ZC.encode_bin t)
+let zc_decode_bin t = T.Staging.unstage (ZC.decode_bin t)
+
+let cmp_encodings v tt tzc to_string =
+  let fd_in, fd_out = Unix.pipe () in
+  let ic = Unix.in_channel_of_descr fd_in in
+  let oc = Unix.out_channel_of_descr fd_out in
+  let size = Option.get @@ size_of tt v in
+  let buf = Buffer.create size in
+  encode_bin tt v (Buffer.add_string buf);
+  zc_encode_bin tzc v oc;
+  let byt = Bytes.create size in
+  flush oc;
+  let _ = input ic byt 0 size in
+  let _off, s = zc_decode_bin tzc byt 0 in
+  Format.printf "V: %s@.  Enc: %S@.  Dec: %s@." (to_string v)
+    (Bytes.to_string byt) (to_string s);
+  Alcotest.(check bytes) "ZC against Prev" (Buffer.to_bytes buf) byt;
+  Alcotest.(check bool) "Encode/Decode" true (v = s)
+
+let test_zc_encode () =
+  Format.eprintf "@.";
+  cmp_encodings "foo" T.string ZC.string (fun x -> x);
+  cmp_encodings 1236 T.int ZC.int string_of_int;
+  (* cmp_encodings 1054894L T.int64 ZC.int64; *)
+  cmp_encodings 2537l T.int32 ZC.int32 Int32.to_string
+
 let test_size () =
   let check t v n =
     match size_of t v with
@@ -972,7 +993,6 @@ let () =
           ("json_float", `Quick, test_json_float);
           ("json_assoc", `Quick, test_json_assoc);
           ("bin", `Quick, test_bin);
-          ("zc_encode", `Quick, test_zc_encode);
           ("to_string", `Quick, test_to_string);
           ("pp_dump", `Quick, test_pp_dump);
           ("pp_ty", `Quick, test_pp_ty);
@@ -986,5 +1006,6 @@ let () =
           ("test_duplicate_names", `Quick, test_duplicate_names);
           ("test_malformed_utf8", `Quick, test_malformed_utf8);
           ("test_stdlib_containers", `Quick, test_stdlib_containers);
+          ("zc_encode", `Quick, test_zc_encode);
         ] );
     ]

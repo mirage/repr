@@ -6,20 +6,30 @@ module Dispatch = struct
     | Arrow : { arg_wit : 'b Witness.t; f : ('b -> 'a) staged } -> 'a t
 end
 
-module type Output_channel = sig
+module type IO_channel = sig
   type out_channel
 
-  val output_char : out_channel -> char -> unit
-  val output_string : out_channel -> string -> unit
-  val output_bytes : out_channel -> bytes -> unit
-  val output : out_channel -> bytes -> int -> int -> unit
-  val output_substring : out_channel -> string -> int -> int -> unit
-  val output_byte : out_channel -> int -> unit
-  val output_binary_int : out_channel -> int -> unit
-  val output_value : out_channel -> 'a -> unit
+  val append_char : out_channel -> char -> unit
+  val append_string : out_channel -> string -> unit
+  val append_bytes : out_channel -> bytes -> unit
+  val append : out_channel -> bytes -> int -> int -> unit
+  val append_substring : out_channel -> string -> int -> int -> unit
+  val append_byte : out_channel -> int -> unit
+  val append_binary_int : out_channel -> int -> unit
+  val append_value : out_channel -> 'a -> unit
+
+  type in_channel
+
+  val input_byte : in_channel -> int -> int
+  (** [input_byte ic off] is [byte] *)
+
+  val input_char : in_channel -> int -> char
+  (** [input_char ic off] is [char] *)
+
+  val blit : in_channel -> int -> bytes -> int -> int -> unit
 end
 
-module Types (OC : Output_channel) = struct
+module Types (IO : IO_channel) = struct
   type len = [ `Int | `Int8 | `Int16 | `Int32 | `Int64 | `Fixed of int ]
   type 'a pp = 'a Fmt.t
   type 'a of_string = string -> ('a, [ `Msg of string ]) result
@@ -27,10 +37,10 @@ module Types (OC : Output_channel) = struct
   type 'a encode_json = Jsonm.encoder -> 'a -> unit
   type json_decoder = { mutable lexemes : Jsonm.lexeme list; d : Jsonm.decoder }
   type 'a decode_json = json_decoder -> ('a, [ `Msg of string ]) result
-  type 'a bin_seq = 'a -> OC.out_channel -> unit
+  type 'a bin_seq = 'a -> IO.out_channel -> unit
   type 'a pre_hash = 'a bin_seq staged
   type 'a encode_bin = 'a bin_seq staged
-  type 'a decode_bin = (string -> int -> int * 'a) staged
+  type 'a decode_bin = (IO.in_channel -> int -> int * 'a) staged
   type 'a size_of = ('a -> int option) staged
   type 'a compare = ('a -> 'a -> int) staged
   type 'a equal = ('a -> 'a -> bool) staged
@@ -215,4 +225,19 @@ module Types (OC : Output_channel) = struct
                 | Some v -> unstage f v
                 | None -> assert false)
             | _ -> assert false))
+
+  module Fields_folder (Acc : sig
+    type ('a, 'b) t
+  end) =
+  struct
+    type 'a t = {
+      nil : ('a, 'a) Acc.t;
+      cons : 'b 'c. ('a, 'b) field -> ('a, 'c) Acc.t -> ('a, 'b -> 'c) Acc.t;
+    }
+
+    let rec fold : type a c. a t -> (a, c) fields -> (a, c) Acc.t =
+     fun folder -> function
+      | F0 -> folder.nil
+      | F1 (f, fs) -> folder.cons f (fold folder fs)
+  end
 end
