@@ -19,6 +19,8 @@ open Staging
 include Type_binary_intf
 
 module Make (IO : IO_channel) = struct
+  type 'a t = 'a Type_core.t
+  type +'a staged = 'a Staging.staged
   type out_channel = IO.out_channel
   type in_channel = IO.in_channel
   type 'a bin_seq = 'a -> out_channel -> unit

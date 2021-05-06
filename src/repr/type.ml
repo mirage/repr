@@ -458,18 +458,4 @@ struct
    fun v -> map (seq (pair Map.key_t v)) Map.of_seq Map.to_seq
 end
 
-module Make (IO : IO_channel) = struct
-  include Type_binary.Make (IO)
-
-  type 'a bin_seq = 'a -> out_channel -> unit
-  type 'a encode_bin = 'a bin_seq staged
-  type 'a decode_bin = (in_channel -> int -> int * 'a) staged
-
-  let encode_bin = encode_bin
-  let decode_bin = decode_bin
-
-  module Unboxed = struct
-    let encode_bin = Unboxed.encode_bin
-    let decode_bin = Unboxed.decode_bin
-  end
-end
+module Make = Type_binary.Make

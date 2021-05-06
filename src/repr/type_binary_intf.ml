@@ -1,6 +1,3 @@
-open Type_core
-open Staging
-
 module type IO_channel = sig
   type out_channel
 
@@ -23,6 +20,8 @@ end
 module type S = sig
   type out_channel
   type in_channel
+  type 'a t = 'a Type_core.t
+  type +'a staged = 'a Staging.staged
   type 'a bin_seq = 'a -> out_channel -> unit
   type 'a encode_bin = 'a bin_seq staged
   type 'a decode_bin = (in_channel -> int -> int * 'a) staged
@@ -42,6 +41,8 @@ module type Maker = sig
       S
         with type out_channel = IO.out_channel
          and type in_channel = IO.in_channel
+         and type 'a t = 'a Type_core.t
+         and type +'a staged = 'a Staging.staged
   end
 end
 
