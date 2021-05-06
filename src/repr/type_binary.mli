@@ -16,14 +16,13 @@
 
 open Type_core
 open Staging
+include Type_binary_intf.Sigs
 
-val encode_bin : 'a t -> 'a encode_bin
-val decode_bin : 'a t -> 'a decode_bin
-
-module Unboxed : sig
-  val encode_bin : 'a t -> 'a encode_bin
-  val decode_bin : 'a t -> 'a decode_bin
+module Make (IO : IO_channel) : sig
+  include S
 end
 
 val to_bin_string : 'a t -> 'a to_string staged
 val of_bin_string : 'a t -> 'a of_string staged
+
+(** @inline *)

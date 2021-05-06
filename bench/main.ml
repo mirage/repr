@@ -1,6 +1,30 @@
 open Bechamel
 open Toolkit
 module T = Repr
+
+module IO_channel :
+  T.IO_channel
+    with type out_channel = Stdlib.out_channel
+     and type in_channel = Bytes.t = struct
+  type out_channel = Stdlib.out_channel
+
+  let append_char = output_char
+  let append_string = output_string
+  let append_bytes = output_bytes
+  let append_byte = output_byte
+
+  type in_channel = Bytes.t
+
+  (** [input_byte ic off] is [byte] *)
+  let input_byte = Bytes.get_uint8
+
+  (** [input_char ic off] is [char] *)
+  let input_char = Bytes.get
+
+  let blit = Bytes.blit
+end
+
+module ED = T.Make (IO_channel)
 open Output
 
 module Generic_op = struct
@@ -24,7 +48,7 @@ module Generic_op = struct
 
   let bin : t =
     let encode (type a) (ty : a T.t) =
-      let f = T.unstage (T.encode_bin ty) in
+      let f = T.unstage (ED.encode_bin ty) in
       T.stage
         (fun a ->
            let buffer = Buffer.create 0 in

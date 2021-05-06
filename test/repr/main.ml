@@ -673,7 +673,7 @@ let test_decode () =
   decode ~off:2 "xx\002aa" (Ok "aa");
   decode ~off:2 "xx\000aaaaa" (Ok "")
 
-module ZCF = Repr.Zc_type_binary
+module ZCF = Repr
 
 module IO_channel :
   ZCF.IO_channel
@@ -684,11 +684,7 @@ module IO_channel :
   let append_char = output_char
   let append_string = output_string
   let append_bytes = output_bytes
-  let append = output
-  let append_substring = output_substring
   let append_byte = output_byte
-  let append_binary_int = output_binary_int
-  let append_value = output_value
 
   type in_channel = Bytes.t
 

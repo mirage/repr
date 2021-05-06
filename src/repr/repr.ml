@@ -15,8 +15,6 @@
  *)
 
 include Type
-
-module Zc_type_binary = Zc_type_binary
 (** @inline *)
 
 (** {1 Miscellaneous modules} *)

@@ -17,28 +17,29 @@
 include Type_intf
 include Type_core
 include Staging
+include Type_binary_intf
 open Utils
 
-let pre_hash t =
-  let rec aux : type a. a t -> a encode_bin = function
-    | Self s -> aux s.self_fix
-    | Map m ->
-        let dst = unstage (aux m.x) in
-        stage (fun v -> dst (m.g v))
-    | Custom c -> c.pre_hash
-    | t -> Type_binary.Unboxed.encode_bin t
-  in
-  aux t
-
-let short_hash = function
-  | Custom c -> c.short_hash
-  | t ->
-      let pre_hash = unstage (pre_hash t) in
-      stage @@ fun ?seed x ->
-      let seed = match seed with None -> 0 | Some t -> t in
-      let h = ref seed in
-      pre_hash x (fun s -> h := Hashtbl.seeded_hash !h s);
-      !h
+(* let pre_hash t =
+ *   let rec aux : type a. a t -> a encode_bin = function
+ *     | Self s -> aux s.self_fix
+ *     | Map m ->
+ *         let dst = unstage (aux m.x) in
+ *         stage (fun v -> dst (m.g v))
+ *     | Custom c -> c.pre_hash
+ *     | t -> Type_binary.Unboxed.encode_bin t
+ *   in
+ *   aux t
+ *
+ * let short_hash = function
+ *   | Custom c -> c.short_hash
+ *   | t ->
+ *       let pre_hash = unstage (pre_hash t) in
+ *       stage @@ fun ?seed x ->
+ *       let seed = match seed with None -> 0 | Some t -> t in
+ *       let h = ref seed in
+ *       pre_hash x (fun s -> h := Hashtbl.seeded_hash !h s);
+ *       !h *)
 
 (* Combinators for Repr types *)
 
@@ -60,29 +61,20 @@ let triple a b c = Tuple (Triple (a, b, c))
 let option a = Option a
 let boxed t = Boxed t
 
-let abstract ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
-    ~pre_hash () =
+let abstract ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare () =
   let encode_json, decode_json = json in
-  let encode_bin, decode_bin, size_of = bin in
-  let unboxed_encode_bin, unboxed_decode_bin, unboxed_size_of =
-    match unboxed_bin with None -> bin | Some b -> b
-  in
+  let size_of = bin in
+  let unboxed_size_of = match unboxed_bin with None -> bin | Some b -> b in
   Custom
     {
       cwit = `Witness (Witness.make ());
       pp;
       of_string;
-      pre_hash;
       encode_json;
       decode_json;
-      encode_bin;
-      decode_bin;
       size_of;
       compare;
       equal;
-      short_hash;
-      unboxed_encode_bin;
-      unboxed_decode_bin;
       unboxed_size_of;
     }
 
@@ -270,8 +262,8 @@ let fold_impl ~undefined ~structural = function
   | Undefined -> undefined ()
   | Structural -> structural ()
 
-let partially_abstract ~pp ~of_string ~json ~bin ~unboxed_bin ~equal ~compare
-    ~short_hash:short_hash_t ~pre_hash:pre_hash_t t : _ t =
+let partially_abstract ~pp ~of_string ~json ~bin ~unboxed_bin ~equal ~compare t
+    : _ t =
   let encode_json, decode_json =
     fold_impl json
       ~undefined:(fun () -> (undefined "encode_json", undefined "decode_json"))
@@ -304,23 +296,15 @@ let partially_abstract ~pp ~of_string ~json ~bin ~unboxed_bin ~equal ~compare
       ~structural:(fun () -> Type_pp.of_string t)
       ~undefined:(fun () -> undefined "of_string")
   in
-  let encode_bin, decode_bin, size_of =
+  let size_of =
     fold_impl bin
-      ~undefined:(fun () ->
-        (undefined' "encode_bin", undefined' "decode_bin", undefined' "size_of"))
-      ~structural:(fun () ->
-        (Type_binary.encode_bin t, Type_binary.decode_bin t, Type_size.t t))
+      ~undefined:(fun () -> undefined' "size_of")
+      ~structural:(fun () -> Type_size.t t)
   in
-  let unboxed_encode_bin, unboxed_decode_bin, unboxed_size_of =
+  let unboxed_size_of =
     fold_impl unboxed_bin
-      ~undefined:(fun () ->
-        ( undefined' "Unboxed.encode_bin",
-          undefined' "Unboxed.decode_bin",
-          undefined' "Unboxed.size_of" ))
-      ~structural:(fun () ->
-        ( Type_binary.Unboxed.encode_bin t,
-          Type_binary.Unboxed.decode_bin t,
-          Type_size.unboxed t ))
+      ~undefined:(fun () -> undefined' "Unboxed.size_of")
+      ~structural:(fun () -> Type_size.unboxed t)
   in
   let equal =
     fold_impl equal
@@ -332,16 +316,6 @@ let partially_abstract ~pp ~of_string ~json ~bin ~unboxed_bin ~equal ~compare
       ~undefined:(fun () -> undefined' "compare")
       ~structural:(fun () -> Type_ordered.compare t)
   in
-  let short_hash =
-    fold_impl short_hash_t
-      ~undefined:(fun () -> stage (fun ?seed:_ -> undefined "short_hash" ()))
-      ~structural:(fun () -> short_hash t)
-  in
-  let pre_hash =
-    fold_impl pre_hash_t
-      ~undefined:(fun () -> undefined' "pre_hash")
-      ~structural:(fun () -> encode_bin)
-  in
   Custom
     {
       cwit = `Type t;
@@ -349,20 +323,13 @@ let partially_abstract ~pp ~of_string ~json ~bin ~unboxed_bin ~equal ~compare
       of_string;
       encode_json;
       decode_json;
-      encode_bin;
-      decode_bin;
       size_of;
       compare;
       equal;
-      short_hash;
-      pre_hash;
-      unboxed_encode_bin;
-      unboxed_decode_bin;
       unboxed_size_of;
     }
 
-let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
-    ?pre_hash t =
+let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare t =
   let to_impl = function None -> Structural | Some x -> Custom x in
   let equal =
     match equal with
@@ -380,23 +347,16 @@ let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
   and of_string = to_impl of_string
   and bin = to_impl bin
   and unboxed_bin = to_impl unboxed_bin
-  and compare = to_impl compare
-  and short_hash = to_impl short_hash
-  and pre_hash = to_impl pre_hash in
-  partially_abstract ~pp ~json ~of_string ~bin ~unboxed_bin ~equal ~compare
-    ~short_hash ~pre_hash t
+  and compare = to_impl compare in
+  partially_abstract ~pp ~json ~of_string ~bin ~unboxed_bin ~equal ~compare t
 
-let map ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
-    ?pre_hash x f g =
-  match
-    (pp, of_string, json, bin, unboxed_bin, equal, compare, short_hash, pre_hash)
-  with
-  | None, None, None, None, None, None, None, None, None ->
+let map ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare x f g =
+  match (pp, of_string, json, bin, unboxed_bin, equal, compare) with
+  | None, None, None, None, None, None, None ->
       Map { x; f; g; mwit = Witness.make () }
   | _ ->
       let x = Map { x; f; g; mwit = Witness.make () } in
-      like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
-        ?pre_hash x
+      like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare x
 
 module type S = sig
   type t
@@ -417,15 +377,11 @@ let ( to_json_string,
       decode_json_lexemes ) =
   Type_json.(to_string, of_string, pp, encode, decode_jsonm, decode_lexemes)
 
-let encode_bin, decode_bin, to_bin_string, of_bin_string =
-  Type_binary.(encode_bin, decode_bin, to_bin_string, of_bin_string)
-
+let to_bin_string, of_bin_string = Type_binary.(to_bin_string, of_bin_string)
 let random, random_state = Type_random.(of_global, of_state)
 let size_of = Type_size.t
 
 module Unboxed = struct
-  include Type_binary.Unboxed
-
   let size_of = Type_size.unboxed
 end
 
@@ -500,4 +456,20 @@ end) =
 struct
   let t : type v. v t -> v Map.t t =
    fun v -> map (seq (pair Map.key_t v)) Map.of_seq Map.to_seq
+end
+
+module Make (IO : IO_channel) = struct
+  include Type_binary.Make (IO)
+
+  type 'a bin_seq = 'a -> out_channel -> unit
+  type 'a encode_bin = 'a bin_seq staged
+  type 'a decode_bin = (in_channel -> int -> int * 'a) staged
+
+  let encode_bin = encode_bin
+  let decode_bin = decode_bin
+
+  module Unboxed = struct
+    let encode_bin = Unboxed.encode_bin
+    let decode_bin = Unboxed.decode_bin
+  end
 end

@@ -12,11 +12,7 @@ module type IO_channel = sig
   val append_char : out_channel -> char -> unit
   val append_string : out_channel -> string -> unit
   val append_bytes : out_channel -> bytes -> unit
-  val append : out_channel -> bytes -> int -> int -> unit
-  val append_substring : out_channel -> string -> int -> int -> unit
   val append_byte : out_channel -> int -> unit
-  val append_binary_int : out_channel -> int -> unit
-  val append_value : out_channel -> 'a -> unit
 
   type in_channel
 
