@@ -646,7 +646,12 @@ module type DSL = sig
     include Type_binary.IO_channel
   end
 
-  module Make (IO : IO_channel) : Type_binary_intf.S
+  module Make (IO : IO_channel) :
+    Type_binary.S
+      with type 'a t = 'a t
+       and type +'a staged = 'a staged
+       and type out_channel = IO.out_channel
+       and type in_channel = IO.in_channel
 end
 
 module type Type = sig

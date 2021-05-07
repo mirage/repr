@@ -1,3 +1,6 @@
+open Type_core
+open Staging
+
 module type IO_channel = sig
   type out_channel
 
@@ -20,8 +23,8 @@ end
 module type S = sig
   type out_channel
   type in_channel
-  type 'a t = 'a Type_core.t
-  type +'a staged = 'a Staging.staged
+  type 'a t
+  type +'a staged
   type 'a bin_seq = 'a -> out_channel -> unit
   type 'a encode_bin = 'a bin_seq staged
   type 'a decode_bin = (in_channel -> int -> int * 'a) staged
@@ -35,19 +38,20 @@ module type S = sig
   end
 end
 
-module type Maker = sig
-  module Make (IO : IO_channel) : sig
-    include
-      S
-        with type out_channel = IO.out_channel
-         and type in_channel = IO.in_channel
-         and type 'a t = 'a Type_core.t
-         and type +'a staged = 'a Staging.staged
-  end
-end
+module type Maker = functor (IO : IO_channel) ->
+  S
+    with type out_channel = IO.out_channel
+     and type in_channel = IO.in_channel
+     and type 'a t = 'a Type_core.t
+     and type +'a staged = 'a Staging.staged
 
 module type Sigs = sig
   module type IO_channel = IO_channel
   module type S = S
   module type Maker = Maker
+
+  module Make : Maker
+
+  val to_bin_string : 'a t -> 'a to_string staged
+  val of_bin_string : 'a t -> 'a of_string staged
 end

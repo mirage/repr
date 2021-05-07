@@ -2,29 +2,27 @@ open Bechamel
 open Toolkit
 module T = Repr
 
-module IO_channel :
-  T.IO_channel
-    with type out_channel = Stdlib.out_channel
-     and type in_channel = Bytes.t = struct
-  type out_channel = Stdlib.out_channel
+module IO = struct
+  type out_channel = Buffer.t
+  type in_channel = Buffer.t
 
-  let append_char = output_char
-  let append_string = output_string
-  let append_bytes = output_bytes
-  let append_byte = output_byte
+  include Buffer
 
-  type in_channel = Bytes.t
+  let append_char = Buffer.add_char
+  let append_string = Buffer.add_string
+  let append_bytes = Buffer.add_bytes
+  let append_byte buf byt = Buffer.add_char buf (Char.chr byt)
 
   (** [input_byte ic off] is [byte] *)
-  let input_byte = Bytes.get_uint8
+  let input_byte buf pos = Char.code @@ Buffer.nth buf pos
 
   (** [input_char ic off] is [char] *)
-  let input_char = Bytes.get
+  let input_char = Buffer.nth
 
-  let blit = Bytes.blit
+  let blit = Buffer.blit
 end
 
-module ED = T.Make (IO_channel)
+module ED = T.Make (IO)
 open Output
 
 module Generic_op = struct
@@ -51,13 +49,13 @@ module Generic_op = struct
       let f = T.unstage (ED.encode_bin ty) in
       T.stage
         (fun a ->
-           let buffer = Buffer.create 0 in
-           f a (Buffer.add_string buffer);
+           let buffer = IO.create 0 in
+           f a buffer;
            Buffer.contents buffer
           : a -> string)
     in
     let decode (type a) (ty : a T.t) =
-      let f = T.unstage (T.decode_bin ty) in
+      let f = T.unstage (ED.decode_bin ty) in
       T.stage (fun s -> f s 0 |> snd : string -> a)
     in
     { name = "bin"; operation = Codec { encode; decode } }

@@ -14,15 +14,5 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-open Type_core
-open Staging
 include Type_binary_intf.Sigs
-
-module Make (IO : IO_channel) : sig
-  include S
-end
-
-val to_bin_string : 'a t -> 'a to_string staged
-val of_bin_string : 'a t -> 'a of_string staged
-
 (** @inline *)
