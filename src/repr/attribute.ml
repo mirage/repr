@@ -33,7 +33,7 @@ module Map = struct
   type 'a binding = B : 'f Key.t * ('a, 'f) data -> 'a binding
   type nonrec 'a t = 'a binding t
 
-  let empty () = empty
+  let empty = empty
   let is_empty = is_empty
   let mem t k = mem (E k) t
   let add t ~key ~data = add (E key) (B (key, data)) t
@@ -80,10 +80,12 @@ struct
   include T
   include Branded.Make (T)
 
-  let attr : br Key.t = Key.create ~name
+  let key : br Key.t = Key.create ~name
 
-  let find_attr map =
-    match Map.find map attr with None -> None | Some x -> Some (prj x)
+  let find map =
+    match Map.find map key with None -> None | Some x -> Some (prj x)
+
+  let add data map = Map.add map ~key ~data:(inj data)
 end
 
 include Key

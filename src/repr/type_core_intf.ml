@@ -1,4 +1,3 @@
-open Higher
 open Staging
 
 module Types = struct
@@ -152,7 +151,12 @@ module type Type_core = sig
   module Encode_json : Attribute.S1 with type 'a t = 'a encode_json
   module Decode_json : Attribute.S1 with type 'a t = 'a decode_json
 
-  val annotate : 'a t -> key:'f Attribute.t -> data:('a, 'f) app -> 'a t
+  val annotate :
+    'a t ->
+    add:('data -> 'a Attribute.Map.t -> 'a Attribute.Map.t) ->
+    data:'data ->
+    'a t
+
   val fold_variant : ('a, 'b) Case_folder.t -> 'a variant -> ('a -> 'b) staged
 
   val partial :

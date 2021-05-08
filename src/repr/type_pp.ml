@@ -69,9 +69,7 @@ let dump t =
     | Record r -> record r ppf x
     | Variant v -> variant v ppf x
     | Attributes { attrs; attr_type = t } -> (
-        match Attr.find_attr attrs with
-        | None -> aux t ppf x
-        | Some pp -> pp ppf x)
+        match Attr.find attrs with None -> aux t ppf x | Some pp -> pp ppf x)
   and map : type a b. (a, b) map -> b pp = fun l ppf x -> aux l.x ppf (l.g x)
   and prim : type a. a prim -> a pp =
    fun t ppf x ->

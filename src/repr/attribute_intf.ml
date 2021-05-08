@@ -9,12 +9,15 @@ module type S1 = sig
   type 'a t
   (** The type of data associated with the {!attr} attribute key. *)
 
+  val add : 'a t -> 'a map -> 'a map
+  (** Attach data for {!attr} to a given map. *)
+
+  val find : 'a map -> 'a t option
+  (** Search for data corresponding to the key {!attr} in the given map. *)
+
   include Branded.S with type 'a t := 'a t
 
-  val attr : br attr
-
-  val find_attr : 'a map -> 'a t option
-  (** Given an attribute map, search for data corresponding to the key {!attr}. *)
+  val key : br attr
 end
 
 module type Attribute = sig
@@ -43,7 +46,7 @@ module type Attribute = sig
     (** Given an ['a t] map and an ['f key] attribute key, the type of the
         corresponding data is [('a, 'f) Higher.app]. *)
 
-    val empty : unit -> _ t
+    val empty : _ t
     val is_empty : _ t -> bool
     val mem : 'a t -> 'f key -> bool
     val add : 'a t -> key:'f key -> data:('a, 'f) data -> 'a t

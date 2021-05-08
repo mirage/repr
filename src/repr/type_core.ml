@@ -45,11 +45,10 @@ module Decode_json = Attribute.Make1 (struct
   let name = "decode_json"
 end)
 
-let annotate t ~key ~data =
+let annotate t ~add ~data =
   match t with
-  | Attributes t ->
-      Attributes { t with attrs = Attribute.Map.add t.attrs ~key ~data }
-  | t -> Attributes { attrs = Attribute.Map.singleton key data; attr_type = t }
+  | Attributes t -> Attributes { t with attrs = add data t.attrs }
+  | t -> Attributes { attrs = add data Attribute.Map.empty; attr_type = t }
 
 let partial ?(pp = fun _ -> failwith "`pp` not implemented")
     ?(of_string = fun _ -> failwith "`of_string` not implemented")
@@ -85,8 +84,8 @@ let partial ?(pp = fun _ -> failwith "`pp` not implemented")
       unboxed_decode_bin;
       unboxed_size_of;
     }
-  |> annotate ~key:Encode_json.attr ~data:(Encode_json.inj encode_json)
-  |> annotate ~key:Decode_json.attr ~data:(Decode_json.inj decode_json)
+  |> annotate ~add:Encode_json.add ~data:encode_json
+  |> annotate ~add:Decode_json.add ~data:decode_json
 
 let rec fields_aux : type a b. (a, b) fields -> a a_field list = function
   | F0 -> []

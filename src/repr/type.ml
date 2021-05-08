@@ -61,9 +61,7 @@ let array ?(len = `Int) v = Array { v; len }
 let pair a b = Tuple (Pair (a, b))
 let triple a b c = Tuple (Triple (a, b, c))
 let option a = Option a
-
-let boxed t =
-  annotate ~key:Type_binary.Boxed.attr ~data:(Type_binary.Boxed.inj ()) t
+let boxed t = annotate ~add:Type_binary.Boxed.add ~data:() t
 
 let abstract ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
     ~pre_hash () =
@@ -88,8 +86,8 @@ let abstract ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
       unboxed_decode_bin;
       unboxed_size_of;
     }
-  |> annotate ~key:Encode_json.attr ~data:(Encode_json.inj encode_json)
-  |> annotate ~key:Decode_json.attr ~data:(Decode_json.inj decode_json)
+  |> annotate ~add:Encode_json.add ~data:encode_json
+  |> annotate ~add:Decode_json.add ~data:decode_json
 
 (* fix points *)
 
@@ -363,8 +361,8 @@ let partially_abstract ~pp ~of_string ~json ~bin ~unboxed_bin ~equal ~compare
       unboxed_decode_bin;
       unboxed_size_of;
     }
-  |> annotate ~key:Encode_json.attr ~data:(Encode_json.inj encode_json)
-  |> annotate ~key:Decode_json.attr ~data:(Decode_json.inj decode_json)
+  |> annotate ~add:Encode_json.add ~data:encode_json
+  |> annotate ~add:Decode_json.add ~data:decode_json
 
 let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
     ?pre_hash t =
@@ -444,8 +442,7 @@ module Json = struct
 end
 
 module Attribute = struct
-  let set_random f ty =
-    annotate ~key:Type_random.Attr.attr ~data:(Type_random.Attr.inj f) ty
+  let set_random f ty = annotate ~add:Type_random.Attr.add ~data:f ty
 end
 
 let ref : type a. a t -> a ref t = fun a -> map a ref (fun t -> !t)

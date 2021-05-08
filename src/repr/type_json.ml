@@ -92,9 +92,7 @@ module Encode = struct
     | Custom _ -> failwith "Unimplemented operation: encode_json"
     | Map b -> map b
     | Attributes { attr_type = x; attrs } -> (
-        match Attribute.Map.find attrs Encode_json.attr with
-        | None -> t x
-        | Some t -> Encode_json.prj t)
+        match Encode_json.find attrs with None -> t x | Some t -> t)
     | Prim t -> prim t
     | List l -> list (t l.v)
     | Array a -> array (t a.v)
@@ -304,9 +302,7 @@ module Decode = struct
     | Map b -> map b
     | Prim t -> prim t
     | Attributes { attr_type = x; attrs } -> (
-        match Attribute.Map.find attrs Decode_json.attr with
-        | None -> t x
-        | Some f -> Decode_json.prj f)
+        match Decode_json.find attrs with None -> t x | Some f -> f)
     | List l -> list (t l.v)
     | Array a -> array (t a.v)
     | Tuple t -> tuple t
