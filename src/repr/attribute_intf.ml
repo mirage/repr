@@ -1,26 +1,47 @@
 open Higher
 
+(** An attribute key is a value that can be used to attach polymorphic data to a
+    heterogeneous attribute map. *)
 module type S1 = sig
   type 'a attr
   type 'a map
+
   type 'a t
+  (** The type of data associated with the {!attr} attribute key. *)
 
   include Branded.S with type 'a t := 'a t
 
   val attr : br attr
+
   val find_attr : 'a map -> 'a t option
+  (** Given an attribute map, search for data corresponding to the key {!attr}. *)
 end
 
 module type Attribute = sig
   type 'f t
+  (** An ['f t] is an attribute key that can be used to pack polymorphic data
+      into a heterogeneous {!Map} (and then recover it again).
+
+      The type parameter ['f] is the brand of a type operator [f : * ⇒ *]
+      which, when applied to the type parameter ['a] of a {!Map.t}, gives the
+      the type ['a f] of the associated data. This allows a single attribute key
+      to store {i polymorphic} data. *)
 
   val create : name:string -> _ t
+  (** [create ~name] is a fresh attribute key with the given string name. *)
+
   val name : _ t -> string
+  (** Get the string name of an attribute key. *)
 
   module Map : sig
     type 'f key := 'f t
+
     type 'a t
+    (** The type of polymorphic, heterogeneous maps. *)
+
     type ('a, 'f) data := ('a, 'f) app
+    (** Given an ['a t] map and an ['f key] attribute key, the type of the
+        corresponding data is [('a, 'f) Higher.app]. *)
 
     val empty : unit -> _ t
     val is_empty : _ t -> bool
