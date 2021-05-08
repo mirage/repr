@@ -1,11 +1,11 @@
-open Brands
+open Higher
 
 module type S1 = sig
   type 'a attr
   type 'a map
   type 'a t
 
-  include Branded.S1 with type 'a t := 'a t
+  include Branded.S with type 'a t := 'a t
 
   val attr : br attr
   val find_attr : 'a map -> 'a t option

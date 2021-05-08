@@ -1,5 +1,5 @@
 include Attribute_intf
-open Brands
+open Higher
 
 module Key = struct
   type 'f t = { uid : int; name : string; wit : 'f Witness.t }
@@ -78,7 +78,7 @@ module Make1 (T : sig
 end) =
 struct
   include T
-  include Branded.Make1 (T)
+  include Branded.Make (T)
 
   let attr : br Key.t = Key.create ~name
 

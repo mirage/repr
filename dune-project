@@ -15,7 +15,6 @@
   (fmt (>= 0.8.7))
   uutf
   either
-  brands
   (jsonm (>= 1.0.0))
   (base64 (>= 3.0.0)))
  (synopsis "Dynamic type representations. Provides no stability guarantee")
