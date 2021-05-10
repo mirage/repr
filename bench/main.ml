@@ -4,7 +4,7 @@ module T = Repr
 
 module IO = struct
   type out_channel = Buffer.t
-  type in_channel = Buffer.t
+  type in_channel = String.t
 
   include Buffer
 
@@ -14,12 +14,12 @@ module IO = struct
   let append_byte buf byt = Buffer.add_char buf (Char.chr byt)
 
   (** [input_byte ic off] is [byte] *)
-  let input_byte buf pos = Char.code @@ Buffer.nth buf pos
+  let input_byte buf pos = Char.code @@ String.get buf pos
 
   (** [input_char ic off] is [char] *)
-  let input_char = Buffer.nth
+  let input_char = String.get
 
-  let blit = Buffer.blit
+  let blit = String.blit
 end
 
 module ED = T.Make (IO)
@@ -62,11 +62,11 @@ module Generic_op = struct
 
   let pre_hash : t =
     let consume (type a) (ty : a T.t) =
-      let f = T.unstage (T.pre_hash ty) in
+      let f = T.unstage (ED.pre_hash ty) in
       T.stage
         (fun a ->
            let buffer = Buffer.create 0 in
-           f a (Buffer.add_string buffer);
+           f a buffer;
            Buffer.contents buffer
           : a -> string)
     in

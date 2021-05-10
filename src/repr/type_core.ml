@@ -37,9 +37,18 @@ let partial ?(pp = fun _ -> failwith "`pp` not implemented")
     ?(of_string = fun _ -> failwith "`of_string` not implemented")
     ?(encode_json = fun _ -> failwith "`encode_json` not implemented")
     ?(decode_json = fun _ -> failwith "`decode_json` not implemented")
+    ?(short_hash =
+      stage (fun ?seed:_ _ -> failwith "`short_hash` not implemented"))
+    ?(pre_hash = stage (fun _ -> failwith "`pre_hash` not implemented"))
     ?(compare = stage (fun _ -> failwith "`compare` not implemented"))
     ?(equal = stage (fun _ -> failwith "`equal` not implemented"))
+    ?(encode_bin = stage (fun _ -> failwith "`encode_bin` not implemented"))
+    ?(decode_bin = stage (fun _ -> failwith "`decode_bin` not implemented"))
     ?(size_of = stage (fun _ -> failwith "`size_of` not implemented"))
+    ?(unboxed_encode_bin =
+      stage (fun _ -> failwith "`unboxed_encode_bin` not implemented"))
+    ?(unboxed_decode_bin =
+      stage (fun _ -> failwith "`unboxed_decode_bin` not implemented"))
     ?(unboxed_size_of =
       stage (fun _ -> failwith "`unboxed_size_of` not implemented")) () =
   Custom
@@ -49,12 +58,17 @@ let partial ?(pp = fun _ -> failwith "`pp` not implemented")
       of_string;
       encode_json;
       decode_json;
+      short_hash;
+      pre_hash;
       compare;
       equal;
+      encode_bin;
+      decode_bin;
       size_of;
+      unboxed_encode_bin;
+      unboxed_decode_bin;
       unboxed_size_of;
     }
-
 let rec fields_aux : type a b. (a, b) fields -> a a_field list = function
   | F0 -> []
   | F1 (h, t) -> Field h :: fields_aux t

@@ -133,8 +133,8 @@ module Make (IO : IO_channel) = struct
               o x oc)
 
     let rec t : type a. a t -> a encode_bin = function
-      | Self _s -> failwith "Not implemented for IO_channel" (* fst (self s) *)
-      | Custom _ -> failwith "Not implemented for IO_channel"
+      | Self s -> fst (self s)
+      | Custom _ -> failwith "Boxed custom not implemented for IO_channel"
       | Map b -> map ~boxed:true b
       | Prim t -> prim ~boxed:true t
       | Boxed b -> t b
@@ -143,12 +143,12 @@ module Make (IO : IO_channel) = struct
       | Tuple t -> tuple t
       | Option x -> option (t x)
       | Record r -> record r
-      | Variant _v -> failwith "TODO" (* variant v *)
+      | Variant v -> variant v
       | Var v -> raise (Unbound_type_variable v)
 
     and unboxed : type a. a t -> a encode_bin = function
-      | Self _s -> failwith "Not implemented for IO_channel" (* snd (self s) *)
-      | Custom _ -> failwith "Not implemented for IO_channel"
+      | Self s -> snd (self s)
+      | Custom _ -> failwith "Unboxed custom not implemented for IO_channel"
       | Map b -> map ~boxed:false b
       | Prim t -> prim ~boxed:false t
       | Boxed b -> t b
@@ -157,16 +157,17 @@ module Make (IO : IO_channel) = struct
       | Tuple t -> tuple t
       | Option x -> option (t x)
       | Record r -> record r
-      | Variant _v -> failwith "TODO" (* variant v *)
+      | Variant v -> variant v
       | Var v -> raise (Unbound_type_variable v)
 
-    (* and self : type a. a self -> a encode_bin * a encode_bin =
-     *  fun { self_unroll; _ } ->
-     *   zc_fix_staged (fun encode_bin unboxed_encode_bin ->
-     *       let cyclic =
-     *         self_unroll (partial ~encode_bin ~unboxed_encode_bin ())
-     *       in
-     *       (t cyclic, unboxed cyclic)) *)
+    and self : type a. a self -> a encode_bin * a encode_bin =
+     fun { self_unroll; _ } ->
+     Utils.fix_staged2 (fun _ _ ->
+          let cyclic =
+            self_unroll (partial ())
+          in
+          (t cyclic, unboxed cyclic))
+
     and tuple : type a. a tuple -> a encode_bin = function
       | Pair (x, y) -> pair (t x) (t y)
       | Triple (x, y, z) -> triple (t x) (t y) (t z)
@@ -198,15 +199,15 @@ module Make (IO : IO_channel) = struct
       in
       stage (fun x oc -> List.iter (fun f -> f x oc) field_encoders)
 
-    (* and variant : type a. a variant -> a encode_bin =
-     *   let c0 { ctag0; _ } = stage (int ctag0) in
-     *   let c1 c =
-     *     let encode_arg = unstage (t c.ctype1) in
-     *     stage (fun v oc ->
-     *         int c.ctag1 oc;
-     *         encode_arg v oc)
-     *   in
-     *   fun v -> fold_variant { c0; c1 } v *)
+    and variant : type a. a variant -> a encode_bin =
+      let c0 { ctag0; _ } = stage (int ctag0) in
+      let c1 c =
+        let encode_arg = unstage (t c.ctype1) in
+        stage (fun v oc ->
+            int c.ctag1 oc;
+            encode_arg v oc)
+      in
+      fun v -> fold_variant { c0; c1 } v
   end
 
   module Decode = struct
@@ -446,6 +447,17 @@ module Make (IO : IO_channel) = struct
     let encode_bin = Encode.unboxed
     let decode_bin = Decode.unboxed
   end
+
+  let pre_hash t =
+    let rec aux : type a. a t -> a encode_bin = function
+      | Self s -> aux s.self_fix
+      | Map m ->
+          let dst = unstage (aux m.x) in
+          stage (fun v -> dst (m.g v))
+      | Custom _c -> failwith "Not implemented for IO_channel"
+      | t -> Unboxed.encode_bin t
+    in
+    aux t
 end
 
 type 'a to_bin_string = 'a to_string staged
@@ -453,7 +465,7 @@ type 'a of_bin_string = 'a of_string staged
 
 module Buffer = struct
   type out_channel = Buffer.t
-  type in_channel = Buffer.t
+  type in_channel = String.t
 
   include Buffer
 
@@ -463,12 +475,12 @@ module Buffer = struct
   let append_byte buf byt = Buffer.add_char buf (Char.chr byt)
 
   (** [input_byte ic off] is [byte] *)
-  let input_byte buf pos = Char.code @@ Buffer.nth buf pos
+  let input_byte s pos = Char.code @@ String.get s pos
 
   (** [input_char ic off] is [char] *)
-  let input_char = Buffer.nth
+  let input_char = String.get
 
-  let blit = Buffer.blit
+  let blit = String.blit
 end
 
 module Serde_buffer = Make (Buffer)
@@ -501,9 +513,7 @@ let to_bin_string =
   aux
 
 let of_bin decode_bin x =
-  let buf = Buffer.create 0 in
-  Buffer.add_string buf x;
-  let last, v = decode_bin buf 0 in
+  let last, v = decode_bin x 0 in
   assert (last = String.length x);
   Ok v
 
@@ -522,3 +532,13 @@ let of_bin_string t =
   in
   let f = unstage (aux t) in
   stage (fun x -> try f x with Invalid_argument e -> Error (`Msg e))
+
+let short_hash = function
+  | Custom _c -> failwith "Not implemented for IO_channel"
+  | t ->
+      let pre_hash = unstage (Serde_buffer.pre_hash t) in
+      stage @@ fun ?seed x ->
+      let seed = match seed with None -> 0 | Some t -> t in
+      let buf = Buffer.create 0 in
+      pre_hash x buf;
+      Hashtbl.seeded_hash seed (Buffer.contents buf)

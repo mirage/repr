@@ -516,6 +516,11 @@ module type DSL = sig
 
   (* open Type_core *)
 
+  type 'a short_hash := (?seed:int -> 'a -> int) staged
+
+  val short_hash : 'a t -> 'a short_hash
+  (** [hash t x] is a short hash of [x] of type [t]. *)
+
   type 'a size_of = ('a -> int option) staged
   (** The type for size function related to binary encoder/decoders. *)
 

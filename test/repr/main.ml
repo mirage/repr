@@ -9,6 +9,27 @@ module Alcotest = struct
     check ?pos (testable pp equal) msg a b
 end
 
+module IO = struct
+  type out_channel = Buffer.t
+  type in_channel = String.t
+
+  include Buffer
+
+  let append_char = Buffer.add_char
+  let append_string = Buffer.add_string
+  let append_bytes = Buffer.add_bytes
+  let append_byte buf byt = Buffer.add_char buf (Char.chr byt)
+
+  (** [input_byte ic off] is [byte] *)
+  let input_byte buf pos = Char.code @@ String.get buf pos
+
+  (** [input_char ic off] is [char] *)
+  let input_char = String.get
+
+  let blit = String.blit
+end
+module ED = T.Make (IO)
+
 let id x = x
 
 type foo = { a : int; b : int }
@@ -17,18 +38,18 @@ type bar = { c : int option; d : int option option }
 let ( >> ) f g x = g (f x)
 let to_bin_string t = T.unstage (T.to_bin_string t)
 let of_bin_string t = T.unstage (T.of_bin_string t)
-let encode_bin t = T.unstage (T.encode_bin t)
-let decode_bin t = T.unstage (T.decode_bin t)
+let encode_bin t = T.unstage (ED.encode_bin t)
+let decode_bin t = T.unstage (ED.decode_bin t)
 let size_of t = T.unstage (T.size_of t)
 
 let with_buf f =
   let buf = Buffer.create 10 in
-  f (Buffer.add_string buf);
+  f buf;
   Buffer.contents buf
 
 module Unboxed = struct
-  let decode_bin t = T.unstage (T.Unboxed.decode_bin t)
-  let encode_bin t = T.unstage (T.Unboxed.encode_bin t)
+  let decode_bin t = T.unstage (ED.Unboxed.decode_bin t)
+  let encode_bin t = T.unstage (ED.Unboxed.encode_bin t)
   let size_of t = T.unstage (T.Unboxed.size_of t)
 end
 
@@ -251,10 +272,10 @@ let test_bin () =
   let s = of_bin_string l "foobar" in
   Alcotest.(check (ok tl)) "decode list" (Ok [ "foo"; "bar" ]) s;
   let buf = Buffer.create 10 in
-  encode_bin T.string "foo" (Buffer.add_string buf);
+  encode_bin T.string "foo" buf;
   Alcotest.(check string) "foo 1" (Buffer.contents buf) "\003foo";
   let buf = Buffer.create 10 in
-  Unboxed.encode_bin T.string "foo" (Buffer.add_string buf);
+  Unboxed.encode_bin T.string "foo" buf;
   Alcotest.(check string) "foo 1" (Buffer.contents buf) "foo";
   let _, foo = Unboxed.decode_bin T.string "foo" 0 in
   Alcotest.(check string) "decode foo 0" foo "foo";
@@ -277,7 +298,7 @@ let test_bin () =
   List.iter
     (fun (k, v) ->
       let buf = Buffer.create 10 in
-      encode_bin T.int k (Buffer.add_string buf);
+      encode_bin T.int k buf;
       let v' = Buffer.contents buf in
       Alcotest.(check string) (Fmt.str "decoding %S" v) v v')
     varints
@@ -556,15 +577,12 @@ let test_pp_ty () =
     let v : empty T.t =
       let a1 _ = assert false in
       let a2 _ _ = assert false in
-      let pre_hash = T.stage @@ fun _ _ -> assert false in
       let equal = T.stage @@ fun _ _ -> assert false in
       let compare = T.stage @@ fun _ _ -> assert false in
       let hdr f = T.stage f in
       T.abstract ~pp:a2 ~of_string:a1 ~json:(a2, a1)
-        ~bin:(hdr a2, hdr a2, hdr a1)
-        ~equal ~compare
-        ~short_hash:(T.stage (fun ?seed:_ -> a1))
-        ~pre_hash ()
+        ~bin:(hdr a1)
+        ~equal ~compare ()
 
     let like_prim : int T.t = T.(like int)
     let like_custom : empty T.t = T.like v
@@ -673,58 +691,6 @@ let test_decode () =
   decode ~off:2 "xx\002aa" (Ok "aa");
   decode ~off:2 "xx\000aaaaa" (Ok "")
 
-module ZCF = Repr
-
-module IO_channel :
-  ZCF.IO_channel
-    with type out_channel = Stdlib.out_channel
-     and type in_channel = Bytes.t = struct
-  type out_channel = Stdlib.out_channel
-
-  let append_char = output_char
-  let append_string = output_string
-  let append_bytes = output_bytes
-  let append_byte = output_byte
-
-  type in_channel = Bytes.t
-
-  (** [input_byte ic off] is [byte] *)
-  let input_byte = Bytes.get_uint8
-
-  (** [input_char ic off] is [char] *)
-  let input_char = Bytes.get
-
-  let blit = Bytes.blit
-end
-
-module ZC = ZCF.Make_serde (IO_channel)
-
-let zc_encode_bin t = T.Staging.unstage (ZC.encode_bin t)
-let zc_decode_bin t = T.Staging.unstage (ZC.decode_bin t)
-
-let cmp_encodings v tt tzc to_string =
-  let fd_in, fd_out = Unix.pipe () in
-  let ic = Unix.in_channel_of_descr fd_in in
-  let oc = Unix.out_channel_of_descr fd_out in
-  let size = Option.get @@ size_of tt v in
-  let buf = Buffer.create size in
-  encode_bin tt v (Buffer.add_string buf);
-  zc_encode_bin tzc v oc;
-  let byt = Bytes.create size in
-  flush oc;
-  let _ = input ic byt 0 size in
-  let _off, s = zc_decode_bin tzc byt 0 in
-  Format.printf "V: %s@.  Enc: %S@.  Dec: %s@." (to_string v)
-    (Bytes.to_string byt) (to_string s);
-  Alcotest.(check bytes) "ZC against Prev" (Buffer.to_bytes buf) byt;
-  Alcotest.(check bool) "Encode/Decode" true (v = s)
-
-let test_zc_encode () =
-  Format.eprintf "@.";
-  cmp_encodings "foo" T.string ZC.string (fun x -> x);
-  cmp_encodings 1236 T.int ZC.int string_of_int;
-  (* cmp_encodings 1054894L T.int64 ZC.int64; *)
-  cmp_encodings 2537l T.int32 ZC.int32 Int32.to_string
 
 let test_size () =
   let check t v n =
@@ -1002,6 +968,5 @@ let () =
           ("test_duplicate_names", `Quick, test_duplicate_names);
           ("test_malformed_utf8", `Quick, test_malformed_utf8);
           ("test_stdlib_containers", `Quick, test_stdlib_containers);
-          ("zc_encode", `Quick, test_zc_encode);
         ] );
     ]

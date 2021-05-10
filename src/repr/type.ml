@@ -378,6 +378,7 @@ let ( to_json_string,
   Type_json.(to_string, of_string, pp, encode, decode_jsonm, decode_lexemes)
 
 let to_bin_string, of_bin_string = Type_binary.(to_bin_string, of_bin_string)
+let short_hash = Type_binary.short_hash
 let random, random_state = Type_random.(of_global, of_state)
 let size_of = Type_size.t
 
