@@ -162,10 +162,8 @@ module Make (IO : IO_channel) = struct
 
     and self : type a. a self -> a encode_bin * a encode_bin =
      fun { self_unroll; _ } ->
-     Utils.fix_staged2 (fun _ _ ->
-          let cyclic =
-            self_unroll (partial ())
-          in
+      Utils.fix_staged2 (fun _ _ ->
+          let cyclic = self_unroll (partial ()) in
           (t cyclic, unboxed cyclic))
 
     and tuple : type a. a tuple -> a encode_bin = function

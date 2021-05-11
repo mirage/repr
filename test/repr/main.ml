@@ -28,6 +28,7 @@ module IO = struct
 
   let blit = String.blit
 end
+
 module ED = T.Make (IO)
 
 let id x = x
@@ -79,7 +80,7 @@ let test_boxing () =
   Alcotest.(check string) "foo eq" s foo;
   Alcotest.(check bool) "foo physeq" true (foo == s);
   let check msg ty foo =
-    let msg f = Fmt.strf "%s: %s" msg f in
+    let msg f = Fmt.str "%s: %s" msg f in
     let buf = with_buf (encode_bin ty foo) in
     Alcotest.(check string) (msg "boxed") buf "\003foo";
     let buf = with_buf (Unboxed.encode_bin ty foo) in
@@ -580,8 +581,8 @@ let test_pp_ty () =
       let equal = T.stage @@ fun _ _ -> assert false in
       let compare = T.stage @@ fun _ _ -> assert false in
       let hdr f = T.stage f in
-      T.abstract ~pp:a2 ~of_string:a1 ~json:(a2, a1)
-        ~bin:(hdr a1)
+      T.abstract ~pp:a2 ~of_string:a1 ~json:(a2, a1) ~bin:(hdr a1)
+        ~short_hash:(T.stage (fun ?seed:_ -> a1))
         ~equal ~compare ()
 
     let like_prim : int T.t = T.(like int)
@@ -690,7 +691,6 @@ let test_decode () =
   decode ~off:2 "xx\003aa" (Error ());
   decode ~off:2 "xx\002aa" (Ok "aa");
   decode ~off:2 "xx\000aaaaa" (Ok "")
-
 
 let test_size () =
   let check t v n =

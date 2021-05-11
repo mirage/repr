@@ -570,6 +570,7 @@ module type DSL = sig
     of_string:'a of_string ->
     json:'a encode_json * 'a decode_json ->
     bin:'a size_of ->
+    short_hash:'a short_hash ->
     ?unboxed_bin:'a size_of ->
     equal:'a equal ->
     compare:'a compare ->
@@ -601,6 +602,7 @@ module type DSL = sig
     unboxed_bin:'a size_of impl ->
     equal:'a equal impl ->
     compare:'a compare impl ->
+    short_hash:'a short_hash impl ->
     'a t ->
     'a t
   (** [partially_abstract t] is a partially-abstract type with internal
@@ -615,6 +617,7 @@ module type DSL = sig
     ?unboxed_bin:'a size_of ->
     ?equal:'a equal ->
     ?compare:'a compare ->
+    ?short_hash:'a short_hash ->
     'a t ->
     'a t
   (** A wrapper around {!partially_abstract} with each operation defaulting to
@@ -631,6 +634,7 @@ module type DSL = sig
     ?unboxed_bin:'a size_of ->
     ?equal:'a equal ->
     ?compare:'a compare ->
+    ?short_hash:'a short_hash ->
     'b t ->
     ('b -> 'a) ->
     ('a -> 'b) ->

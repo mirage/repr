@@ -35,6 +35,7 @@ module Types = struct
     of_string : 'a of_string;
     encode_json : 'a encode_json;
     decode_json : 'a decode_json;
+    short_hash : 'a short_hash;
     compare : 'a compare;
     equal : 'a equal;
     (* boxed binary encoding *)
@@ -145,6 +146,7 @@ module type Type_core = sig
     ?of_string:'a of_string ->
     ?encode_json:'a encode_json ->
     ?decode_json:'a decode_json ->
+    ?short_hash:'a short_hash ->
     ?compare:'a compare ->
     ?equal:'a equal ->
     ?size_of:'a size_of ->

@@ -74,9 +74,6 @@ module type Sigs = sig
 
       {b NOTE:} When [t] is {!Type.string}, the result is [s] (without copy). *)
 
-  type 'a short_hash := (?seed:int -> 'a -> int) staged
-
   val short_hash : 'a t -> 'a short_hash
   (** [hash t x] is a short hash of [x] of type [t]. *)
-
 end
