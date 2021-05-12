@@ -8,6 +8,10 @@ module Types = struct
   type 'a encode_json = Jsonm.encoder -> 'a -> unit
   type json_decoder = { mutable lexemes : Jsonm.lexeme list; d : Jsonm.decoder }
   type 'a decode_json = json_decoder -> ('a, [ `Msg of string ]) result
+  type 'a bin_seq = 'a -> bytes -> int -> int
+  type 'a pre_hash = 'a bin_seq staged
+  type 'a encode_bin = 'a bin_seq staged
+  type 'a decode_bin = (bytes -> int -> int * 'a) staged
   type 'a size_of = ('a -> int option) staged
   type 'a compare = ('a -> 'a -> int) staged
   type 'a equal = ('a -> 'a -> bool) staged
@@ -36,11 +40,16 @@ module Types = struct
     encode_json : 'a encode_json;
     decode_json : 'a decode_json;
     short_hash : 'a short_hash;
+    pre_hash : 'a encode_bin;
     compare : 'a compare;
     equal : 'a equal;
     (* boxed binary encoding *)
+    encode_bin : 'a encode_bin;
+    decode_bin : 'a decode_bin;
     size_of : 'a size_of;
     (* unboxed binary encoding *)
+    unboxed_encode_bin : 'a encode_bin;
+    unboxed_decode_bin : 'a decode_bin;
     unboxed_size_of : 'a size_of;
   }
 
@@ -147,9 +156,14 @@ module type Type_core = sig
     ?encode_json:'a encode_json ->
     ?decode_json:'a decode_json ->
     ?short_hash:'a short_hash ->
+    ?pre_hash:'a pre_hash ->
     ?compare:'a compare ->
     ?equal:'a equal ->
+    ?encode_bin:'a encode_bin ->
+    ?decode_bin:'a decode_bin ->
     ?size_of:'a size_of ->
+    ?unboxed_encode_bin:'a encode_bin ->
+    ?unboxed_decode_bin:'a decode_bin ->
     ?unboxed_size_of:'a size_of ->
     unit ->
     'a t

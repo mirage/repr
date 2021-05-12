@@ -1,28 +1,6 @@
 open Bechamel
 open Toolkit
 module T = Repr
-
-module IO = struct
-  type out_channel = Buffer.t
-  type in_channel = String.t
-
-  include Buffer
-
-  let append_char = Buffer.add_char
-  let append_string = Buffer.add_string
-  let append_bytes = Buffer.add_bytes
-  let append_byte buf byt = Buffer.add_char buf (Char.chr byt)
-
-  (** [input_byte ic off] is [byte] *)
-  let input_byte buf pos = Char.code @@ String.get buf pos
-
-  (** [input_char ic off] is [char] *)
-  let input_char = String.get
-
-  let blit = String.blit
-end
-
-module ED = T.Make (IO)
 open Output
 
 module Generic_op = struct
@@ -33,6 +11,9 @@ module Generic_op = struct
         decode : 'a. 'a T.t -> (string -> 'a) T.staged;
       }
         -> op
+
+  let size_of ty v =
+    match T.(unstage (size_of ty)) v with None -> 1024 | Some n -> n
 
   type t = { name : string; operation : op }
 
@@ -46,28 +27,32 @@ module Generic_op = struct
 
   let bin : t =
     let encode (type a) (ty : a T.t) =
-      let f = T.unstage (ED.encode_bin ty) in
+      let size_of = size_of ty in
+      let f = T.unstage (T.encode_bin ty) in
       T.stage
         (fun a ->
-           let buffer = IO.create 0 in
-           f a buffer;
-           Buffer.contents buffer
+           let len = size_of a in
+           let byt = Bytes.create len in
+           let off = f a byt 0 in
+           Bytes.to_string (if len = off then byt else Bytes.sub byt 0 off)
           : a -> string)
     in
     let decode (type a) (ty : a T.t) =
-      let f = T.unstage (ED.decode_bin ty) in
-      T.stage (fun s -> f s 0 |> snd : string -> a)
+      let f = T.unstage (T.decode_bin ty) in
+      T.stage (fun s -> f (Bytes.of_string s) 0 |> snd : string -> a)
     in
     { name = "bin"; operation = Codec { encode; decode } }
 
   let pre_hash : t =
     let consume (type a) (ty : a T.t) =
-      let f = T.unstage (ED.pre_hash ty) in
+      let size_of = size_of ty in
+      let f = T.unstage (T.pre_hash ty) in
       T.stage
         (fun a ->
-           let buffer = Buffer.create 0 in
-           f a buffer;
-           Buffer.contents buffer
+           let len = size_of a in
+           let byt = Bytes.create len in
+           let off = f a byt 0 in
+           Bytes.to_string (if len = off then byt else Bytes.sub byt 0 off)
           : a -> string)
     in
     { name = "pre_hash"; operation = Consumer { consume } }
@@ -252,8 +237,8 @@ let suite () =
       test_operation ~name:"bin" Generic_op.bin;
       test_operation ~name:"bin_string" Generic_op.bin_string;
       test_operation ~name:"short_hash" Generic_op.short_hash;
-      test_operation ~name:"pre_hash" Generic_op.pre_hash;
-      test_operation ~name:"size_of" Generic_op.size_of;
+      test_operation ~name:"pre_hash bl" Generic_op.pre_hash;
+      test_operation ~name:"size_of bl" Generic_op.size_of;
     ]
 
 let benchmark () =

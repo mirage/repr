@@ -9,28 +9,6 @@ module Alcotest = struct
     check ?pos (testable pp equal) msg a b
 end
 
-module IO = struct
-  type out_channel = Buffer.t
-  type in_channel = String.t
-
-  include Buffer
-
-  let append_char = Buffer.add_char
-  let append_string = Buffer.add_string
-  let append_bytes = Buffer.add_bytes
-  let append_byte buf byt = Buffer.add_char buf (Char.chr byt)
-
-  (** [input_byte ic off] is [byte] *)
-  let input_byte buf pos = Char.code @@ String.get buf pos
-
-  (** [input_char ic off] is [char] *)
-  let input_char = String.get
-
-  let blit = String.blit
-end
-
-module ED = T.Make (IO)
-
 let id x = x
 
 type foo = { a : int; b : int }
@@ -39,18 +17,22 @@ type bar = { c : int option; d : int option option }
 let ( >> ) f g x = g (f x)
 let to_bin_string t = T.unstage (T.to_bin_string t)
 let of_bin_string t = T.unstage (T.of_bin_string t)
-let encode_bin t = T.unstage (ED.encode_bin t)
-let decode_bin t = T.unstage (ED.decode_bin t)
+let encode_bin t = T.unstage (T.encode_bin t)
+let decode_bin t = T.unstage (T.decode_bin t)
 let size_of t = T.unstage (T.size_of t)
+let sub_bytes len off byt = if len = off then byt else Bytes.sub byt 0 off
+let sub_string len off byt = Bytes.to_string @@ sub_bytes len off byt
 
-let with_buf f =
-  let buf = Buffer.create 10 in
-  f buf;
-  Buffer.contents buf
+let with_byt ty v size_of f =
+  let size_of ty v = match (size_of ty) v with None -> 1024 | Some n -> n in
+  let len = size_of ty v in
+  let byt = Bytes.create len in
+  let off = f ty v byt 0 in
+  sub_string len off byt
 
 module Unboxed = struct
-  let decode_bin t = T.unstage (ED.Unboxed.decode_bin t)
-  let encode_bin t = T.unstage (ED.Unboxed.encode_bin t)
+  let decode_bin t = T.unstage (T.Unboxed.decode_bin t)
+  let encode_bin t = T.unstage (T.Unboxed.encode_bin t)
   let size_of t = T.unstage (T.Unboxed.size_of t)
 end
 
@@ -81,12 +63,12 @@ let test_boxing () =
   Alcotest.(check bool) "foo physeq" true (foo == s);
   let check msg ty foo =
     let msg f = Fmt.str "%s: %s" msg f in
-    let buf = with_buf (encode_bin ty foo) in
-    Alcotest.(check string) (msg "boxed") buf "\003foo";
-    let buf = with_buf (Unboxed.encode_bin ty foo) in
-    Alcotest.(check string) (msg "unboxed") buf "foo";
-    let buf = with_buf (Unboxed.encode_bin (T.boxed ty) foo) in
-    Alcotest.(check string) (msg "force boxed") buf "\003foo"
+    let byt = with_byt ty foo size_of encode_bin in
+    Alcotest.(check string) (msg "boxed") byt "\003foo";
+    let byt = with_byt ty foo Unboxed.size_of Unboxed.encode_bin in
+    Alcotest.(check string) (msg "unboxed") byt "foo";
+    let byt = with_byt (T.boxed ty) foo size_of Unboxed.encode_bin in
+    Alcotest.(check string) (msg "force boxed") byt "\003foo"
   in
   check "string" T.string foo;
   check "string-like" (T.like T.string) foo;
@@ -262,9 +244,15 @@ let l =
 
 let tl = Alcotest.testable (T.pp l) T.(unstage (equal l))
 
+let to_bytes ty v f size_of =
+  let len = match (size_of ty) v with None -> 1024 | Some n -> n in
+  let byt = Bytes.create len in
+  let off = f ty v byt 0 in
+  sub_bytes len off byt
+
 let test_bin () =
-  let s = T.to_string l [ "foo"; "foo" ] in
-  Alcotest.(check string) "hex list" "[\"666f6f\",\"666f6f\"]" s;
+  let s = T.to_string l [ "foo"; "bar" ] in
+  Alcotest.(check string) "hex list" "[\"666f6f\",\"626172\"]" s;
   let s = to_bin_string l [ "foo"; "bar" ] in
   Alcotest.(check string) "encode list" "foobar" s;
   Alcotest.(check (option int))
@@ -272,15 +260,15 @@ let test_bin () =
     (size_of l [ "foo"; "bar" ]);
   let s = of_bin_string l "foobar" in
   Alcotest.(check (ok tl)) "decode list" (Ok [ "foo"; "bar" ]) s;
-  let buf = Buffer.create 10 in
-  encode_bin T.string "foo" buf;
-  Alcotest.(check string) "foo 1" (Buffer.contents buf) "\003foo";
-  let buf = Buffer.create 10 in
-  Unboxed.encode_bin T.string "foo" buf;
-  Alcotest.(check string) "foo 1" (Buffer.contents buf) "foo";
-  let _, foo = Unboxed.decode_bin T.string "foo" 0 in
+  let s = Bytes.to_string (to_bytes T.string "foo" encode_bin size_of) in
+  Alcotest.(check string) "foo 1" s "\003foo";
+  let s =
+    Bytes.to_string (to_bytes T.string "foo" Unboxed.encode_bin Unboxed.size_of)
+  in
+  Alcotest.(check string) "foo 1" s "foo";
+  let _, foo = Unboxed.decode_bin T.string (Bytes.of_string "foo") 0 in
   Alcotest.(check string) "decode foo 0" foo "foo";
-  let _, foo = Unboxed.decode_bin T.string "123foo" 3 in
+  let _, foo = Unboxed.decode_bin T.string (Bytes.of_string "123foo") 3 in
   Alcotest.(check string) "decode foo 3" foo "foo";
   let varints =
     [
@@ -290,18 +278,17 @@ let test_bin () =
       (16384, "\128\128\001");
       (88080384, "\128\128\128\042");
     ]
+    |> List.map (fun (v, s) -> (v, Bytes.of_string s))
   in
   List.iter
     (fun (k, v) ->
       let _, k' = decode_bin T.int v 0 in
-      Alcotest.(check int) (Fmt.str "decoding %S" v) k k')
+      Alcotest.(check int) (Fmt.str "decoding %S" (Bytes.to_string v)) k k')
     varints;
   List.iter
     (fun (k, v) ->
-      let buf = Buffer.create 10 in
-      encode_bin T.int k buf;
-      let v' = Buffer.contents buf in
-      Alcotest.(check string) (Fmt.str "decoding %S" v) v v')
+      let v' = to_bytes T.int k encode_bin size_of in
+      Alcotest.(check bytes) (Fmt.str "decoding %S" (Bytes.to_string v)) v v')
     varints
 
 module Algebraic = struct
@@ -578,12 +565,15 @@ let test_pp_ty () =
     let v : empty T.t =
       let a1 _ = assert false in
       let a2 _ _ = assert false in
+      let pre_hash = T.stage @@ fun _ _ -> assert false in
       let equal = T.stage @@ fun _ _ -> assert false in
       let compare = T.stage @@ fun _ _ -> assert false in
       let hdr f = T.stage f in
-      T.abstract ~pp:a2 ~of_string:a1 ~json:(a2, a1) ~bin:(hdr a1)
+      T.abstract ~pp:a2 ~of_string:a1 ~json:(a2, a1)
+        ~bin:(hdr a2, hdr a2, hdr a1)
+        ~equal ~compare
         ~short_hash:(T.stage (fun ?seed:_ -> a1))
-        ~equal ~compare ()
+        ~pre_hash ()
 
     let like_prim : int T.t = T.(like int)
     let like_custom : empty T.t = T.like v
@@ -680,8 +670,9 @@ let test_decode () =
   let wrap f =
     try Ok (f ()) with e -> Fmt.kstrf (fun s -> Error s) "%a" Fmt.exn e
   in
-  let decode ~off buf exp =
-    match (exp, wrap (fun () -> decode_bin T.string buf off)) with
+  let decode ~off s exp =
+    let byt = Bytes.of_string s in
+    match (exp, wrap (fun () -> decode_bin T.string byt off)) with
     | Error (), Error _ -> ()
     | Ok x, Ok (_, y) -> Alcotest.(check string) ("decode " ^ x) x y
     | Error _, Ok (_, y) -> Alcotest.failf "error expected, got %s" y

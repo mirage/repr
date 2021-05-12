@@ -514,15 +514,31 @@ module type DSL = sig
 
   (** {2 Binary Converters} *)
 
-  (* open Type_core *)
+  type 'a encode_bin = ('a -> bytes -> int -> int) staged
+  (** The type for binary encoders. *)
+
+  type 'a decode_bin = (bytes -> int -> int * 'a) staged
+  (** The type for binary decoders. *)
+
+  type 'a size_of = ('a -> int option) staged
+  (** The type for size function related to binary encoder/decoders. *)
 
   type 'a short_hash := (?seed:int -> 'a -> int) staged
 
   val short_hash : 'a t -> 'a short_hash
   (** [hash t x] is a short hash of [x] of type [t]. *)
 
-  type 'a size_of = ('a -> int option) staged
-  (** The type for size function related to binary encoder/decoders. *)
+  val pre_hash : 'a t -> 'a encode_bin
+  (** [pre_hash t x] is the string representation of [x], of type [t], which
+      will be used to compute the digest of the value. By default it's
+      [to_bin_string t x] but it can be overriden by {!v}, {!like} and {!map}
+      operators. *)
+
+  val encode_bin : 'a t -> 'a encode_bin
+  (** [encode_bin t] is the binary encoder for values of type [t]. *)
+
+  val decode_bin : 'a t -> 'a decode_bin
+  (** [decode_bin t] is the binary decoder for values of type [t]. *)
 
   val to_bin_string : 'a t -> ('a -> string) staged
   (** [to_bin_string t x] use {!encode_bin} to convert [x], of type [t], to a
@@ -559,6 +575,12 @@ module type DSL = sig
         When unboxed operations are applied to values not supporting that
         operation, they automatically fall-back to their boxed counter-part. *)
 
+    val encode_bin : 'a t -> 'a encode_bin
+    (** Same as {!encode_bin} for unboxed values. *)
+
+    val decode_bin : 'a t -> 'a decode_bin
+    (** Same as {!decode_bin} for unboxed values. *)
+
     val size_of : 'a t -> 'a size_of
     (** Same as {!size_of} for unboxed values. *)
   end
@@ -569,11 +591,12 @@ module type DSL = sig
     pp:'a pp ->
     of_string:'a of_string ->
     json:'a encode_json * 'a decode_json ->
-    bin:'a size_of ->
-    short_hash:'a short_hash ->
-    ?unboxed_bin:'a size_of ->
+    bin:'a encode_bin * 'a decode_bin * 'a size_of ->
+    ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     equal:'a equal ->
     compare:'a compare ->
+    short_hash:'a short_hash ->
+    pre_hash:'a encode_bin ->
     unit ->
     'a t
   (** The representation of an {i abstract} type, with an internal structure
@@ -598,11 +621,12 @@ module type DSL = sig
     pp:'a pp impl ->
     of_string:'a of_string impl ->
     json:('a encode_json * 'a decode_json) impl ->
-    bin:'a size_of impl ->
-    unboxed_bin:'a size_of impl ->
+    bin:('a encode_bin * 'a decode_bin * 'a size_of) impl ->
+    unboxed_bin:('a encode_bin * 'a decode_bin * 'a size_of) impl ->
     equal:'a equal impl ->
     compare:'a compare impl ->
     short_hash:'a short_hash impl ->
+    pre_hash:'a encode_bin impl ->
     'a t ->
     'a t
   (** [partially_abstract t] is a partially-abstract type with internal
@@ -613,11 +637,12 @@ module type DSL = sig
     ?pp:'a pp ->
     ?of_string:'a of_string ->
     ?json:'a encode_json * 'a decode_json ->
-    ?bin:'a size_of ->
-    ?unboxed_bin:'a size_of ->
+    ?bin:'a encode_bin * 'a decode_bin * 'a size_of ->
+    ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?equal:'a equal ->
     ?compare:'a compare ->
     ?short_hash:'a short_hash ->
+    ?pre_hash:'a encode_bin ->
     'a t ->
     'a t
   (** A wrapper around {!partially_abstract} with each operation defaulting to
@@ -630,11 +655,12 @@ module type DSL = sig
     ?pp:'a pp ->
     ?of_string:'a of_string ->
     ?json:'a encode_json * 'a decode_json ->
-    ?bin:'a size_of ->
-    ?unboxed_bin:'a size_of ->
+    ?bin:'a encode_bin * 'a decode_bin * 'a size_of ->
+    ?unboxed_bin:'a encode_bin * 'a decode_bin * 'a size_of ->
     ?equal:'a equal ->
     ?compare:'a compare ->
     ?short_hash:'a short_hash ->
+    ?pre_hash:'a encode_bin ->
     'b t ->
     ('b -> 'a) ->
     ('a -> 'b) ->
@@ -650,17 +676,6 @@ module type DSL = sig
 
     val t : t ty
   end
-
-  module type IO_channel = sig
-    include Type_binary.IO_channel
-  end
-
-  module Make (IO : IO_channel) :
-    Type_binary.S
-      with type 'a t = 'a t
-       and type +'a staged = 'a staged
-       and type out_channel = IO.out_channel
-       and type in_channel = IO.in_channel
 end
 
 module type Type = sig
