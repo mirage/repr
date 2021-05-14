@@ -2,7 +2,7 @@
  (name main)
  (public_name repr-bench)
  (package repr-bench)
- (libraries repr bechamel fpath yojson unix)
+ (libraries repr bechamel fpath yojson unix memtrace)
  (preprocess
   (pps ppx_repr)))
 

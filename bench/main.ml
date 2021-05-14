@@ -237,8 +237,8 @@ let suite () =
       test_operation ~name:"bin" Generic_op.bin;
       test_operation ~name:"bin_string" Generic_op.bin_string;
       test_operation ~name:"short_hash" Generic_op.short_hash;
-      test_operation ~name:"pre_hash bl" Generic_op.pre_hash;
-      test_operation ~name:"size_of bl" Generic_op.size_of;
+      test_operation ~name:"pre_hash" Generic_op.pre_hash;
+      test_operation ~name:"size_of" Generic_op.size_of;
     ]
 
 let benchmark () =
@@ -259,6 +259,7 @@ let benchmark () =
 let ignore_eexist f = try f () with Unix.Unix_error (EEXIST, _, _) -> ()
 
 let () =
+  Memtrace.trace_if_requested ();
   Random.self_init ();
   let output_formatter =
     match Sys.argv with

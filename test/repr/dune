@@ -6,6 +6,6 @@
  ; stanza. This cycle cannot be resolved by adding a [post] flag.
  ; See https://github.com/ocaml/opam/issues/4267.
  (package ppx_repr)
- (libraries alcotest unix repr hex)
+ (libraries alcotest repr hex)
  (preprocess
   (pps ppx_repr)))

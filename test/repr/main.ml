@@ -63,12 +63,12 @@ let test_boxing () =
   Alcotest.(check bool) "foo physeq" true (foo == s);
   let check msg ty foo =
     let msg f = Fmt.str "%s: %s" msg f in
-    let byt = with_byt ty foo size_of encode_bin in
-    Alcotest.(check string) (msg "boxed") byt "\003foo";
-    let byt = with_byt ty foo Unboxed.size_of Unboxed.encode_bin in
-    Alcotest.(check string) (msg "unboxed") byt "foo";
-    let byt = with_byt (T.boxed ty) foo size_of Unboxed.encode_bin in
-    Alcotest.(check string) (msg "force boxed") byt "\003foo"
+    let buf = with_byt ty foo size_of encode_bin in
+    Alcotest.(check string) (msg "boxed") buf "\003foo";
+    let buf = with_byt ty foo Unboxed.size_of Unboxed.encode_bin in
+    Alcotest.(check string) (msg "unboxed") buf "foo";
+    let buf = with_byt (T.boxed ty) foo size_of Unboxed.encode_bin in
+    Alcotest.(check string) (msg "force boxed") buf "\003foo"
   in
   check "string" T.string foo;
   check "string-like" (T.like T.string) foo;
@@ -669,8 +669,8 @@ let test_decode () =
   let wrap f =
     try Ok (f ()) with e -> Fmt.kstrf (fun s -> Error s) "%a" Fmt.exn e
   in
-  let decode ~off s exp =
-    match (exp, wrap (fun () -> decode_bin T.string s off)) with
+  let decode ~off buf exp =
+    match (exp, wrap (fun () -> decode_bin T.string buf off)) with
     | Error (), Error _ -> ()
     | Ok x, Ok (_, y) -> Alcotest.(check string) ("decode " ^ x) x y
     | Error _, Ok (_, y) -> Alcotest.failf "error expected, got %s" y
