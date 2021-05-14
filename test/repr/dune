@@ -9,7 +9,3 @@
  (libraries alcotest unix repr hex)
  (preprocess
   (pps ppx_repr)))
-
-(env
-    (dev
-      (flags (:standard -warn-error -A))))

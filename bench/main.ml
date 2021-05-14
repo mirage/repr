@@ -39,7 +39,7 @@ module Generic_op = struct
     in
     let decode (type a) (ty : a T.t) =
       let f = T.unstage (T.decode_bin ty) in
-      T.stage (fun s -> f (Bytes.of_string s) 0 |> snd : string -> a)
+      T.stage (fun s -> f s 0 |> snd : string -> a)
     in
     { name = "bin"; operation = Codec { encode; decode } }
 

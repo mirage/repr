@@ -517,7 +517,7 @@ module type DSL = sig
   type 'a encode_bin = ('a -> bytes -> int -> int) staged
   (** The type for binary encoders. *)
 
-  type 'a decode_bin = (bytes -> int -> int * 'a) staged
+  type 'a decode_bin = (string -> int -> int * 'a) staged
   (** The type for binary decoders. *)
 
   type 'a size_of = ('a -> int option) staged
