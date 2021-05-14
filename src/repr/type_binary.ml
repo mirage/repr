@@ -57,14 +57,13 @@ module Encode = struct
   let float f = int64 (Int64.bits_of_float f)
   let bool b = char (if b then '\255' else '\000')
 
-  let int i byt off =
-    let rec aux n off =
-      if n >= 0 && n < 128 then byte n byt off
-      else
-        let out = 128 lor (n land 127) in
-        byte out byt off |> aux (n lsr 7)
-    in
-    aux i off
+  let rec aux n byt off =
+    if n >= 0 && n < 128 then byte n byt off
+    else
+      let out = 128 lor (n land 127) in
+      byte out byt off |> aux (n lsr 7) byt
+
+  let int = aux
 
   let len n i byt off =
     match n with
