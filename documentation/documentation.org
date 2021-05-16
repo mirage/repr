@@ -1,0 +1,394 @@
+#+TITLE:     Repr Documentation
+#+AUTHOR:    mattiasdrp
+#+EMAIL:     mattias@tarides.com
+#+DESCRIPTION: This document documents the Repr module by providing examples
+#+KEYWORDS:  repr, ocaml
+
+Repr is a library of type combinators for defining runtime representations of OCaml types and operations that are generic over those representations (~pp~, ~to_string~, ~compare~ etc.).
+
+* Table of Contents
+:PROPERTIES:
+:TOC:      :include all :ignore (this)
+:END:
+:CONTENTS:
+- [[#what-is-reprs-goal][What is Repr's goal]]
+- [[#example-with-repr-basic-type][Example with Repr basic type]]
+- [[#time-for-a-custom-type][Time for a custom type]]
+  - [[#starting-the-record][Starting the record:]]
+  - [[#adding-the-first-field][Adding the first field:]]
+  - [[#adding-the-second-and-last-field][Adding the second and last field:]]
+  - [[#sealing-the-record][Sealing the record]]
+- [[#using-a-type-representative][Using a type representative]]
+  - [[#generic-operations-on-a-custom-type][Generic operations on a custom type]]
+  - [[#explanations][Explanations]]
+    - [[#printing][Printing]]
+    - [[#representations][Representations]]
+      - [[#string][String]]
+      - [[#json][JSON]]
+        - [[#encoding][Encoding]]
+        - [[#decoding][Decoding]]
+      - [[#hashes][Hashes]]
+        - [[#basic-types][Basic types]]
+          - [[#int][Int]]
+:END:
+
+* What is Repr's goal
+
+In normal OCaml, you can print any basic type with it's corresponding ~%type~ and OCaml is able to check that the types match and to print your value.
+#+begin_src ocaml :results value :exports both
+  let () = Format.printf "%d@." 4096
+#+end_src
+
+#+RESULTS:
+: 4096
+
+Things start to get complicated when you want to print your custom type. You start defining your own pretty-printer and provide it as a parameter to the OCaml pretty-printing functions:
+
+#+begin_src ocaml :results value verbatim :exports both :eval no-export
+  type t = {a : int; b : bool};;
+
+  let () =
+    let pp fmt t = Format.fprintf fmt "{a: %d; b: %b}" t.a t.b in
+    Format.eprintf "%a@." pp {a = 5; b = false}
+#+end_src
+
+#+RESULTS:
+: {a: 5; b: false}
+
+On another side, when you want to compare values in OCaml using the standard library operators you can compare any value but have no control over how the comparison is computed. If you want to regain control, you have to define your own operator.
+
+#+begin_src ocaml :results value verbatim :exports both :eval no-export
+  type tv = {t : t; visited : bool};;
+
+  let () =
+    let a = {t = {a = 3; b = true}; visited = false} in
+    let b = {a with visited = true} in
+    Format.eprintf "OCaml equality:  %b@." (a = b);
+    let equal tv1 tv2 = tv1.t = tv2.t in
+    Format.eprintf "Custom equality: %b@." (equal a b)
+#+end_src
+
+#+RESULTS:
+: OCaml equality:  false
+: Custom equality: true
+
+This way of doing may introduce a lot of problems later and is kind of cumbersome.
+
+Repr's goal is to define all this functions when defining your type meaning that you define a type and its representative and will be able to use the latter to execute predefined operations on values of the represented type.
+
+As basic types with OCaml allow to define custom types, there are basic types in Repr allowing to define custom types.
+
+* Example with Repr basic type
+
+#+begin_src ocaml :results none :exports never
+  #use "topfind" ;;
+  #require "repr";;
+#+end_src
+
+- Comparing Repr types:
+
+#+begin_src ocaml :results value :exports both :eval no-export
+  let () =
+    let equal = Repr.(unstage @@ equal int) in
+    Format.eprintf "%b@." (equal 1 2)
+#+end_src
+
+#+RESULTS:
+: false
+
+- Printing Repr types:
+
+#+begin_src ocaml :results value verbatim :exports both :eval no-export
+  let () =
+    Format.eprintf "%a@." Repr.(pp int) 1
+#+end_src
+
+#+RESULTS:
+: 1
+
+* Time for a custom type
+
+Now what about creating your own type? This is actually the only "hard work" you'll have to do but don't worry, it's worth the effort.
+
+#+begin_src ocaml :results value verbatim :exports both :eval no-export
+  type t = { f1 : int; f2 : bool };;
+
+  let t =
+    let open Repr in
+    record "t" (fun f1 f2 -> { f1; f2 })
+    |+ field "f1" int (fun t -> t.f1)
+    |+ field "f2" bool (fun t -> t.f2)
+    |> sealr
+#+end_src
+
+#+RESULTS:
+: val t : t Repr.t = <abstr>
+
+So, what did we do here? Let's decompose it step by step:
+
+** Starting the record:
+  #+begin_src ocaml :exports code :results none
+  record "t" (fun f1 f2 -> { f1; f2 })
+  #+end_src
+
+  This line is initialising the representative implementation of a ~record~ containing two fiels ~f1~ and ~f2~. Notice the order in which ~f1~ and ~f2~ are provided.
+
+** Adding the first field:
+  #+begin_src ocaml :exports code :results none
+  |+ field "f1" int (fun t -> t.f1)
+  #+end_src
+
+  ~f1~ being the first expected field we provide the way to represent it using the already defined representative ~int~ and the projection function ~fun t -> t.f1~
+
+** Adding the second and last field:
+  #+begin_src ocaml :exports code :results none
+  |+ field "f2" bool (fun t -> t.f2)
+  #+end_src
+
+  ~f2~ being the second expected field we provide the way to represent it using the already defined representative ~bool~ and the projection function ~fun t -> t.f2~
+
+** Sealing the record
+  #+begin_src ocaml :exports code :results none
+  |> sealr
+  #+end_src
+
+
+  The ~record~ function provided an incomplete representation that has been completed with the ~|+~ operators used to add each field. After all the fields have been added the record can be sealed and the representative for our record is now available.
+
+* Using a type representative
+
+** Generic operations on a custom type
+label:examples-generic-operations
+#+begin_src ocaml :results value verbatim :exports both :eval no-export
+  let () =
+    let a = { f1 = 3; f2 = true } in
+    let b = { f1 = 3; f2 = false } in
+    (* Printing *)
+    Format.eprintf "pp: %a@." Repr.(pp t) a;
+    Format.eprintf "pp_dump: %a@." Repr.(pp_dump t) a;
+    (* String representation *)
+    Format.eprintf "to_string: %s@." (Repr.(to_string t) a);
+    (match Repr.(of_string t) {|{"f1":4,"f2":false}|} with
+    | Ok a -> Format.eprintf "of_string: %a@." Repr.(pp t) a
+    | Error (`Msg e) -> failwith e);
+    (* JSON representations *)
+    Format.eprintf "pp_json: %a@." Repr.(pp_json t) a;
+    (match Repr.(of_json_string t) {|{"f1":5,"f2":false}|} with
+    | Ok a -> Format.eprintf "of_json_string: %a@." Repr.(pp t) a
+    | Error (`Msg e) -> failwith e);
+    (* Comparisons *)
+    Format.eprintf "equal: %b@." (Repr.(unstage @@ equal t) a b);
+    Format.eprintf "compare: %d@." (Repr.(unstage @@ compare t) a b);
+    (* Hashing *)
+    Format.eprintf "short_hash: %d@." (Repr.(unstage @@ short_hash t) a);
+    let ph = Repr.(unstage @@ pre_hash t) in
+    let b = Buffer.create 80 in
+    ph a (Buffer.add_string b);
+    Format.eprintf "pre_hash: %S@." (Buffer.contents b);
+    let eb = Repr.(unstage @@ pre_hash t) in
+    let b = Buffer.create 80 in
+    eb a (Buffer.add_string b);
+    Format.eprintf "encode_bin: %S@." (Buffer.contents b);
+    let so = Repr.(unstage @@ size_of t) in
+    match so a with None -> () | Some s -> Format.eprintf "size_of: %d@." s
+#+end_src
+
+#+RESULTS:
+#+begin_example
+pp: {"f1":3,"f2":true}
+pp_dump: { f1 = 3;
+           f2 = true }
+to_string: {"f1":3,"f2":true}
+of_string: {"f1":4,"f2":false}
+pp_json: {"f1":3,"f2":true}
+of_json_string: {"f1":5,"f2":false}
+equal: false
+compare: 1
+short_hash: 472511381
+pre_hash: "\003\255"
+encode_bin: "\003\255"
+size_of: 2
+#+end_example
+
+** Explanations
+
+As you can see, all these operations take a type representative as their first parameter and are then able to perform various operations.
+
+Consider the following type for type representatives:
+
+#+begin_src ocaml :exports code :results none
+type 'a t
+(** The type for runtime representation of values of type ['a]. *)
+#+end_src
+
+*** Printing
+
+Printing is performed by using
+
+#+begin_src ocaml :exports code :results none
+val pp : 'a t -> Format.formatter -> 'a -> unit
+#+end_src
+
+which pretty-prints values of type ~'a~ in the simplest possible way or
+
+#+begin_src ocaml :exports code :results none
+val pp_dump : 'a t -> Format.formatter -> 'a -> unit
+#+end_src
+
+which pretty-prints values of type ~'a~ with an output that is as close as possible to native OCaml syntax.
+
+*** Representations
+
+**** String
+
+Outputting a type to its string representation is performed by using
+
+#+begin_src ocaml :exports code :results none
+val to_string : 'a t -> 'a -> string
+#+end_src
+
+This function is actually self-explanatory and the resulting string correspond to the one outputed by ~pp~ as you can see in ref:examples-generic-operations
+
+#+begin_src ocaml :exports code :results none
+val of_string : 'a t -> string -> ('a, [ `Msg of string ]) result
+#+end_src
+
+~of_string~ will either return a value of type ~'a~ or an error if it wasn't able to parse a string to create such value. The provided string should look like the output of ~pp~ (or ~to_string~).
+
+**** JSON
+
+Even though we showed only two functions in ref:examples-generic-operations there exist a lot of operations to handle JSON representations of our types. These operations can be splitted in two parts, encoding and decoding.
+
+***** Encoding
+
+The encoding is performed with the main function
+
+#+begin_src ocaml :exports code :results none
+val encode_json : 'a t -> Jsonm.encoder -> 'a -> unit
+#+end_src
+
+From [[https://mirage.github.io/repr/repr/Repr/index.html#val-encode_json][the Repr manual]]:
+
+~encode_json t e~ encodes ~t~ into the [[https://erratique.ch/software/jsonm][jsonm]] encoder ~e~. The encoding is a relatively straightforward translation of the OCaml structure into JSON. The main highlights are:
+
+- The unit value ~()~ is translated into the empty object ~{}~.
+- OCaml ints are translated into JSON floats.
+- OCaml strings are translated into JSON strings. You must then ensure that the OCaml strings contains only valid UTF-8 characters.
+- OCaml options are translated differently depending on context:
+  - record fields with a value of ~None~ are removed from the JSON object;
+  - record fields with a value of ~Some x~ are automatically unboxed into ~x~;
+  - outside of records, ~None~ is translated into ~null~ and ~Some x~ into ~{"some": x'}~ with ~x'~ the JSON encoding of ~x~.
+- Variant cases with no arguments are represented as strings.
+- Variant cases with arguments are represented as a record with one field; the field name is the name of the variant.
+
+NOTE: this can be used to encode JSON fragments. It's the responsibility of the caller to ensure that the encoded JSON fragment fits properly into a well-formed JSON object.
+
+For ease of use reasons, some encoders are already implemented which allow us not to bother creating an encoder:
+
+#+begin_src ocaml :exports code :results none
+val pp_json : ?⁠minify:bool -> 'a t -> Formatter.formatter -> 'a -> unit
+#+end_src
+
+and
+
+#+begin_src ocaml :exports code :results none
+val to_json_string : ?⁠minify:bool -> 'a t -> 'a -> string
+#+end_src
+
+Both are similar to ~pp_dump~ but pretty-prints the JSON representation instead of the OCaml one on a formatter or a string
+
+***** Decoding
+
+The decoding is performed with the main function
+
+#+begin_src ocaml :exports code :results none
+val decode_json : 'a t -> Jsonm.decoder -> ('a, [ `Msg of string ]) Stdlib.result
+#+end_src
+
+Similar to ~of_string~ but with a JSON representation. The following function allows to decode a JSON representation from a string without having to create a jsonm decoder:
+
+#+begin_src ocaml :exports code :results none
+val of_json_string : 'a t -> string -> ('a, [ `Msg of string ]) Stdlib.result
+#+end_src
+
+**** Hashes
+
+Hashes are computed by concatenating all the hashed elements of the value with some additional informations.
+
+First, let's define some useful functions :
+
+#+begin_src ocaml :exports code :results none
+  let hash t v =
+    let ph = Repr.(unstage @@ pre_hash t) in
+    let b = Buffer.create 80 in
+    ph v (Buffer.add_string b);
+    Buffer.contents b
+#+end_src
+
+***** Basic types
+
+****** Int
+
+The following figure shows how an int is cut in 7-bit parts from its binary representation. Each part except the last one is transformed in an 8-bit character by adding a leading 1 and all the resulting characters are concatenated into the final representation.
+
+#+CAPTION: Figure representing the masks applied to an int to hash it
+#+NAME:   fig:Int hashing
+[[./img/int_out.svg]]
+
+Result from hashing 1000 and 872:
+
+#+begin_src ocaml :results verbatim value :exports both :eval no-export
+  let () =
+    Format.eprintf "%S@." (hash Repr.int (1000));
+    Format.eprintf "%S@." (hash Repr.int (872));
+#+end_src
+
+#+RESULTS:
+: "\232\007"
+: "\232\006"
+
+#+begin_src ocaml :results none :exports none
+#+end_src
+
+Detailed result of the hashing of 1000 and 872:
+
+#+begin_src ocaml :results value verbatim :exports both :eval no-export
+      let () =
+        let dec_to_bin x =
+          let rec aux y cpt lst =
+            match y with
+            | 0 -> lst
+            | _ ->
+              let lst = if cpt mod 7 = 0 then " " :: lst else lst in
+              aux (y/2) (cpt+1) ((string_of_int (y mod 2))::lst)
+          in
+          String.concat "" (aux x 0 [])
+        in
+        let mask = 127 and word = 128 in
+        Format.eprintf "%d : %s@." mask (dec_to_bin mask);
+        Format.eprintf "%d : %s@." word (dec_to_bin word);
+        let pp_steps n =
+          Format.eprintf "@[<v 2>%d : %s@," n (dec_to_bin n);
+          let i = n land mask in
+          Format.eprintf "%d land %d = %d -> %s@," n mask i (dec_to_bin i);
+          let i' = word lor i in
+          Format.eprintf "%d lor %d = %d -> %s@," word i i' (dec_to_bin i');
+          Format.eprintf "%d lsr 7 = %d -> %s@." n (n lsr 7) (dec_to_bin (n lsr 7))
+        in
+        pp_steps 1000;
+        pp_steps 872
+#+end_src
+
+#+RESULTS:
+#+begin_example
+127 : 1111111
+128 : 1 0000000
+1000 : 111 1101000
+  1000 land 127 = 104 -> 1101000
+  128 lor 104 = 232 -> 1 1101000
+  1000 lsr 7 = 7 -> 111
+872 : 110 1101000
+  872 land 127 = 104 -> 1101000
+  128 lor 104 = 232 -> 1 1101000
+  872 lsr 7 = 6 -> 110
+#+end_example
