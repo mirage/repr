@@ -13,6 +13,7 @@ depends: [
   "ppx_repr" {= version}
   "bechamel"
   "yojson"
+  "memtrace"
   "fpath"
   "odoc" {with-doc}
 ]
