@@ -23,11 +23,11 @@ let size_of t = T.unstage (T.size_of t)
 let sub_bytes len off byt = if len = off then byt else Bytes.sub byt 0 off
 let sub_string len off byt = Bytes.to_string @@ sub_bytes len off byt
 
-let with_byt ty v size_of f =
-  let size_of ty v = match (size_of ty) v with None -> 1024 | Some n -> n in
-  let len = size_of ty v in
+let with_bytes t v size_of f =
+  let size_of t v = match (size_of t) v with None -> 1024 | Some n -> n in
+  let len = size_of t v in
   let byt = Bytes.create len in
-  let off = f ty v byt 0 in
+  let off = f t v byt 0 in
   sub_string len off byt
 
 module Unboxed = struct
@@ -251,8 +251,8 @@ let to_bytes ty v f size_of =
   sub_bytes len off byt
 
 let test_bin () =
-  let s = T.to_string l [ "foo"; "bar" ] in
-  Alcotest.(check string) "hex list" "[\"666f6f\",\"626172\"]" s;
+  let s = T.to_string l [ "foo"; "foo" ] in
+  Alcotest.(check string) "hex list" "[\"666f6f\",\"666f6f\"]" s;
   let s = to_bin_string l [ "foo"; "bar" ] in
   Alcotest.(check string) "encode list" "foobar" s;
   Alcotest.(check (option int))

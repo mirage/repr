@@ -19,26 +19,6 @@ include Type_core
 include Staging
 open Utils
 
-(* Combinators for Repr types *)
-
-let unit = Prim Unit
-let bool = Prim Bool
-let char = Prim Char
-let int = Prim Int
-let int32 = Prim Int32
-let int64 = Prim Int64
-let float = Prim Float
-let string = Prim (String `Int)
-let bytes = Prim (Bytes `Int)
-let string_of n = Prim (String n)
-let bytes_of n = Prim (Bytes n)
-let list ?(len = `Int) v = List { v; len }
-let array ?(len = `Int) v = Array { v; len }
-let pair a b = Tuple (Pair (a, b))
-let triple a b c = Tuple (Triple (a, b, c))
-let option a = Option a
-let boxed t = Boxed t
-
 let pre_hash t =
   let rec aux : type a. a t -> a encode_bin = function
     | Self s -> aux s.self_fix
@@ -63,6 +43,26 @@ let short_hash = function
       let off = pre_hash x byt 0 in
       let byt = if len = off then byt else Bytes.sub byt 0 off in
       Hashtbl.seeded_hash seed (Bytes.to_string byt)
+
+(* Combinators for Repr types *)
+
+let unit = Prim Unit
+let bool = Prim Bool
+let char = Prim Char
+let int = Prim Int
+let int32 = Prim Int32
+let int64 = Prim Int64
+let float = Prim Float
+let string = Prim (String `Int)
+let bytes = Prim (Bytes `Int)
+let string_of n = Prim (String n)
+let bytes_of n = Prim (Bytes n)
+let list ?(len = `Int) v = List { v; len }
+let array ?(len = `Int) v = Array { v; len }
+let pair a b = Tuple (Pair (a, b))
+let triple a b c = Tuple (Triple (a, b, c))
+let option a = Option a
+let boxed t = Boxed t
 
 let abstract ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
     ~pre_hash () =

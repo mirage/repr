@@ -35,8 +35,7 @@ module Encode = struct
     Bytes.set byt off c;
     off + 1
 
-  let byte n byt off = char (Char.chr (0xFF land n)) byt off
-  (* let unsafe_add_bytes b oc = IO.append_bytes oc b *)
+  let byte n byt off = char (Char.chr n) byt off
 
   let int8 i byt off =
     Bytes.set_uint8 byt off i;
@@ -57,23 +56,21 @@ module Encode = struct
   let float f = int64 (Int64.bits_of_float f)
   let bool b = char (if b then '\255' else '\000')
 
-  let rec aux n byt off =
+  let rec int n byt off =
     if n >= 0 && n < 128 then byte n byt off
     else
       let out = 128 lor (n land 127) in
-      byte out byt off |> aux (n lsr 7) byt
+      byte out byt off |> int (n lsr 7) byt
 
-  let int = aux
-
-  let len n i byt off =
+  let len n i =
     match n with
-    | `Int -> int i byt off
-    | `Int8 -> int8 i byt off
-    | `Int16 -> int16 i byt off
-    | `Int32 -> int32 (Int32.of_int i) byt off
-    | `Int64 -> int64 (Int64.of_int i) byt off
-    | `Fixed _ -> unit () byt off
-    | `Unboxed -> unit () byt off
+    | `Int -> int i
+    | `Int8 -> int8 i
+    | `Int16 -> int16 i
+    | `Int32 -> int32 (Int32.of_int i)
+    | `Int64 -> int64 (Int64.of_int i)
+    | `Fixed _ -> unit ()
+    | `Unboxed -> unit ()
 
   let unboxed_string _ = stage add_string
 
@@ -120,9 +117,7 @@ module Encode = struct
         | None -> char '\000' byt off
         | Some x -> char '\255' byt off |> o x byt)
 
-  let rec t : type a. a t -> a encode_bin =
-   fun ty ->
-    match ty with
+  let rec t : type a. a t -> a encode_bin = function
     | Self s -> fst (self s)
     | Custom c -> c.encode_bin
     | Map b -> map ~boxed:true b
@@ -163,7 +158,7 @@ module Encode = struct
   and map : type a b. boxed:bool -> (a, b) map -> b encode_bin =
    fun ~boxed { x; g; _ } ->
     let encode_bin = unstage (if boxed then t x else unboxed x) in
-    stage (fun u oc -> encode_bin (g u) oc)
+    stage (fun y byt off -> encode_bin (g y) byt off)
 
   and prim : type a. boxed:bool -> a prim -> a encode_bin =
    fun ~boxed -> function
@@ -422,7 +417,7 @@ module Unboxed = struct
   let decode_bin = Decode.unboxed
 end
 
-let to_bin size_of (encode_bin : 'a encode_bin) =
+let to_bin size_of encode_bin =
   let size_of = unstage size_of in
   let encode_bin = unstage encode_bin in
   stage (fun x ->
