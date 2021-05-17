@@ -49,6 +49,7 @@ guarantee.
   (ppx_repr (= :version))
   bechamel
   yojson
+  memtrace
   fpath)
  (synopsis "Benchmarks for the `repr` package")
  (description "Benchmarks for the `repr` package"))

@@ -14,7 +14,6 @@ depends: [
   "bechamel"
   "yojson"
   "fpath"
-  "memtrace"
   "odoc" {with-doc}
 ]
 build: [
