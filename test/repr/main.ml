@@ -63,11 +63,11 @@ let test_boxing () =
   Alcotest.(check bool) "foo physeq" true (foo == s);
   let check msg ty foo =
     let msg f = Fmt.str "%s: %s" msg f in
-    let buf = with_byt ty foo size_of encode_bin in
+    let buf = with_bytes ty foo size_of encode_bin in
     Alcotest.(check string) (msg "boxed") buf "\003foo";
-    let buf = with_byt ty foo Unboxed.size_of Unboxed.encode_bin in
+    let buf = with_bytes ty foo Unboxed.size_of Unboxed.encode_bin in
     Alcotest.(check string) (msg "unboxed") buf "foo";
-    let buf = with_byt (T.boxed ty) foo size_of Unboxed.encode_bin in
+    let buf = with_bytes (T.boxed ty) foo size_of Unboxed.encode_bin in
     Alcotest.(check string) (msg "force boxed") buf "\003foo"
   in
   check "string" T.string foo;
