@@ -1,0 +1,2 @@
+File "unsupported_polyvar_inherit_case.ml", line 2, characters 9-19:
+Error: ppx_repr: inherited variant cases encountered in [ | s | `T ]. This is unsupported by ppx_repr.
