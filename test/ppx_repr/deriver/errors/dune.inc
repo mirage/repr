@@ -97,6 +97,30 @@
   (diff recursion_with_type_parameters.expected
     recursion_with_type_parameters.actual)))
 
+; -------- Test: `unsupported_polyvar_inherit_case.ml` --------
+
+
+
+; Run the PPX on the `.ml` file
+(rule
+ (targets unsupported_polyvar_inherit_case.actual)
+ (deps
+  (:pp pp.exe)
+  (:input unsupported_polyvar_inherit_case.ml))
+ (action
+  ; expect the process to fail, capturing stderr
+  (with-stderr-to
+   %{targets}
+   (bash "! ./%{pp} -no-color --impl %{input}"))))
+
+; Compare the post-processed output to the .expected file
+(rule
+ (alias runtest)
+ (package ppx_repr)
+ (action
+  (diff unsupported_polyvar_inherit_case.expected
+    unsupported_polyvar_inherit_case.actual)))
+
 ; -------- Test: `unsupported_tuple_size.ml` --------
 
 

@@ -77,6 +77,10 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
       #core_type
       typ false
 
+  let rowfield_is_inherit = function
+    | { prf_desc = Rinherit _; _ } -> true
+    | _ -> false
+
   let rec derive_core typ =
     let* { type_name; lib; var_repr; _ } = ask in
     let loc = typ.ptyp_loc in
@@ -95,6 +99,8 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
             pexp_apply (pexp_ident lident) cons_args)
     | Ptyp_variant (_, Open, _) -> Raise.Unsupported.type_open_polyvar ~loc typ
     | Ptyp_variant (rowfields, Closed, _labellist) ->
+        if List.exists rowfield_is_inherit rowfields then
+          Raise.Unsupported.polyvar_inherit_case ~loc typ;
         derive_polyvariant type_name rowfields
     | Ptyp_poly _ -> Raise.Unsupported.type_poly ~loc typ
     | Ptyp_tuple args -> derive_tuple args

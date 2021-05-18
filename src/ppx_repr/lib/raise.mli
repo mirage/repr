@@ -22,6 +22,7 @@ module Unsupported : sig
   val type_open : loc:location -> _
   val type_poly : loc:location -> core_type -> _
   val type_open_polyvar : loc:location -> core_type -> _
+  val polyvar_inherit_case : loc:location -> core_type -> _
   val type_package : loc:location -> core_type -> _
   val type_extension : loc:location -> core_type -> _
   val type_alias : loc:location -> core_type -> _

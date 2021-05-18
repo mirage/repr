@@ -44,6 +44,12 @@ module Unsupported = struct
        be closed."
       name Pprintast.core_type ctyp
 
+  let polyvar_inherit_case ~loc ctyp =
+    Location.raise_errorf ~loc
+      "%s: inherited variant cases encountered in %a. This is unsupported by \
+       ppx_repr."
+      name Pprintast.core_type ctyp
+
   let type_package ~loc ctyp =
     Location.raise_errorf ~loc
       "%s: package type %a encountered. Package types are not \
