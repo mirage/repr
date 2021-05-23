@@ -36,9 +36,13 @@ let short_hash = function
       let pre_hash = unstage (pre_hash t) in
       stage @@ fun ?seed x ->
       let seed = match seed with None -> 0 | Some t -> t in
-      let h = ref seed in
-      pre_hash x (fun s -> h := Hashtbl.seeded_hash !h s);
-      !h
+      let len =
+        match unstage (Type_size.t t) x with None -> 1024 | Some n -> n
+      in
+      let byt = Bytes.create len in
+      let off = pre_hash x byt 0 in
+      let byt = if len = off then byt else Bytes.sub byt 0 off in
+      Hashtbl.seeded_hash seed (Bytes.to_string byt)
 
 (* Combinators for Repr types *)
 

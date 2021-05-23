@@ -19,45 +19,48 @@ open Staging
 open Utils
 
 module Encode = struct
-  let chars =
-    Array.init 256 (fun i -> Bytes.unsafe_to_string (Bytes.make 1 (Char.chr i)))
+  let unit () _byt off = off
 
-  let unit () _k = ()
-  let unsafe_add_bytes b k = k (Bytes.unsafe_to_string b)
-  let add_string s k = k s
-  let char c k = k chars.(Char.code c)
+  let add_string s byt off =
+    let ls = String.length s in
+    Bytes.blit_string s 0 byt off ls;
+    off + ls
 
-  let int8 i k =
-    assert (i < 256);
-    k chars.(i)
+  let add_bytes b byt off =
+    let lb = Bytes.length b in
+    Bytes.blit b 0 byt off lb;
+    off + lb
 
-  let int16 i =
-    let b = Bytes.create 2 in
-    Bytes.set_uint16_be b 0 i;
-    unsafe_add_bytes b
+  let char c byt off =
+    Bytes.set byt off c;
+    off + 1
 
-  let int32 i =
-    let b = Bytes.create 4 in
-    Bytes.set_int32_be b 0 i;
-    unsafe_add_bytes b
+  let byte n byt off = char (Char.chr n) byt off
 
-  let int64 i =
-    let b = Bytes.create 8 in
-    Bytes.set_int64_be b 0 i;
-    unsafe_add_bytes b
+  let int8 i byt off =
+    Bytes.set_uint8 byt off i;
+    off + 1
+
+  let int16 i byt off =
+    Bytes.set_uint16_be byt off i;
+    off + 2
+
+  let int32 (i : int32) byt off =
+    Bytes.set_int32_be byt off i;
+    off + 4
+
+  let int64 (i : int64) byt off =
+    Bytes.set_int64_be byt off i;
+    off + 8
 
   let float f = int64 (Int64.bits_of_float f)
   let bool b = char (if b then '\255' else '\000')
 
-  let int i k =
-    let rec aux n k =
-      if n >= 0 && n < 128 then k chars.(n)
-      else
-        let out = 128 lor (n land 127) in
-        k chars.(out);
-        aux (n lsr 7) k
-    in
-    aux i k
+  let rec int n byt off =
+    if n >= 0 && n < 128 then byte n byt off
+    else
+      let out = 128 lor (n land 127) in
+      byte out byt off |> int (n lsr 7) byt
 
   let len n i =
     match n with
@@ -72,57 +75,47 @@ module Encode = struct
   let unboxed_string _ = stage add_string
 
   let boxed_string n =
-    let len = len n in
-    stage @@ fun s k ->
+    stage @@ fun s byt off ->
     let i = String.length s in
-    len i k;
-    add_string s k
+    len n i byt off |> add_string s byt
 
   let string boxed = if boxed then boxed_string else unboxed_string
-  let unboxed_bytes _ = stage @@ fun b k -> add_string (Bytes.to_string b) k
+  let unboxed_bytes _ = stage @@ add_bytes
 
   let boxed_bytes n =
     let len = len n in
-    stage @@ fun s k ->
-    let i = Bytes.length s in
-    len i k;
-    unsafe_add_bytes s k
+    stage @@ fun b byt off ->
+    let lb = Bytes.length b in
+    len lb byt off |> add_bytes b byt
 
   let bytes boxed = if boxed then boxed_bytes else unboxed_bytes
 
   let list l n =
     let l = unstage l in
-    stage (fun x k ->
-        len n (List.length x) k;
-        List.iter (fun e -> l e k) x)
+    stage (fun x byt off ->
+        let off = len n (List.length x) byt off in
+        List.fold_left (fun off e -> l e byt off) off x)
 
   let array l n =
     let l = unstage l in
-    stage (fun x k ->
-        len n (Array.length x) k;
-        Array.iter (fun e -> l e k) x)
+    stage (fun x byt off ->
+        let off = len n (Array.length x) byt off in
+        Array.fold_left (fun off e -> l e byt off) off x)
 
   let pair a b =
     let a = unstage a and b = unstage b in
-    stage (fun (x, y) k ->
-        a x k;
-        b y k)
+    stage (fun (x, y) byt off -> a x byt off |> b y byt)
 
   let triple a b c =
     let a = unstage a and b = unstage b and c = unstage c in
-    stage (fun (x, y, z) k ->
-        a x k;
-        b y k;
-        c z k)
+    stage (fun (x, y, z) byt off -> a x byt off |> b y byt |> c z byt)
 
   let option o =
     let o = unstage o in
-    stage (fun v k ->
+    stage (fun v byt off ->
         match v with
-        | None -> char '\000' k
-        | Some x ->
-            char '\255' k;
-            o x k)
+        | None -> char '\000' byt off
+        | Some x -> char '\255' byt off |> o x byt)
 
   let rec t : type a. a t -> a encode_bin = function
     | Self s -> fst (self s)
@@ -165,7 +158,7 @@ module Encode = struct
   and map : type a b. boxed:bool -> (a, b) map -> b encode_bin =
    fun ~boxed { x; g; _ } ->
     let encode_bin = unstage (if boxed then t x else unboxed x) in
-    stage (fun u k -> encode_bin (g u) k)
+    stage (fun y byt off -> encode_bin (g y) byt off)
 
   and prim : type a. boxed:bool -> a prim -> a encode_bin =
    fun ~boxed -> function
@@ -181,21 +174,20 @@ module Encode = struct
 
   and record : type a. a record -> a encode_bin =
    fun r ->
-    let field_encoders : (a -> (string -> unit) -> unit) list =
+    let field_encoders : (a -> bytes -> int -> int) list =
       fields r
       |> List.map @@ fun (Field f) ->
          let field_encode = unstage (t f.ftype) in
          fun x -> field_encode (f.fget x)
     in
-    stage (fun x k -> List.iter (fun f -> f x k) field_encoders)
+    stage (fun x byt off ->
+        List.fold_left (fun off f -> f x byt off) off field_encoders)
 
   and variant : type a. a variant -> a encode_bin =
     let c0 { ctag0; _ } = stage (int ctag0) in
     let c1 c =
       let encode_arg = unstage (t c.ctype1) in
-      stage (fun v k ->
-          int c.ctag1 k;
-          encode_arg v k)
+      stage (fun v byt off -> int c.ctag1 byt off |> encode_arg v byt)
     in
     fun v -> fold_variant { c0; c1 } v
 end
@@ -429,11 +421,10 @@ let to_bin size_of encode_bin =
   let size_of = unstage size_of in
   let encode_bin = unstage encode_bin in
   stage (fun x ->
-      let seq = encode_bin x in
       let len = match size_of x with None -> 1024 | Some n -> n in
-      let buf = Buffer.create len in
-      seq (Buffer.add_string buf);
-      Buffer.contents buf)
+      let byt = Bytes.create len in
+      let _off = encode_bin x byt 0 in
+      Bytes.to_string byt)
 
 let to_bin_string =
   let rec aux : type a. a t -> a to_bin_string =

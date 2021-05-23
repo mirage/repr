@@ -12,6 +12,9 @@ module Generic_op = struct
       }
         -> op
 
+  let size_of ty v =
+    match T.(unstage (size_of ty)) v with None -> 1024 | Some n -> n
+
   type t = { name : string; operation : op }
 
   let bin_string : t =
@@ -24,12 +27,14 @@ module Generic_op = struct
 
   let bin : t =
     let encode (type a) (ty : a T.t) =
+      let size_of = size_of ty in
       let f = T.unstage (T.encode_bin ty) in
       T.stage
         (fun a ->
-           let buffer = Buffer.create 0 in
-           f a (Buffer.add_string buffer);
-           Buffer.contents buffer
+           let len = size_of a in
+           let byt = Bytes.create len in
+           let off = f a byt 0 in
+           Bytes.to_string (if len = off then byt else Bytes.sub byt 0 off)
           : a -> string)
     in
     let decode (type a) (ty : a T.t) =
@@ -40,12 +45,14 @@ module Generic_op = struct
 
   let pre_hash : t =
     let consume (type a) (ty : a T.t) =
+      let size_of = size_of ty in
       let f = T.unstage (T.pre_hash ty) in
       T.stage
         (fun a ->
-           let buffer = Buffer.create 0 in
-           f a (Buffer.add_string buffer);
-           Buffer.contents buffer
+           let len = size_of a in
+           let byt = Bytes.create len in
+           let off = f a byt 0 in
+           Bytes.to_string (if len = off then byt else Bytes.sub byt 0 off)
           : a -> string)
     in
     { name = "pre_hash"; operation = Consumer { consume } }
@@ -252,6 +259,7 @@ let benchmark () =
 let ignore_eexist f = try f () with Unix.Unix_error (EEXIST, _, _) -> ()
 
 let () =
+  Memtrace.trace_if_requested ();
   Random.self_init ();
   let output_formatter =
     match Sys.argv with

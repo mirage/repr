@@ -20,11 +20,15 @@ let of_bin_string t = T.unstage (T.of_bin_string t)
 let encode_bin t = T.unstage (T.encode_bin t)
 let decode_bin t = T.unstage (T.decode_bin t)
 let size_of t = T.unstage (T.size_of t)
+let sub_bytes len off byt = if len = off then byt else Bytes.sub byt 0 off
+let sub_string len off byt = Bytes.to_string @@ sub_bytes len off byt
 
-let with_buf f =
-  let buf = Buffer.create 10 in
-  f (Buffer.add_string buf);
-  Buffer.contents buf
+let with_bytes t v size_of f =
+  let size_of t v = match (size_of t) v with None -> 1024 | Some n -> n in
+  let len = size_of t v in
+  let byt = Bytes.create len in
+  let off = f t v byt 0 in
+  sub_string len off byt
 
 module Unboxed = struct
   let decode_bin t = T.unstage (T.Unboxed.decode_bin t)
@@ -58,12 +62,12 @@ let test_boxing () =
   Alcotest.(check string) "foo eq" s foo;
   Alcotest.(check bool) "foo physeq" true (foo == s);
   let check msg ty foo =
-    let msg f = Fmt.strf "%s: %s" msg f in
-    let buf = with_buf (encode_bin ty foo) in
+    let msg f = Fmt.str "%s: %s" msg f in
+    let buf = with_bytes ty foo size_of encode_bin in
     Alcotest.(check string) (msg "boxed") buf "\003foo";
-    let buf = with_buf (Unboxed.encode_bin ty foo) in
+    let buf = with_bytes ty foo Unboxed.size_of Unboxed.encode_bin in
     Alcotest.(check string) (msg "unboxed") buf "foo";
-    let buf = with_buf (Unboxed.encode_bin (T.boxed ty) foo) in
+    let buf = with_bytes (T.boxed ty) foo size_of Unboxed.encode_bin in
     Alcotest.(check string) (msg "force boxed") buf "\003foo"
   in
   check "string" T.string foo;
@@ -240,6 +244,12 @@ let l =
 
 let tl = Alcotest.testable (T.pp l) T.(unstage (equal l))
 
+let to_bytes ty v f size_of =
+  let len = match (size_of ty) v with None -> 1024 | Some n -> n in
+  let byt = Bytes.create len in
+  let off = f ty v byt 0 in
+  sub_bytes len off byt
+
 let test_bin () =
   let s = T.to_string l [ "foo"; "foo" ] in
   Alcotest.(check string) "hex list" "[\"666f6f\",\"666f6f\"]" s;
@@ -250,12 +260,12 @@ let test_bin () =
     (size_of l [ "foo"; "bar" ]);
   let s = of_bin_string l "foobar" in
   Alcotest.(check (ok tl)) "decode list" (Ok [ "foo"; "bar" ]) s;
-  let buf = Buffer.create 10 in
-  encode_bin T.string "foo" (Buffer.add_string buf);
-  Alcotest.(check string) "foo 1" (Buffer.contents buf) "\003foo";
-  let buf = Buffer.create 10 in
-  Unboxed.encode_bin T.string "foo" (Buffer.add_string buf);
-  Alcotest.(check string) "foo 1" (Buffer.contents buf) "foo";
+  let s = Bytes.to_string (to_bytes T.string "foo" encode_bin size_of) in
+  Alcotest.(check string) "foo 1" s "\003foo";
+  let s =
+    Bytes.to_string (to_bytes T.string "foo" Unboxed.encode_bin Unboxed.size_of)
+  in
+  Alcotest.(check string) "foo 1" s "foo";
   let _, foo = Unboxed.decode_bin T.string "foo" 0 in
   Alcotest.(check string) "decode foo 0" foo "foo";
   let _, foo = Unboxed.decode_bin T.string "123foo" 3 in
@@ -276,9 +286,7 @@ let test_bin () =
     varints;
   List.iter
     (fun (k, v) ->
-      let buf = Buffer.create 10 in
-      encode_bin T.int k (Buffer.add_string buf);
-      let v' = Buffer.contents buf in
+      let v' = Bytes.to_string @@ to_bytes T.int k encode_bin size_of in
       Alcotest.(check string) (Fmt.str "decoding %S" v) v v')
     varints
 
