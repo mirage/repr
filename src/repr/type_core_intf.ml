@@ -20,6 +20,7 @@ module Types = struct
   type 'a t =
     | Var : string -> 'a t
     | Self : 'a self -> 'a t
+    | Attributes : 'a attributes -> 'a t
     | Custom : 'a custom -> 'a t
     | Map : ('a, 'b) map -> 'b t
     | Prim : 'a prim -> 'a t
@@ -29,16 +30,15 @@ module Types = struct
     | Option : 'a t -> 'a option t
     | Record : 'a record -> 'a t
     | Variant : 'a variant -> 'a t
-    | Boxed : 'a t -> 'a t
 
   and 'a len_v = { len : len; v : 'a t }
+
+  and 'a attributes = { attrs : 'a Attribute.Map.t; attr_type : 'a t }
 
   and 'a custom = {
     cwit : [ `Type of 'a t | `Witness of 'a Witness.t ];
     pp : 'a pp;
     of_string : 'a of_string;
-    encode_json : 'a encode_json;
-    decode_json : 'a decode_json;
     short_hash : 'a short_hash;
     pre_hash : 'a encode_bin;
     compare : 'a compare;
@@ -148,13 +148,22 @@ module type Type_core = sig
     val fold : 'a t -> ('a, 'c) fields -> ('a, 'c) Acc.t
   end
 
+  module Encode_json : Attribute.S1 with type 'a t = 'a encode_json
+  module Decode_json : Attribute.S1 with type 'a t = 'a decode_json
+
+  val annotate :
+    'a t ->
+    add:('data -> 'a Attribute.Map.t -> 'a Attribute.Map.t) ->
+    data:'data ->
+    'a t
+
   val fold_variant : ('a, 'b) Case_folder.t -> 'a variant -> ('a -> 'b) staged
 
   val partial :
     ?pp:'a pp ->
     ?of_string:'a of_string ->
-    ?encode_json:'a encode_json ->
-    ?decode_json:'a decode_json ->
+    ?encode_json:'a Encode_json.t ->
+    ?decode_json:'a Decode_json.t ->
     ?short_hash:'a short_hash ->
     ?pre_hash:'a pre_hash ->
     ?compare:'a compare ->

@@ -17,6 +17,9 @@
 open Type_core
 open Utils
 
+type 'a encode_json = 'a Encode_json.t
+type 'a decode_json = 'a Decode_json.t
+
 module Encode = struct
   let lexeme e l = ignore (Jsonm.encode e (`Lexeme l))
 
@@ -86,9 +89,10 @@ module Encode = struct
 
   let rec t : type a. a t -> a encode_json = function
     | Self s -> t s.self_fix
-    | Custom c -> c.encode_json
+    | Custom _ -> failwith "Unimplemented operation: encode_json"
     | Map b -> map b
-    | Boxed x -> t x
+    | Attributes { attr_type = x; attrs } -> (
+        match Encode_json.find attrs with None -> t x | Some t -> t)
     | Prim t -> prim t
     | List l -> list (t l.v)
     | Array a -> array (t a.v)
@@ -295,10 +299,10 @@ module Decode = struct
 
   let rec t : type a. a t -> a decode_json = function
     | Self s -> t s.self_fix
-    | Custom c -> c.decode_json
     | Map b -> map b
     | Prim t -> prim t
-    | Boxed x -> t x
+    | Attributes { attr_type = x; attrs } -> (
+        match Decode_json.find attrs with None -> t x | Some f -> f)
     | List l -> list (t l.v)
     | Array a -> array (t a.v)
     | Tuple t -> tuple t
@@ -306,6 +310,7 @@ module Decode = struct
     | Record r -> record r
     | Variant v -> variant v
     | Var v -> raise (Unbound_type_variable v)
+    | Custom _ -> failwith "Unimplemented operation: decode_json"
 
   (* Some types need to be decoded differently when wrapped inside records,
      since e.g. `k: None` is omitted and `k: Some v` is unboxed into `k: v`. *)

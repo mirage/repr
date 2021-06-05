@@ -33,6 +33,23 @@ module Json = struct
     | [] -> Jsonm.decode e.d
 end
 
+module Encode_json = Attribute.Make1 (struct
+  type 'a t = Jsonm.encoder -> 'a -> unit
+
+  let name = "encode_json"
+end)
+
+module Decode_json = Attribute.Make1 (struct
+  type 'a t = json_decoder -> ('a, [ `Msg of string ]) result
+
+  let name = "decode_json"
+end)
+
+let annotate t ~add ~data =
+  match t with
+  | Attributes t -> Attributes { t with attrs = add data t.attrs }
+  | t -> Attributes { attrs = add data Attribute.Map.empty; attr_type = t }
+
 let partial ?(pp = fun _ -> failwith "`pp` not implemented")
     ?(of_string = fun _ -> failwith "`of_string` not implemented")
     ?(encode_json = fun _ -> failwith "`encode_json` not implemented")
@@ -56,8 +73,6 @@ let partial ?(pp = fun _ -> failwith "`pp` not implemented")
       cwit = `Witness (Witness.make ());
       pp;
       of_string;
-      encode_json;
-      decode_json;
       short_hash;
       pre_hash;
       compare;
@@ -69,6 +84,8 @@ let partial ?(pp = fun _ -> failwith "`pp` not implemented")
       unboxed_decode_bin;
       unboxed_size_of;
     }
+  |> annotate ~add:Encode_json.add ~data:encode_json
+  |> annotate ~add:Decode_json.add ~data:decode_json
 
 let rec fields_aux : type a b. (a, b) fields -> a a_field list = function
   | F0 -> []

@@ -16,6 +16,12 @@
 
 open Type_core
 
+module Attr = Attribute.Make1 (struct
+  type 'a t = 'a Fmt.t
+
+  let name = "pp"
+end)
+
 (* Polyfill for [Float.is_nan] which is only >=4.08. *)
 let is_nan x = Float.classify_float x = FP_nan
 
@@ -62,7 +68,8 @@ let dump t =
     | Tuple t -> tuple t ppf x
     | Record r -> record r ppf x
     | Variant v -> variant v ppf x
-    | Boxed t -> aux t ppf x
+    | Attributes { attrs; attr_type = t } -> (
+        match Attr.find attrs with None -> aux t ppf x | Some pp -> pp ppf x)
   and map : type a b. (a, b) map -> b pp = fun l ppf x -> aux l.x ppf (l.g x)
   and prim : type a. a prim -> a pp =
    fun t ppf x ->
@@ -149,8 +156,16 @@ let ty : type a. a t Fmt.t =
         | _ ->
             let var = Var (get_tvar ()) in
             Fmt.pf ppf "@[(%a as %a)@]" ty (self_unroll var) ty var)
-    | Boxed b -> Fmt.pf ppf "@[Boxed (%a)@]" ty b
-    | Custom c -> Fmt.pf ppf "@[Custom (%a)@]" custom c
+    | Custom c | Attributes { attr_type = Custom c; _ } ->
+        Fmt.pf ppf "@[Custom (%a)@]" custom c
+    | Attributes { attr_type = t; attrs } ->
+        let open Attribute in
+        let names =
+          Map.bindings attrs |> List.map (fun (Map.B (k, _)) -> name k)
+        in
+        Fmt.pf ppf "@[Attributes<%a> (%a)@]"
+          Fmt.(list ~sep:semi string)
+          names ty t
     | Map m -> Fmt.pf ppf "@[Map (%a)@]" ty m.x
     | Prim p -> Fmt.pf ppf "@[%a@]" prim p
     | List l -> Fmt.pf ppf "@[%a list%a@]" ty l.v len l.len
