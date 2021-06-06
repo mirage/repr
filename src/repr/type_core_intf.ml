@@ -12,7 +12,7 @@ module Types = struct
   type 'a pre_hash = 'a bin_seq staged
   type 'a encode_bin = 'a bin_seq staged
   type 'a decode_bin = (string -> int -> int * 'a) staged
-  type 'a size_of = ('a -> int option) staged
+  type 'a size_of = 'a Size.Sizer.t
   type 'a compare = ('a -> 'a -> int) staged
   type 'a equal = ('a -> 'a -> bool) staged
   type 'a short_hash = (?seed:int -> 'a -> int) staged
@@ -136,6 +136,7 @@ module type Type_core = sig
   include module type of Types
   (** @inline *)
 
+  val unimplemented_size_of : 'a size_of
   val fields : 'a record -> 'a a_field list
 
   module Fields_folder (Acc : sig

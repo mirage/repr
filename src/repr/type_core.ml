@@ -50,6 +50,10 @@ let annotate t ~add ~data =
   | Attributes t -> Attributes { t with attrs = add data t.attrs }
   | t -> Attributes { attrs = add data Attribute.Map.empty; attr_type = t }
 
+let unimplemented_size_of =
+  let f _ = failwith "`size_of` not implemented" in
+  Size.Sizer.{ of_value = Dynamic f; of_encoding = Dynamic f }
+
 let partial ?(pp = fun _ -> failwith "`pp` not implemented")
     ?(of_string = fun _ -> failwith "`of_string` not implemented")
     ?(encode_json = fun _ -> failwith "`encode_json` not implemented")
@@ -61,13 +65,12 @@ let partial ?(pp = fun _ -> failwith "`pp` not implemented")
     ?(equal = stage (fun _ -> failwith "`equal` not implemented"))
     ?(encode_bin = stage (fun _ -> failwith "`encode_bin` not implemented"))
     ?(decode_bin = stage (fun _ -> failwith "`decode_bin` not implemented"))
-    ?(size_of = stage (fun _ -> failwith "`size_of` not implemented"))
+    ?(size_of = unimplemented_size_of)
     ?(unboxed_encode_bin =
       stage (fun _ -> failwith "`unboxed_encode_bin` not implemented"))
     ?(unboxed_decode_bin =
       stage (fun _ -> failwith "`unboxed_decode_bin` not implemented"))
-    ?(unboxed_size_of =
-      stage (fun _ -> failwith "`unboxed_size_of` not implemented")) () =
+    ?(unboxed_size_of = unimplemented_size_of) () =
   Custom
     {
       cwit = `Witness (Witness.make ());

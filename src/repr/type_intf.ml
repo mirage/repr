@@ -528,7 +528,7 @@ module type DSL = sig
   type 'a decode_bin = (string -> int -> int * 'a) staged
   (** The type for binary decoders. *)
 
-  type 'a size_of = ('a -> int option) staged
+  type -'a size_of
   (** The type for size function related to binary encoder/decoders. *)
 
   type 'a short_hash := (?seed:int -> 'a -> int) staged
@@ -561,10 +561,43 @@ module type DSL = sig
 
       {b NOTE:} When [t] is {!Type.string}, the result is [s] (without copy). *)
 
-  val size_of : 'a t -> 'a size_of
+  val size_of : 'a t -> ('a -> int option) staged
   (** [size_of t x] is either the size of [encode_bin t x] or the binary
       encoding of [x], if the backend is not able to pre-compute serialisation
       lengths. *)
+
+  module Size : sig
+    (** A value representing information known about the length in bytes of
+        encodings produced by a particular binary codec:
+
+        - [Static n]: all encodings produced by this codec have length [n];
+
+        - [Dynamic f]: the length of binary encodings is dependent on the
+          specific value, but may be efficiently computed at run-time via the
+          function [f].
+
+        - [Unknown]: this codec may produce encodings that cannot be efficiently
+          pre-computed.*)
+    type 'a t = 'a Size.t = private Static of int | Dynamic of 'a | Unknown
+
+    val of_value : 'a ty -> ('a -> int) t
+    val of_encoding : 'a ty -> (string -> int -> int) t
+
+    (** Constructors for custom value sizers, for use with binary codecs that
+        are not structurally-defined. *)
+
+    type -'a sizer = 'a size_of
+
+    val t : 'a ty -> 'a sizer
+    val using : ('b -> 'a) -> 'a sizer -> 'b sizer
+    val custom_static : int -> _ sizer
+
+    val custom_dynamic :
+      ?of_value:('a -> int) ->
+      ?of_encoding:(string -> int -> int) ->
+      unit ->
+      'a sizer
+  end
 
   module Unboxed : sig
     (** Unboxed operations assumes that value being serialized is fully filling

@@ -255,12 +255,16 @@ module Unboxed = struct
   let decode_bin = Decode.unboxed
 end
 
-let to_bin size_of encode_bin =
-  let size_of = unstage size_of in
+let to_bin (size_of : _ Size.Sizer.t) encode_bin =
   let encode_bin = unstage encode_bin in
   stage (fun x ->
       let seq = encode_bin x in
-      let len = match size_of x with None -> 1024 | Some n -> n in
+      let len =
+        match size_of.of_value with
+        | Static n -> n
+        | Dynamic f -> f x
+        | Unknown -> 1024
+      in
       let buf = Buffer.create len in
       seq (Buffer.add_string buf);
       Buffer.contents buf)
