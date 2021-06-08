@@ -18,12 +18,6 @@ open Type_core
 open Staging
 open Utils
 
-module Boxed = Attribute.Make1 (struct
-  type _ t = unit
-
-  let name = "boxed"
-end)
-
 module Encode = struct
   let chars =
     Array.init 256 (fun i -> Bytes.unsafe_to_string (Bytes.make 1 (Char.chr i)))
@@ -135,6 +129,7 @@ module Encode = struct
     | Custom c -> c.encode_bin
     | Map b -> map ~boxed:true b
     | Prim t -> prim ~boxed:true t
+    | Boxed b -> t b
     | Attributes { attr_type = x; _ } -> t x
     | List l -> list (t l.v) l.len
     | Array a -> array (t a.v) a.len
@@ -149,8 +144,8 @@ module Encode = struct
     | Custom c -> c.unboxed_encode_bin
     | Map b -> map ~boxed:false b
     | Prim t -> prim ~boxed:false t
-    | Attributes { attr_type = x; attrs } -> (
-        match Boxed.find attrs with Some () -> t x | None -> unboxed x)
+    | Boxed b -> t b
+    | Attributes { attr_type = x; _ } -> unboxed x
     | List l -> list (t l.v) l.len
     | Array a -> array (t a.v) a.len
     | Tuple t -> tuple t
@@ -339,6 +334,7 @@ module Decode = struct
     | Custom c -> c.decode_bin
     | Map b -> map ~boxed:true b
     | Prim t -> prim ~boxed:true t
+    | Boxed b -> t b
     | Attributes { attr_type = x; _ } -> t x
     | List l -> list (t l.v) l.len
     | Array a -> array (t a.v) a.len
@@ -353,8 +349,8 @@ module Decode = struct
     | Custom c -> c.unboxed_decode_bin
     | Map b -> map ~boxed:false b
     | Prim t -> prim ~boxed:false t
-    | Attributes { attr_type = x; attrs } -> (
-        match Boxed.find attrs with Some () -> t x | None -> unboxed x)
+    | Boxed b -> t b
+    | Attributes { attr_type = x; _ } -> unboxed x
     | List l -> list (t l.v) l.len
     | Array a -> array (t a.v) a.len
     | Tuple t -> tuple t

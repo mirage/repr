@@ -107,6 +107,7 @@ let rec t : type a. a t -> a size_of = function
   | Map b -> map ~boxed:true b
   | Prim t -> prim ~boxed:true t
   | Attributes { attr_type; _ } -> t attr_type
+  | Boxed b -> t b
   | List l -> list (t l.v) l.len
   | Array a -> array (t a.v) a.len
   | Tuple t -> tuple t
@@ -121,6 +122,7 @@ and unboxed : type a. a t -> a size_of = function
   | Map b -> map ~boxed:false b
   | Prim t -> prim ~boxed:false t
   | Attributes { attr_type; _ } -> t attr_type
+  | Boxed b -> t b
   | List l -> list (t l.v) l.len
   | Array a -> array (t a.v) a.len
   | Tuple t -> tuple t

@@ -68,6 +68,7 @@ let dump t =
     | Tuple t -> tuple t ppf x
     | Record r -> record r ppf x
     | Variant v -> variant v ppf x
+    | Boxed t -> aux t ppf x
     | Attributes { attrs; attr_type = t } -> (
         match Attr.find attrs with None -> aux t ppf x | Some pp -> pp ppf x)
   and map : type a b. (a, b) map -> b pp = fun l ppf x -> aux l.x ppf (l.g x)
@@ -166,6 +167,7 @@ let ty : type a. a t Fmt.t =
         Fmt.pf ppf "@[Attributes<%a> (%a)@]"
           Fmt.(list ~sep:semi string)
           names ty t
+    | Boxed b -> Fmt.pf ppf "@[Boxed (%a)@]" ty b
     | Map m -> Fmt.pf ppf "@[Map (%a)@]" ty m.x
     | Prim p -> Fmt.pf ppf "@[%a@]" prim p
     | List l -> Fmt.pf ppf "@[%a list%a@]" ty l.v len l.len

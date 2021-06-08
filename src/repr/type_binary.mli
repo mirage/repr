@@ -16,7 +16,6 @@
 
 open Type_core
 open Staging
-module Boxed : Attribute.S1 with type _ t = unit
 
 val encode_bin : 'a t -> 'a encode_bin
 val decode_bin : 'a t -> 'a decode_bin
