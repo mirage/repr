@@ -19,4 +19,6 @@ type 'a t
 
 val make : unit -> 'a t
 val eq : 'a t -> 'b t -> ('a, 'b) eq option
+val eq_exn : 'a t -> 'b t -> ('a, 'b) eq
 val cast : 'a t -> 'b t -> 'a -> 'b option
+val cast_exn : 'a t -> 'b t -> 'a -> 'b
