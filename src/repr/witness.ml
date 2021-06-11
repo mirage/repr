@@ -35,5 +35,16 @@ let make : type a. unit -> a t =
 let eq : type a b. a t -> b t -> (a, b) eq option =
  fun (module A) (module B) -> match A.Eq with B.Eq -> Some Refl | _ -> None
 
+let eq_exn : type a b. a t -> b t -> (a, b) eq =
+ fun (module A) (module B) ->
+  match A.Eq with
+  | B.Eq -> Refl
+  | _ -> failwith "Repr.internal_error: unexpected runtime type inequality"
+
 let cast : type a b. a t -> b t -> a -> b option =
  fun awit bwit a -> match eq awit bwit with Some Refl -> Some a | None -> None
+
+let cast_exn : type a b. a t -> b t -> a -> b =
+ fun awit bwit a ->
+  let Refl = eq_exn awit bwit in
+  a

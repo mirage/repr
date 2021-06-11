@@ -132,8 +132,7 @@ let fold_variant :
           | _ -> assert false)
       | CV1 ({ ctag1; cwit1; _ }, v) -> (
           match cases.(ctag1) with
-          | Dispatch.Arrow { f; arg_wit } -> (
-              match Witness.cast cwit1 arg_wit v with
-              | Some v -> unstage f v
-              | None -> assert false)
+          | Dispatch.Arrow { f; arg_wit } ->
+              let v = Witness.cast_exn cwit1 arg_wit v in
+              unstage f v
           | _ -> assert false))
