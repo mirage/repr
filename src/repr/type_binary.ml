@@ -96,17 +96,30 @@ module Encode = struct
 
   let bytes boxed = if boxed then boxed_bytes else unboxed_bytes
 
-  let list l n =
-    let l = unstage l in
-    stage (fun x k ->
-        len n (List.length x) k;
-        List.iter (fun e -> l e k) x)
+  let list =
+    let rec encode_elements encode_elt k = function
+      | [] -> ()
+      | x :: xs ->
+          encode_elt x k;
+          (encode_elements [@tailcall]) encode_elt k xs
+    in
+    fun l n ->
+      let l = unstage l in
+      stage (fun x k ->
+          len n (List.length x) k;
+          encode_elements l k x)
 
-  let array l n =
-    let l = unstage l in
-    stage (fun x k ->
-        len n (Array.length x) k;
-        Array.iter (fun e -> l e k) x)
+  let array =
+    let encode_elements encode_elt k arr =
+      for i = 0 to Array.length arr - 1 do
+        encode_elt (Array.unsafe_get arr i) k
+      done
+    in
+    fun l n ->
+      let l = unstage l in
+      stage (fun x k ->
+          len n (Array.length x) k;
+          encode_elements l k x)
 
   let pair a b =
     let a = unstage a and b = unstage b in
