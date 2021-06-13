@@ -30,6 +30,7 @@ let t t =
    fun t ppf x ->
     match t with
     | Self s -> aux s.self_fix ppf x
+    | Attributes { attr_type; _ } -> aux attr_type ppf x
     | Custom c -> c.pp ppf x
     | Map m -> map m ppf x
     | Prim p -> prim p ppf x
@@ -249,6 +250,7 @@ let of_string t =
    fun t x ->
     match t with
     | Self s -> aux s.self_fix x
+    | Attributes { attr_type; _ } -> aux attr_type x
     | Custom c -> c.of_string x
     | Map m -> aux m.x x |> map_result m.f
     | Prim p -> prim p x
