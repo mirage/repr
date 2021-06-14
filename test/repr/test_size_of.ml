@@ -106,16 +106,26 @@ let test_container () =
     type two = bool * bool [@@deriving repr]
     type three = bool * bool * bool [@@deriving repr]
 
-    let thirty_t = T.(list ~len:(`Fixed 10) three_t)
     let two = (true, true)
     let three = (true, true, true)
     let thirty = List.init 10 (fun _ -> three)
+    let thirty_t = T.(list ~len:(`Fixed 10) three_t)
   end in
   let open X in
   check_static ~__POS__ two_t 2 two;
   check_static ~__POS__ three_t 3 three;
   check_static ~__POS__ thirty_t (3 * 10) thirty;
-  check_static ~__POS__ T.(triple char int32 int64) (1 + 4 + 8) ('1', 4l, 8L)
+  check_static ~__POS__ [%typ: char * int32 * int64] (1 + 4 + 8) ('1', 4l, 8L);
+
+  (* Option with statically sized elements *)
+  check_dynamic ~__POS__ [%typ: bool option list]
+    (1 + (2 + 1 + 2))
+    [ Some true; None; Some false ];
+
+  (* Option with dynamically sized elements *)
+  check_dynamic ~__POS__ [%typ: int option list]
+    (1 + (2 + 1 + 3 + 1 + 4))
+    [ Some 1; None; Some (1 lsl 7); None; Some (1 lsl 14) ]
 
 let test_variant () =
   let module X = struct

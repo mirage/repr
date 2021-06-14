@@ -285,8 +285,8 @@ module Option = struct
         in
         let of_encoding buf (Size.Offset off) =
           match Stdlib.String.get buf off with
-          | '\000' -> Size.Offset (off + 1)
-          | _ -> Size.Offset (1 + n)
+          | '\000' -> Size.Offset (off + header_size)
+          | _ -> Size.Offset (off + header_size + n)
         in
         Sizer.dynamic ~of_value ~of_encoding
     | elt ->
@@ -300,8 +300,8 @@ module Option = struct
           let+ elt_decode = elt.of_encoding in
           fun buf (Size.Offset off) ->
             match Stdlib.String.get buf off with
-            | '\000' -> Size.Offset (off + 1)
-            | _ -> elt_decode buf (Size.Offset (off + 1))
+            | '\000' -> Size.Offset (off + header_size)
+            | _ -> elt_decode buf (Size.Offset (off + header_size))
         in
         { of_value; of_encoding }
 end
