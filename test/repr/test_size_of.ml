@@ -24,13 +24,22 @@ let check_static ~__POS__:pos typ expected v =
         "Expected type to have static size %d, but (Unknown | Dynamic _) was \
          received."
         expected
-  | Static n ->
+  | Static n -> (
       Alcotest.(check ~pos int) "Expected static size" expected n;
 
       (* Check that the encoding actually occupies [n] bytes *)
       let actual_size = String.length (encode_bin typ v) in
       Alcotest.(check ~pos int)
-        "Actual size must match static spec" expected actual_size
+        "Actual size must match static spec" expected actual_size;
+
+      (* We require [∀ n. (of_value = Static n) ⇔ (of_encoding = Static n)] *)
+      match T.Size.of_encoding typ with
+      | Unknown | Dynamic _ ->
+          Alcotest.failf ~pos
+            "Type has a static [of_value] sizer, but a non-static \
+             [of_encoding] sizer."
+      | Static n' ->
+          Alcotest.(check ~pos int) "Reported static sizes must be equal" n n')
 
 let check_dynamic ~__POS__:pos typ expected v =
   Fmt.pr "Testing type: %a@." T.pp_ty typ;
