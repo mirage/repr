@@ -276,7 +276,8 @@ module Option = struct
     let header_size = 1 in
     match elt with
     | { of_value = Static 0; _ } ->
-        Sizer.static header_size (* Either '\000' or '\255' *)
+        (* Either '\000' or '\255'; [a] has an empty encoding. *)
+        Sizer.static header_size
     | { of_value = Static n; _ } ->
         (* Must add [n] in the [Some _] case, otherwise just header size. *)
         let of_value = function
