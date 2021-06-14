@@ -19,123 +19,33 @@ open Staging
 open Utils
 
 module Encode = struct
-  let chars =
-    Array.init 256 (fun i -> Bytes.unsafe_to_string (Bytes.make 1 (Char.chr i)))
+  module Bin = Binary_codec
 
-  let unit () _k = ()
-  let unsafe_add_bytes b k = k (Bytes.unsafe_to_string b)
-  let add_string s k = k s
-  let char c k = k chars.(Char.code c)
+  let string boxed n =
+    if boxed then Bin.String.encode n else Bin.String_unboxed.encode n
 
-  let int8 i k =
-    assert (i < 256);
-    k chars.(i)
+  let bytes boxed n =
+    if boxed then Bin.Bytes.encode n else Bin.Bytes_unboxed.encode n
 
-  let int16 i =
-    let b = Bytes.create 2 in
-    Bytes.set_uint16_be b 0 i;
-    unsafe_add_bytes b
+  let list l n =
+    let l = unstage l in
+    Bin.List.encode n l
 
-  let int32 i =
-    let b = Bytes.create 4 in
-    Bytes.set_int32_be b 0 i;
-    unsafe_add_bytes b
-
-  let int64 i =
-    let b = Bytes.create 8 in
-    Bytes.set_int64_be b 0 i;
-    unsafe_add_bytes b
-
-  let float f = int64 (Int64.bits_of_float f)
-  let bool b = char (if b then '\255' else '\000')
-
-  let int i k =
-    let rec aux n k =
-      if n >= 0 && n < 128 then k chars.(n)
-      else
-        let out = 128 lor (n land 127) in
-        k chars.(out);
-        aux (n lsr 7) k
-    in
-    aux i k
-
-  let len n i =
-    match n with
-    | `Int -> int i
-    | `Int8 -> int8 i
-    | `Int16 -> int16 i
-    | `Int32 -> int32 (Int32.of_int i)
-    | `Int64 -> int64 (Int64.of_int i)
-    | `Fixed _ -> unit ()
-    | `Unboxed -> unit ()
-
-  let unboxed_string _ = stage add_string
-
-  let boxed_string n =
-    let len = len n in
-    stage @@ fun s k ->
-    let i = String.length s in
-    len i k;
-    add_string s k
-
-  let string boxed = if boxed then boxed_string else unboxed_string
-  let unboxed_bytes _ = stage @@ fun b k -> add_string (Bytes.to_string b) k
-
-  let boxed_bytes n =
-    let len = len n in
-    stage @@ fun s k ->
-    let i = Bytes.length s in
-    len i k;
-    unsafe_add_bytes s k
-
-  let bytes boxed = if boxed then boxed_bytes else unboxed_bytes
-
-  let list =
-    let rec encode_elements encode_elt k = function
-      | [] -> ()
-      | x :: xs ->
-          encode_elt x k;
-          (encode_elements [@tailcall]) encode_elt k xs
-    in
-    fun l n ->
-      let l = unstage l in
-      stage (fun x k ->
-          len n (List.length x) k;
-          encode_elements l k x)
-
-  let array =
-    let encode_elements encode_elt k arr =
-      for i = 0 to Array.length arr - 1 do
-        encode_elt (Array.unsafe_get arr i) k
-      done
-    in
-    fun l n ->
-      let l = unstage l in
-      stage (fun x k ->
-          len n (Array.length x) k;
-          encode_elements l k x)
+  let array l n =
+    let l = unstage l in
+    Bin.Array.encode n l
 
   let pair a b =
     let a = unstage a and b = unstage b in
-    stage (fun (x, y) k ->
-        a x k;
-        b y k)
+    stage (Bin.Pair.encode a b)
 
   let triple a b c =
     let a = unstage a and b = unstage b and c = unstage c in
-    stage (fun (x, y, z) k ->
-        a x k;
-        b y k;
-        c z k)
+    stage (Bin.Triple.encode a b c)
 
   let option o =
     let o = unstage o in
-    stage (fun v k ->
-        match v with
-        | None -> char '\000' k
-        | Some x ->
-            char '\255' k;
-            o x k)
+    stage (Bin.Option.encode o)
 
   let rec t : type a. a t -> a encode_bin = function
     | Self s -> fst (self s)
@@ -184,159 +94,63 @@ module Encode = struct
 
   and prim : type a. boxed:bool -> a prim -> a encode_bin =
    fun ~boxed -> function
-    | Unit -> stage unit
-    | Bool -> stage bool
-    | Char -> stage char
-    | Int -> stage int
-    | Int32 -> stage int32
-    | Int64 -> stage int64
-    | Float -> stage float
+    | Unit -> stage Bin.Unit.encode
+    | Bool -> stage Bin.Bool.encode
+    | Char -> stage Bin.Char.encode
+    | Int -> stage Bin.Int.encode
+    | Int32 -> stage Bin.Int32.encode
+    | Int64 -> stage Bin.Int64.encode
+    | Float -> stage Bin.Float.encode
     | String n -> string boxed n
     | Bytes n -> bytes boxed n
 
   and record : type a. a record -> a encode_bin =
    fun r ->
     let field_encoders : (a -> (string -> unit) -> unit) list =
-      fields r
-      |> List.map @@ fun (Field f) ->
-         let field_encode = unstage (t f.ftype) in
-         fun x -> field_encode (f.fget x)
+      ListLabels.map (fields r) ~f:(fun (Field f) ->
+          let field_encode = unstage (t f.ftype) in
+          fun x -> field_encode (f.fget x))
     in
-    stage (fun x k -> List.iter (fun f -> f x k) field_encoders)
+    stage (fun x k -> Stdlib.List.iter (fun f -> f x k) field_encoders)
 
   and variant : type a. a variant -> a encode_bin =
-    let c0 { ctag0; _ } = stage (int ctag0) in
+    let c0 { ctag0; _ } = stage (Bin.Int.encode ctag0) in
     let c1 c =
       let encode_arg = unstage (t c.ctype1) in
       stage (fun v k ->
-          int c.ctag1 k;
+          Bin.Int.encode c.ctag1 k;
           encode_arg v k)
     in
     fun v -> fold_variant { c0; c1 } v
 end
 
 module Decode = struct
+  module Bin = Binary_codec
+
   type 'a res = int * 'a
 
-  let unit _ ofs = (ofs, ()) [@@inline always]
-  let char buf ofs = (ofs + 1, buf.[ofs]) [@@inline always]
-
-  let int8 buf ofs =
-    let ofs, c = char buf ofs in
-    (ofs, Char.code c)
-    [@@inline always]
-
-  let str = Bytes.unsafe_of_string
-  let int16 buf ofs = (ofs + 2, Bytes.get_uint16_be (str buf) ofs)
-  let int32 buf ofs = (ofs + 4, Bytes.get_int32_be (str buf) ofs)
-  let int64 buf ofs = (ofs + 8, Bytes.get_int64_be (str buf) ofs)
-
-  let bool buf ofs =
-    let ofs, c = char buf ofs in
-    match c with '\000' -> (ofs, false) | _ -> (ofs, true)
-
-  let float buf ofs =
-    let ofs, f = int64 buf ofs in
-    (ofs, Int64.float_of_bits f)
-
-  let int buf ofs =
-    let rec aux buf n p ofs =
-      let ofs, i = int8 buf ofs in
-      let n = n + ((i land 127) lsl p) in
-      if i >= 0 && i < 128 then (ofs, n) else aux buf n (p + 7) ofs
-    in
-    aux buf 0 0 ofs
-
-  let len buf ofs = function
-    | `Int -> int buf ofs
-    | `Int8 -> int8 buf ofs
-    | `Int16 -> int16 buf ofs
-    | `Int32 ->
-        let ofs, i = int32 buf ofs in
-        (ofs, Int32.to_int i)
-    | `Int64 ->
-        let ofs, i = int64 buf ofs in
-        (ofs, Int64.to_int i)
-    | `Fixed n -> (ofs, n)
-    | `Unboxed -> (ofs, String.length buf - ofs)
-
-  let mk_unboxed of_string of_bytes _ =
-    stage @@ fun buf ofs ->
-    let len = String.length buf - ofs in
-    if ofs = 0 then (len, of_string buf)
-    else
-      let str = Bytes.create len in
-      String.blit buf ofs str 0 len;
-      (ofs + len, of_bytes str)
-
-  let mk_boxed of_string of_bytes =
-    let sub len buf ofs =
-      if ofs = 0 && len = String.length buf then (len, of_string buf)
-      else
-        let str = Bytes.create len in
-        String.blit buf ofs str 0 len;
-        (ofs + len, of_bytes str)
-    in
-    function
-    | `Fixed n ->
-        (* fixed-size strings are never boxed *)
-        stage @@ fun buf ofs -> sub n buf ofs
-    | n ->
-        stage @@ fun buf ofs ->
-        let ofs, len = len buf ofs n in
-        sub len buf ofs
-
-  let mk of_string of_bytes =
-    let f_boxed = mk_boxed of_string of_bytes in
-    let f_unboxed = mk_unboxed of_string of_bytes in
-    fun boxed -> if boxed then f_boxed else f_unboxed
-
-  let string = mk (fun x -> x) Bytes.unsafe_to_string
-  let bytes = mk Bytes.of_string (fun x -> x)
+  let string box = if box then Bin.String.decode else Bin.String_unboxed.decode
+  let bytes box = if box then Bin.Bytes.decode else Bin.Bytes_unboxed.decode
 
   let list l n =
     let l = unstage l in
-    stage (fun buf ofs ->
-        let ofs, len = len buf ofs n in
-        let rec aux acc ofs = function
-          | 0 -> (ofs, List.rev acc)
-          | n ->
-              let ofs, x = l buf ofs in
-              aux (x :: acc) ofs (n - 1)
-        in
-        aux [] ofs len)
+    Bin.List.decode n l
 
-  let array l len =
-    let decode_list = unstage (list l len) in
-    stage (fun buf ofs ->
-        let ofs, l = decode_list buf ofs in
-        (ofs, Array.of_list l))
+  let array l n =
+    let l = unstage l in
+    Bin.Array.decode n l
 
   let pair a b =
     let a = unstage a and b = unstage b in
-    stage (fun buf ofs ->
-        let ofs, a = a buf ofs in
-        let ofs, b = b buf ofs in
-        (ofs, (a, b)))
+    stage (Bin.Pair.decode a b)
 
   let triple a b c =
     let a = unstage a and b = unstage b and c = unstage c in
-    stage (fun buf ofs ->
-        let ofs, a = a buf ofs in
-        let ofs, b = b buf ofs in
-        let ofs, c = c buf ofs in
-        (ofs, (a, b, c)))
+    stage (Bin.Triple.decode a b c)
 
-  let option : type a. a decode_bin -> a option decode_bin =
-   fun o ->
+  let option o =
     let o = unstage o in
-    stage (fun buf ofs ->
-        let ofs, c = char buf ofs in
-        match c with
-        | '\000' -> (ofs, None)
-        | _ ->
-            let ofs, x = o buf ofs in
-            (ofs, Some x))
+    stage (Bin.Option.decode o)
 
   module Record_decoder = Fields_folder (struct
     type ('a, 'b) t = string -> int -> 'b -> 'a res
@@ -391,13 +205,13 @@ module Decode = struct
 
   and prim : type a. boxed:bool -> a prim -> a decode_bin =
    fun ~boxed -> function
-    | Unit -> stage unit
-    | Bool -> stage bool
-    | Char -> stage char
-    | Int -> stage int
-    | Int32 -> stage int32
-    | Int64 -> stage int64
-    | Float -> stage float
+    | Unit -> stage Bin.Unit.decode
+    | Bool -> stage Bin.Bool.decode
+    | Char -> stage Bin.Char.decode
+    | Int -> stage Bin.Int.decode
+    | Int32 -> stage Bin.Int32.decode
+    | Int64 -> stage Bin.Int64.decode
+    | Float -> stage Bin.Float.decode
     | String n -> string boxed n
     | Bytes n -> bytes boxed n
 
@@ -417,17 +231,16 @@ module Decode = struct
   and variant : type a. a variant -> a decode_bin =
    fun v ->
     let decoders : a decode_bin array =
-      v.vcases
-      |> Array.map @@ function
-         | C0 c -> stage (fun _ ofs -> (ofs, c.c0))
-         | C1 c ->
-             let decode_arg = unstage (t c.ctype1) in
-             stage (fun buf ofs ->
-                 let ofs, x = decode_arg buf ofs in
-                 (ofs, c.c1 x))
+      ArrayLabels.map v.vcases ~f:(function
+        | C0 c -> stage (fun _ ofs -> (ofs, c.c0))
+        | C1 c ->
+            let decode_arg = unstage (t c.ctype1) in
+            stage (fun buf ofs ->
+                let ofs, x = decode_arg buf ofs in
+                (ofs, c.c1 x)))
     in
     stage (fun buf ofs ->
-        let ofs, i = int buf ofs in
+        let ofs, i = Bin.Int.decode buf ofs in
         unstage decoders.(i) buf ofs)
 end
 
