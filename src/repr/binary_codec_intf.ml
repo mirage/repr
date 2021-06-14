@@ -1,14 +1,20 @@
 open Type_core
 open Staging
 
-type 'a encoder = 'a -> (string -> unit) -> unit
-type 'a decoder = string -> int -> int * 'a
+module Types = struct
+  type 'a encoder = 'a -> (string -> unit) -> unit
+  type 'a decoder = string -> int -> int * 'a
+  type 'a sizer = 'a Size.Sizer.t
+end
+
+open Types
 
 module type S = sig
   type t
 
   val encode : t encoder
   val decode : t decoder
+  val sizer : t sizer
 end
 
 module type S_with_length = sig
@@ -16,6 +22,7 @@ module type S_with_length = sig
 
   val encode : len -> t encoder staged
   val decode : len -> t decoder staged
+  val sizer : len -> t sizer
 end
 
 module type S1 = sig
@@ -23,6 +30,7 @@ module type S1 = sig
 
   val encode : 'a encoder -> 'a t encoder
   val decode : 'a decoder -> 'a t decoder
+  val sizer : 'a sizer -> 'a t sizer
 end
 
 module type S1_with_length = sig
@@ -30,6 +38,7 @@ module type S1_with_length = sig
 
   val encode : len -> 'a encoder -> 'a t encoder staged
   val decode : len -> 'a decoder -> 'a t decoder staged
+  val sizer : len -> 'a sizer -> 'a t sizer
 end
 
 module type S2 = sig
@@ -37,6 +46,7 @@ module type S2 = sig
 
   val encode : 'a encoder -> 'b encoder -> ('a, 'b) t encoder
   val decode : 'a decoder -> 'b decoder -> ('a, 'b) t decoder
+  val sizer : 'a sizer -> 'b sizer -> ('a, 'b) t sizer
 end
 
 module type S3 = sig
@@ -44,9 +54,12 @@ module type S3 = sig
 
   val encode : 'a encoder -> 'b encoder -> 'c encoder -> ('a, 'b, 'c) t encoder
   val decode : 'a decoder -> 'b decoder -> 'c decoder -> ('a, 'b, 'c) t decoder
+  val sizer : 'a sizer -> 'b sizer -> 'c sizer -> ('a, 'b, 'c) t sizer
 end
 
 module type Intf = sig
+  include module type of Types
+
   module type S = S
   module type S1 = S1
   module type S2 = S2

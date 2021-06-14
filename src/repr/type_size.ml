@@ -15,171 +15,175 @@
  *)
 
 open Type_core
-open Staging
-open Utils
+module Sizer = Size.Sizer
+module Bin = Binary_codec
 
-let ( >>= ) x f = match x with Some x -> f x | None -> None
-let ( >|= ) x f = match x with Some x -> Some (f x) | None -> None
-
-let int n =
-  let rec aux len n =
-    if n >= 0 && n < 128 then len else aux (len + 1) (n lsr 7)
-  in
-  aux 1 n
-
-let len n = function
-  | `Int -> int n
-  | `Int8 -> 1
-  | `Int16 -> 2
-  | `Int32 -> 4
-  | `Int64 -> 8
-  | `Fixed _ -> 0
-
-let unit () = 0
-let char (_ : char) = 1
-let int32 (_ : int32) = 4
-let int64 (_ : int64) = 8
-let bool (_ : bool) = 1
-let float (_ : float) = 8 (* NOTE: we consider 'double' here *)
-
-let boxed_string n s =
-  let s = String.length s in
-  len s n + s
-
-let unboxed_string = function
-  | `Fixed len -> fun _ -> len (* fixed-size strings are never boxed *)
-  | _ -> String.length
-
-let string ~boxed = if boxed then boxed_string else unboxed_string
-
-let boxed_bytes n s =
-  let s = Bytes.length s in
-  len s n + s
-
-let unboxed_bytes = function
-  | `Fixed len -> fun _ -> len (* fixed-size bytes are never boxed *)
-  | _ -> Bytes.length
-
-let bytes ~boxed = if boxed then boxed_bytes else unboxed_bytes
-
-let list l n =
-  let l = unstage l in
-  stage (fun x ->
-      let init = len (List.length x) n in
-      List.fold_left
-        (fun acc x ->
-          acc >>= fun acc ->
-          l x >|= fun l -> acc + l)
-        (Some init) x)
-
-let array l n =
-  let l = unstage l in
-  stage (fun x ->
-      let init = len (Array.length x) n in
-      Array.fold_left
-        (fun acc x ->
-          acc >>= fun acc ->
-          l x >|= fun l -> acc + l)
-        (Some init) x)
-
-let pair a b =
-  let a = unstage a and b = unstage b in
-  stage (fun (x, y) ->
-      a x >>= fun a ->
-      b y >|= fun b -> a + b)
-
-let triple a b c =
-  let a = unstage a and b = unstage b and c = unstage c in
-  stage (fun (x, y, z) ->
-      a x >>= fun a ->
-      b y >>= fun b ->
-      c z >|= fun c -> a + b + c)
-
-let option o =
-  let o = unstage o in
-  stage (function
-    | None -> Some (char '\000')
-    | Some x -> o x >|= fun o -> char '\000' + o)
-
-let rec t : type a. a t -> a size_of = function
+let rec t : type a. a t -> a Sizer.t = function
   | Self s -> fst (self s)
   | Custom c -> c.size_of
   | Map b -> map ~boxed:true b
   | Prim t -> prim ~boxed:true t
   | Attributes { attr_type; _ } -> t attr_type
   | Boxed b -> t b
-  | List l -> list (t l.v) l.len
-  | Array a -> array (t a.v) a.len
+  | List l -> Bin.List.sizer l.len (t l.v)
+  | Array a -> Bin.Array.sizer a.len (t a.v)
   | Tuple t -> tuple t
-  | Option x -> option (t x)
+  | Option x -> Bin.Option.sizer (t x)
   | Record r -> record r
   | Variant v -> variant v
   | Var v -> raise (Unbound_type_variable v)
 
-and unboxed : type a. a t -> a size_of = function
+and unboxed : type a. a t -> a Sizer.t = function
   | Self s -> snd (self s)
   | Custom c -> c.unboxed_size_of
   | Map b -> map ~boxed:false b
   | Prim t -> prim ~boxed:false t
-  | Attributes { attr_type; _ } -> t attr_type
+  | Attributes { attr_type = t; _ } -> unboxed t
   | Boxed b -> t b
-  | List l -> list (t l.v) l.len
-  | Array a -> array (t a.v) a.len
+  | List l -> Bin.List.sizer l.len (t l.v)
+  | Array a -> Bin.Array.sizer a.len (t a.v)
   | Tuple t -> tuple t
-  | Option x -> option (t x)
+  | Option x -> Bin.Option.sizer (t x)
   | Record r -> record r
   | Variant v -> variant v
   | Var v -> raise (Unbound_type_variable v)
 
-and self : type a. a self -> a size_of * a size_of =
- fun { self_unroll; _ } ->
-  fix_staged2 (fun size_of unboxed_size_of ->
-      let cyclic = self_unroll (partial ~size_of ~unboxed_size_of ()) in
-      (t cyclic, unboxed cyclic))
+and self : type a. a self -> a Sizer.t * a Sizer.t =
+  (* The resulting sizer may be any of [Unknown], [Static] or [Dynamic]. In the
+     latter case, we must be able to recurse back to this definition at size
+     computation time.
 
-and tuple : type a. a tuple -> a size_of = function
-  | Pair (x, y) -> pair (t x) (t y)
-  | Triple (x, y, z) -> triple (t x) (t y) (t z)
+     We unroll with 'stub' dynamic values that initially [assert false] but will
+     be backpatched with the parent derivation (iff it does actually turn out to
+     be dynamic). *)
+  let stub _ = assert false in
+  let backpatch stubref = function
+    | Size.Dynamic f -> stubref := f
+    | Size.Static _ -> ()
+    | Size.Unknown -> ()
+  in
+  fun { self_unroll; _ } ->
+    let of_value = ref stub
+    and of_encoding = ref stub
+    and unboxed_of_value = ref stub
+    and unboxed_of_encoding = ref stub in
+    let unrolled =
+      let size_of =
+        Sizer.dynamic
+          ~of_value:(fun a -> !of_value a)
+          ~of_encoding:(fun buf off -> !of_encoding buf off)
+      in
+      let unboxed_size_of =
+        Sizer.dynamic
+          ~of_value:(fun a -> !unboxed_of_value a)
+          ~of_encoding:(fun buf off -> !unboxed_of_encoding buf off)
+      in
+      self_unroll (partial ~size_of ~unboxed_size_of ())
+    in
+    let t = t unrolled and unboxed = unboxed unrolled in
+    backpatch of_value t.of_value;
+    backpatch of_encoding t.of_encoding;
+    backpatch unboxed_of_value unboxed.of_value;
+    backpatch unboxed_of_encoding unboxed.of_encoding;
+    (t, unboxed)
 
-and map : type a b. boxed:bool -> (a, b) map -> b size_of =
- fun ~boxed { x; g; _ } ->
-  let size_of = unstage (if boxed then t x else unboxed x) in
-  stage (fun u -> size_of (g u))
+and tuple : type a. a tuple -> a Sizer.t = function
+  | Pair (x, y) -> Bin.Pair.sizer (t x) (t y)
+  | Triple (x, y, z) -> Bin.Triple.sizer (t x) (t y) (t z)
 
-and prim : type a. boxed:bool -> a prim -> a size_of =
+and map : type a b. boxed:bool -> (a, b) map -> b Sizer.t =
+ fun ~boxed { x; g; _ } -> Sizer.using g (if boxed then t x else unboxed x)
+
+and prim : type a. boxed:bool -> a prim -> a Sizer.t =
  fun ~boxed -> function
-  | Unit -> stage (fun x -> Some (unit x))
-  | Bool -> stage (fun x -> Some (bool x))
-  | Char -> stage (fun x -> Some (char x))
-  | Int -> stage (fun x -> Some (int x))
-  | Int32 -> stage (fun x -> Some (int32 x))
-  | Int64 -> stage (fun x -> Some (int64 x))
-  | Float -> stage (fun x -> Some (float x))
-  | String n ->
-      let size_of = string ~boxed n in
-      stage (fun x -> Some (size_of x))
-  | Bytes n ->
-      let size_of = bytes ~boxed n in
-      stage (fun x -> Some (size_of x))
+  | Unit -> Bin.Unit.sizer
+  | Bool -> Bin.Bool.sizer
+  | Char -> Bin.Char.sizer
+  | Int -> Bin.Int.sizer
+  | Int32 -> Bin.Int32.sizer
+  | Int64 -> Bin.Int64.sizer
+  | Float -> Bin.Float.sizer
+  | String n -> (if boxed then Bin.String.sizer else Bin.String_unboxed.sizer) n
+  | Bytes n -> (if boxed then Bin.Bytes.sizer else Bin.Bytes_unboxed.sizer) n
 
-and record : type a. a record -> a size_of =
+and record : type a. a record -> a Sizer.t =
  fun r ->
-  let field_sizers : (a -> int option) list =
-    fields r
-    |> List.map @@ fun (Field f) ->
-       let field_size = unstage (t f.ftype) in
-       fun x -> field_size (f.fget x)
-  in
-  stage (fun x ->
-      List.fold_left
-        (fun acc fsize -> acc >>= fun acc -> fsize x >|= ( + ) acc)
-        (Some 0) field_sizers)
+  fields r
+  |> List.map (fun (Field f) -> Sizer.using f.fget (t f.ftype))
+  |> ListLabels.fold_left ~init:(Sizer.static 0) ~f:Sizer.( <+> )
 
-and variant : type a. a variant -> a size_of =
-  let c0 { ctag0; _ } = stage (Some (int ctag0)) in
-  let c1 { ctag1; ctype1; _ } =
-    let size_tag = int ctag1 in
-    let size_arg = unstage (t ctype1) in
-    stage (fun v -> size_arg v >|= ( + ) size_tag)
+and variant : type a. a variant -> a Sizer.t =
+ fun v ->
+  let static_varint_size n =
+    match Bin.Int.sizer.of_value with
+    | Unknown | Static _ -> assert false
+    | Dynamic f -> f n
   in
-  fun v -> fold_variant { c0; c1 } v
+  let case_lengths : (int * a Sizer.t) array =
+    ArrayLabels.map v.vcases ~f:(function
+      | C0 { ctag0; _ } -> (static_varint_size ctag0, Sizer.static 0)
+      | C1 { ctag1; ctype1; cwit1 = expected; _ } ->
+          let tag_length = static_varint_size ctag1 in
+          let arg_length =
+            match t ctype1 with
+            | ({ of_value = Static _; _ } | { of_value = Unknown; _ }) as t -> t
+            | { of_value = Dynamic of_value; of_encoding } ->
+                let of_value a =
+                  match v.vget a with
+                  | CV0 _ -> assert false
+                  | CV1 ({ cwit1 = received; _ }, args) -> (
+                      match Witness.cast received expected args with
+                      | Some v -> of_value v
+                      | None -> assert false)
+                in
+                { of_value = Dynamic of_value; of_encoding }
+          in
+          (tag_length, arg_length))
+  in
+  (* If all cases have [size = Static n], then so does the variant.
+     If any case has [size = Unknown], then so does the variant. *)
+  let non_dynamic_length =
+    let rec aux static_so_far = function
+      | -1 -> Option.map (fun n -> Sizer.static n) static_so_far
+      | i -> (
+          match case_lengths.(i) with
+          | _, { of_value = Unknown; _ } -> Some Sizer.unknown
+          | _, { of_value = Dynamic _; _ } -> None
+          | tag_len, { of_value = Static arg_len; _ } -> (
+              let len = tag_len + arg_len in
+              match static_so_far with
+              | None -> aux (Some len) (i - 1)
+              | Some len' when len = len' -> aux static_so_far (i - 1)
+              | Some _ -> None))
+    in
+    aux None (Array.length case_lengths - 1)
+  in
+  match non_dynamic_length with
+  | Some x -> x
+  | None ->
+      (* Otherwise, the variant size is [Dynamic] over the tag *)
+      let of_value a =
+        let tag =
+          match v.vget a with
+          | CV0 { ctag0; _ } -> ctag0
+          | CV1 ({ ctag1; _ }, _) -> ctag1
+        in
+        let tag_length, arg_length = case_lengths.(tag) in
+        let arg_length =
+          match arg_length.of_value with
+          | Dynamic f -> f a
+          | Static n -> n
+          | Unknown ->
+              (* [Unknown] arg lengths discounted above *)
+              assert false
+        in
+        tag_length + arg_length
+      in
+      let of_encoding buf (Size.Offset off) =
+        let off, tag = Bin.Int.decode buf off in
+        match case_lengths.(tag) with
+        | _, { of_encoding = Static n; _ } -> Size.Offset (off + n)
+        | _, { of_encoding = Dynamic f; _ } -> f buf (Size.Offset off)
+        | _, { of_encoding = _; _ } -> assert false
+      in
+      Sizer.dynamic ~of_value ~of_encoding

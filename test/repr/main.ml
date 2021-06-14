@@ -1,15 +1,5 @@
+open! Import
 module T = Repr
-
-module Alcotest = struct
-  include Alcotest
-
-  let gcheck ?pos typ msg a b =
-    let equal = T.(unstage (equal typ)) in
-    let pp = T.pp_dump typ in
-    check ?pos (testable pp equal) msg a b
-
-  let string = testable Fmt.Dump.string String.equal
-end
 
 let id x = x
 
@@ -21,7 +11,17 @@ let to_bin_string t = T.unstage (T.to_bin_string t)
 let of_bin_string t = T.unstage (T.of_bin_string t)
 let encode_bin t = T.unstage (T.encode_bin t)
 let decode_bin t = T.unstage (T.decode_bin t)
-let size_of t = T.unstage (T.size_of t)
+
+let size_of t v =
+  match T.Size.of_value t with
+  | Unknown -> assert false
+  | Dynamic f -> f v
+  | Static n -> n
+
+let static_size_of t =
+  match T.Size.of_value t with
+  | Static n -> n
+  | Dynamic _ | Unknown -> Alcotest.fail "Expected Static"
 
 let with_buf f =
   let buf = Buffer.create 10 in
@@ -31,7 +31,6 @@ let with_buf f =
 module Unboxed = struct
   let decode_bin t = T.unstage (T.Unboxed.decode_bin t)
   let encode_bin t = T.unstage (T.Unboxed.encode_bin t)
-  let size_of t = T.unstage (T.Unboxed.size_of t)
 end
 
 let test_base () =
@@ -39,10 +38,7 @@ let test_base () =
   Alcotest.(check string) "JSON string" "\"foo\"" s;
   let s = to_bin_string T.string "foo" in
   Alcotest.(check string) "binary string" "foo" s;
-  Alcotest.(check (option int))
-    "binary size"
-    (Some (String.length "foo"))
-    (size_of T.(string_of (`Fixed 3)) "foo");
+  Alcotest.(check int) "binary size" 3 (static_size_of T.(string_of (`Fixed 3)));
   let s = T.to_string T.string "foo" in
   Alcotest.(check string) "CLI string" "foo" s;
   let s = T.to_json_string T.int 42 in
@@ -247,9 +243,7 @@ let test_bin () =
   Alcotest.(check string) "hex list" "[\"666f6f\",\"666f6f\"]" s;
   let s = to_bin_string l [ "foo"; "bar" ] in
   Alcotest.(check string) "encode list" "foobar" s;
-  Alcotest.(check (option int))
-    "size of list" (Some 6)
-    (size_of l [ "foo"; "bar" ]);
+  Alcotest.(check int) "size of list" 6 (static_size_of l);
   let s = of_bin_string l "foobar" in
   Alcotest.(check (ok tl)) "decode list" (Ok [ "foo"; "bar" ]) s;
   let buf = Buffer.create 10 in
@@ -563,7 +557,7 @@ let test_pp_ty () =
       let compare = T.stage @@ fun _ _ -> assert false in
       let hdr f = T.stage f in
       T.abstract ~pp:a2 ~of_string:a1 ~json:(a2, a1)
-        ~bin:(hdr a2, hdr a2, hdr a1)
+        ~bin:(hdr a2, hdr a2, T.Size.custom_dynamic ())
         ~equal ~compare
         ~short_hash:(T.stage (fun ?seed:_ -> a1))
         ~pre_hash ()
@@ -624,8 +618,8 @@ let test_int () =
     | Ok y -> Alcotest.(check tt) "eq" x y
   in
   let size x s =
-    match size_of T.int x with
-    | Some ss -> Alcotest.(check int) (Fmt.strf "size:%d" x) s ss
+    match T.(unstage (size_of int)) x with
+    | Some n -> Alcotest.(check int) (Fmt.strf "size:%d" x) s n
     | None -> Alcotest.fail "size"
   in
   let p7 = 128 in
@@ -674,26 +668,6 @@ let test_decode () =
   decode ~off:2 "xx\003aa" (Error ());
   decode ~off:2 "xx\002aa" (Ok "aa");
   decode ~off:2 "xx\000aaaaa" (Ok "")
-
-let test_size () =
-  let check t v n =
-    match size_of t v with
-    | Some s ->
-        let name = Fmt.strf "size: %a" (T.pp t) v in
-        Alcotest.(check int) name n s
-    | None -> Alcotest.fail "size expected"
-  in
-  check T.int 0 1;
-  check T.int 128 2;
-  check T.int 16384 3;
-  check T.string "foo" (1 + 3);
-  check T.string (String.make 128 'x') (2 + 128);
-  check T.bytes (Bytes.of_string "foo") 4;
-  check T.(list string) [] 1;
-  let s = Unboxed.size_of T.string "foo" in
-  Alcotest.(check (option int)) "foo 1" (Some 3) s;
-  let s = size_of T.string "foo" in
-  Alcotest.(check (option int)) "foo 1" (Some 4) s
 
 type v =
   [ `X000 | `X001 | `X002 | `X003 of int | `X004 of int | `X005 of int
@@ -760,7 +734,7 @@ let test_variants () =
     in
     let n = size_of v i in
     let s = to_bin_string v i in
-    Alcotest.(check (option int)) ("sizes " ^ s) (Some (String.length x)) n;
+    Alcotest.(check int) ("sizes " ^ s) (String.length x) n;
     Alcotest.(check v_t) ("bij " ^ s) i y
   in
   test `X000;
@@ -929,7 +903,7 @@ let test_stdlib_containers () =
 let () =
   Alcotest.run "repr"
     [
-      ( "type",
+      ( "main",
         [
           ("base", `Quick, test_base);
           ("boxing", `Quick, test_boxing);
@@ -946,10 +920,10 @@ let () =
           ("random", `Quick, test_random);
           ("ints", `Quick, test_int);
           ("decode", `Quick, test_decode);
-          ("size_of", `Quick, test_size);
           ("test_variants", `Quick, test_variants);
           ("test_duplicate_names", `Quick, test_duplicate_names);
           ("test_malformed_utf8", `Quick, test_malformed_utf8);
           ("test_stdlib_containers", `Quick, test_stdlib_containers);
         ] );
+      ("size_of", Test_size_of.tests);
     ]

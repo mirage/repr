@@ -21,6 +21,7 @@ open Utils
 
 let pre_hash t =
   let rec aux : type a. a t -> a encode_bin = function
+    | Attributes { attr_type; _ } -> aux attr_type
     | Self s -> aux s.self_fix
     | Map m ->
         let dst = unstage (aux m.x) in
@@ -307,7 +308,7 @@ let partially_abstract ~pp ~of_string ~json ~bin ~unboxed_bin ~equal ~compare
   let encode_bin, decode_bin, size_of =
     fold_impl bin
       ~undefined:(fun () ->
-        (undefined' "encode_bin", undefined' "decode_bin", undefined' "size_of"))
+        (undefined' "encode_bin", undefined' "decode_bin", unimplemented_size_of))
       ~structural:(fun () ->
         (Type_binary.encode_bin t, Type_binary.decode_bin t, Type_size.t t))
   in
@@ -316,7 +317,7 @@ let partially_abstract ~pp ~of_string ~json ~bin ~unboxed_bin ~equal ~compare
       ~undefined:(fun () ->
         ( undefined' "Unboxed.encode_bin",
           undefined' "Unboxed.decode_bin",
-          undefined' "Unboxed.size_of" ))
+          unimplemented_size_of ))
       ~structural:(fun () ->
         ( Type_binary.Unboxed.encode_bin t,
           Type_binary.Unboxed.decode_bin t,
@@ -421,7 +422,58 @@ let encode_bin, decode_bin, to_bin_string, of_bin_string =
   Type_binary.(encode_bin, decode_bin, to_bin_string, of_bin_string)
 
 let random, random_state = Type_random.(of_global, of_state)
-let size_of = Type_size.t
+
+let size_of t =
+  match (Type_size.t t).of_value with
+  | Size.Static n ->
+      let n = Some n in
+      stage (fun _ -> n)
+  | Size.Dynamic f -> stage (fun x -> Some (f x))
+  | Size.Unknown -> stage (fun _ -> None)
+
+module Size = struct
+  type 'a t = 'a Size.t = Static of int | Dynamic of 'a | Unknown
+
+  (* The [Size] module defines _scanning_ length decoders that return
+     [initial_offset + length] rather than just [length]. These functions
+     convert these to decoders that return the [length] directly. *)
+
+  let to_scanning : type a. (a -> int -> int) -> a -> Size.offset -> Size.offset
+      =
+   fun len_f buf (Size.Offset off) -> Size.Offset (off + len_f buf off)
+
+  let of_scanning : type a. (a -> Size.offset -> Size.offset) -> a -> int -> int
+      =
+   fun scan_f buf off ->
+    let (Size.Offset off') = scan_f buf (Size.Offset off) in
+    off' - off
+
+  let of_value t = (Type_size.t t).of_value
+  let of_encoding t = Size.map of_scanning (Type_size.unboxed t).of_encoding
+  let t t = Type_size.t t
+
+  type 'a sizer = 'a size_of
+
+  let using f t =
+    let of_value =
+      Size.map (fun sizer x -> sizer (f x)) t.Size.Sizer.of_value
+    in
+    { t with of_value }
+
+  let custom_static n =
+    Size.Sizer.{ of_value = Static n; of_encoding = Static n }
+
+  let custom_dynamic ?of_value ?of_encoding () =
+    let of_value =
+      match of_value with Some f -> Dynamic f | None -> Unknown
+    in
+    let of_encoding =
+      match of_encoding with
+      | Some f -> Dynamic (to_scanning f)
+      | None -> Unknown
+    in
+    Size.Sizer.{ of_value; of_encoding }
+end
 
 module Unboxed = struct
   include Type_binary.Unboxed
