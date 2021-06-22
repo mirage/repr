@@ -13,6 +13,7 @@ maintainer: ["thomas@gazagnaire.org"]
 authors: ["Thomas Gazagnaire" "Craig Ferguson"]
 license: "ISC"
 homepage: "https://github.com/mirage/repr"
+doc: "https://mirage.github.io/repr"
 bug-reports: "https://github.com/mirage/repr/issues"
 depends: [
   "dune" {>= "2.7"}

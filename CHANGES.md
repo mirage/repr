@@ -1,7 +1,12 @@
-### Unreleased
+### 0.4.0 (2021-06-16)
 
 - Add `Repr.{random,random_state}`, a pair of generic functions for sampling
   random instances of representable types. (#58, @CraigFe)
+
+- Add `Repr.Size`, which provides sizing functions for binary codecs that are
+  more informative than the existing `Repr.size_of`. Types built using `Repr.v`
+  and `Repr.like` must now pass a sizer built using `Repr.Size.custom_*`. (#69,
+  @CraigFe)
 
 ### 0.3.0 (2021-04-30)
 

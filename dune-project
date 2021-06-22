@@ -10,6 +10,7 @@
 
 (package
  (name repr)
+ (documentation "https://mirage.github.io/repr")
  (depends
   (ocaml (>= 4.08.0))
   (fmt (>= 0.8.7))
@@ -29,6 +30,7 @@ guarantee.
 
 (package
  (name ppx_repr)
+ (documentation "https://mirage.github.io/repr")
  (depends
   (repr (= :version))
   (ppxlib (>= 0.12.0))
@@ -44,6 +46,7 @@ guarantee.
 
 (package
  (name repr-bench)
+ (documentation "https://mirage.github.io/repr")
  (depends
   (repr (= :version))
   (ppx_repr (= :version))
@@ -55,6 +58,7 @@ guarantee.
 
 (package
  (name repr-fuzz)
+ (documentation "https://mirage.github.io/repr")
  (depends
   (repr (= :version))
   (crowbar (= 0.2))
