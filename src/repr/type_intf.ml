@@ -376,7 +376,7 @@ module type DSL = sig
   val compare : 'a t -> 'a compare
   (** [compare t] compares values of type [t]. *)
 
-  type 'a pp = 'a Fmt.t
+  type 'a pp = Format.formatter -> 'a -> unit
   (** The type for pretty-printers. *)
 
   type 'a of_string = string -> ('a, [ `Msg of string ]) result

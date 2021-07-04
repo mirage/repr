@@ -13,6 +13,7 @@ depends: [
   "repr" {= version}
   "ppxlib" {>= "0.12.0"}
   "ppx_deriving"
+  "fmt"
   "hex" {with-test}
   "alcotest" {>= "1.4.0" & with-test}
   "odoc" {with-doc}

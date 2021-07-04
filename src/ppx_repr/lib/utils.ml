@@ -12,6 +12,16 @@ end
 module List = struct
   include List
 
+  (* TODO(4.10): remove *)
+  let concat_map =
+    let rec aux f acc = function
+      | [] -> rev acc
+      | x :: l ->
+          let xs = f x in
+          aux f (List.rev_append xs acc) l
+    in
+    fun ~f l -> aux f [] l
+
   let reduce ~f = function
     | [] -> None
     | [ x ] -> Some x

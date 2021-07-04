@@ -1,0 +1,98 @@
+module T0 :
+  sig
+    type nonrec t = int
+    and other = string[@@deriving
+                        repr ~equal ~compare ~pp ~pp_dump ~size_of
+                          ~to_bin_string ~of_bin_string ~encode_bin
+                          ~decode_bin]
+    include
+      sig
+        val t : t Repr.t
+        val equal : t -> t -> bool
+        val compare : t -> t -> int
+        val size_of : t -> int option
+        val pp : Stdlib.Format.formatter -> t -> unit
+        val pp_dump : Stdlib.Format.formatter -> t -> unit
+        val to_bin_string : t -> string
+        val of_bin_string : string -> (t, [ `Msg of string ]) Stdlib.result
+        val encode_bin : t -> (string -> unit) -> unit
+        val decode_bin : string -> int -> (int * t)
+        val other_t : other Repr.t
+        val equal_other : other -> other -> bool
+        val compare_other : other -> other -> int
+        val size_of_other : other -> int option
+        val pp_other : Stdlib.Format.formatter -> other -> unit
+        val pp_dump_other : Stdlib.Format.formatter -> other -> unit
+        val other_to_bin_string : other -> string
+        val other_of_bin_string :
+          string -> (other, [ `Msg of string ]) Stdlib.result
+        val encode_bin_other : other -> (string -> unit) -> unit
+        val decode_bin_other : string -> int -> (int * other)
+      end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end =
+  struct
+    type nonrec t = int
+    and other = string[@@deriving
+                        repr ~equal ~compare ~pp ~pp_dump ~size_of
+                          ~to_bin_string ~of_bin_string ~encode_bin
+                          ~decode_bin]
+    include
+      struct
+        let (t, other_t) = (Repr.int, Repr.string)
+        let equal = Repr.unstage (Repr.equal Repr.int)
+        let compare = Repr.unstage (Repr.compare Repr.int)
+        let size_of = Repr.unstage (Repr.size_of Repr.int)
+        let pp = Repr.pp Repr.int
+        let pp_dump = Repr.pp_dump Repr.int
+        let to_bin_string = Repr.unstage (Repr.to_bin_string Repr.int)
+        let of_bin_string = Repr.unstage (Repr.of_bin_string Repr.int)
+        let encode_bin = Repr.unstage (Repr.encode_bin Repr.int)
+        let decode_bin = Repr.unstage (Repr.decode_bin Repr.int)
+        let equal_other = Repr.unstage (Repr.equal Repr.string)
+        let compare_other = Repr.unstage (Repr.compare Repr.string)
+        let size_of_other = Repr.unstage (Repr.size_of Repr.string)
+        let pp_other = Repr.pp Repr.string
+        let pp_dump_other = Repr.pp_dump Repr.string
+        let other_to_bin_string =
+          Repr.unstage (Repr.to_bin_string Repr.string)
+        let other_of_bin_string =
+          Repr.unstage (Repr.of_bin_string Repr.string)
+        let encode_bin_other = Repr.unstage (Repr.encode_bin Repr.string)
+        let decode_bin_other = Repr.unstage (Repr.decode_bin Repr.string)
+      end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end 
+module T1 :
+  sig
+    type 'a t = 'a list[@@deriving repr ~equal]
+    include
+      sig
+        val t : 'a Repr.t -> 'a t Repr.t
+        val equal : 'a Repr.t -> 'a t -> 'a t -> bool
+      end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end =
+  struct
+    type 'a t = 'a list[@@deriving repr ~equal]
+    include
+      struct
+        let t a = Repr.list a
+        let equal a = Repr.unstage (Repr.equal (Repr.list a))
+      end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end 
+module T2 :
+  sig
+    type ('a, 'b) t = ('a * 'b) list[@@deriving repr ~equal]
+    include
+      sig
+        val t : 'a Repr.t -> 'b Repr.t -> ('a, 'b) t Repr.t
+        val equal :
+          'a Repr.t -> 'b Repr.t -> ('a, 'b) t -> ('a, 'b) t -> bool
+      end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end =
+  struct
+    type ('a, 'b) t = ('a * 'b) list[@@deriving repr ~equal]
+    include
+      struct
+        let t a b = Repr.list (Repr.pair a b)
+        let equal a b = Repr.unstage (Repr.equal (Repr.list (Repr.pair a b)))
+      end[@@ocaml.doc "@inline"][@@merlin.hide ]
+  end 

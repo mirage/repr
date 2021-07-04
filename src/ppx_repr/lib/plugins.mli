@@ -18,6 +18,6 @@ module Make (T : sig
   val namespace : string
   val default_library : string
 end) : sig
-  val register_deriver : unit -> unit
+  val register_deriver : ?plugins:Meta_deriving.Plugin.t list -> unit -> unit
   val register_extension : ?no_reserve_namespace:unit -> unit -> unit
 end

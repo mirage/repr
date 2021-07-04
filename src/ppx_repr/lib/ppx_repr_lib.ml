@@ -20,3 +20,8 @@ module Engine = Engine
 module Plugins = Plugins
 (** Functions for defining PPXes that use the implementation defined in
     {!Engine}. *)
+
+module Meta_deriving = Meta_deriving
+(** A meta-deriver is a deriver defined in terms of specialisations of Repr's
+    generic operations (i.e. with plugins that consume type representations
+    rather than type ASTs). *)

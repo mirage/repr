@@ -25,8 +25,9 @@ module type S = sig
   val expand_typ : ?lib:string -> core_type -> expression
 
   val derive_str :
-    ?name:string ->
-    ?lib:string ->
+    plugins:Meta_deriving.Plugin.t list ->
+    name:string option ->
+    lib:string option ->
     rec_flag * type_declaration list ->
     structure_item list
   (** Deriver for Irmin type representations.
@@ -39,8 +40,9 @@ module type S = sig
         namespace. *)
 
   val derive_sig :
-    ?name:string ->
-    ?lib:string ->
+    plugins:Meta_deriving.Plugin.t list ->
+    name:string option ->
+    lib:string option ->
     rec_flag * type_declaration list ->
     signature_item list
   (** Deriver for Irmin type representation signatures.
@@ -51,5 +53,5 @@ end
 module type Engine = sig
   module type S = S
 
-  module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S
+  module Located (_ : Attributes.S) (_ : Ast_builder.S) : S
 end
