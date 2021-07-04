@@ -15,6 +15,7 @@
  *)
 
 open Ppxlib
+open! Utils
 include Engine_intf
 
 let map_lident f = function
@@ -305,7 +306,7 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     run (derive_core typ) env |> lambda tvars
 
   let derive_sig ~plugins ~name ~lib (_rec_flag, type_declarations) =
-    ListLabels.concat_map type_declarations ~f:(fun typ ->
+    List.concat_map type_declarations ~f:(fun typ ->
         let type_name = typ.ptype_name.txt in
         let name =
           Located.mk
@@ -441,7 +442,7 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
               (pat, expr)
         in
         let plugin_derivations =
-          ListLabels.concat_map named_treps ~f:(fun (typerep, name) ->
+          List.concat_map named_treps ~f:(fun (typerep, name) ->
               ListLabels.map plugins ~f:(fun plugin ->
                   Meta_deriving.Plugin.derive_str ~loc ~type_name:name.typ
                     ~params:typerep.Typerep_derivation.params
