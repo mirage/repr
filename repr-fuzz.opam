@@ -13,6 +13,7 @@ depends: [
   "repr" {= version}
   "crowbar" {= "0.2"}
   "ppxlib" {>= "0.12.0"}
+  "bun"
   "odoc" {with-doc}
 ]
 build: [
