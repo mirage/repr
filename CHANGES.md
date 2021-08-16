@@ -8,6 +8,10 @@
   and `Repr.like` must now pass a sizer built using `Repr.Size.custom_*`. (#69,
   @CraigFe)
 
+- Fix `Repr.pre_hash` to rely on itself recursively. This ensures that custom
+  `pre_hash` functions attached to components of larger types are not ignored.
+  (#71, @CraigFe)
+
 ### 0.3.0 (2021-04-30)
 
 - `Repr.v` is now called `Repr.abstract`. (#52, @CraigFe)
