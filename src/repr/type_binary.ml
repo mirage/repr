@@ -17,10 +17,9 @@
 open Type_core
 open Staging
 open Utils
+module Bin = Binary_codec
 
 module Encode = struct
-  module Bin = Binary_codec
-
   let string boxed n =
     if boxed then Bin.String.encode n else Bin.String_unboxed.encode n
 
@@ -125,8 +124,6 @@ module Encode = struct
 end
 
 module Decode = struct
-  module Bin = Binary_codec
-
   type 'a res = int * 'a
 
   let string box = if box then Bin.String.decode else Bin.String_unboxed.decode
@@ -244,8 +241,62 @@ module Decode = struct
         unstage decoders.(i) buf ofs)
 end
 
+module Pre_hash = struct
+  type 'a pre_hash = 'a encode_bin
+
+  let rec t : type a. a t -> a pre_hash = function
+    | Self s -> self s
+    | Custom c -> c.pre_hash
+    | Map m -> map m
+    | Boxed b -> t b
+    | Attributes { attr_type; _ } -> t attr_type
+    | List l -> Encode.list (t l.v) l.len
+    | Array a -> Encode.array (t a.v) a.len
+    | Tuple t -> tuple t
+    | Option x -> Encode.option (t x)
+    | Record r -> record r
+    | Variant v -> variant v
+    | Var v -> raise (Unbound_type_variable v)
+    | Prim _ as t -> Encode.unboxed t
+
+  and self : type a. a self -> a pre_hash =
+   fun { self_unroll; _ } ->
+    fix_staged (fun pre_hash ->
+        let cyclic = self_unroll (partial ~pre_hash ()) in
+        t cyclic)
+
+  and tuple : type a. a tuple -> a pre_hash = function
+    | Pair (x, y) -> Encode.pair (t x) (t y)
+    | Triple (x, y, z) -> Encode.triple (t x) (t y) (t z)
+
+  and map : type a b. (a, b) map -> b pre_hash =
+   fun { x; g; _ } ->
+    let pre_hash = unstage (t x) in
+    stage (fun u f -> pre_hash (g u) f)
+
+  and record : type a. a record -> a encode_bin =
+   fun r ->
+    let field_encoders : (a -> (string -> unit) -> unit) list =
+      ListLabels.map (fields r) ~f:(fun (Field f) ->
+          let field_encode = unstage (t f.ftype) in
+          fun x -> field_encode (f.fget x))
+    in
+    stage (fun x k -> Stdlib.List.iter (fun f -> f x k) field_encoders)
+
+  and variant : type a. a variant -> a encode_bin =
+    let c0 { ctag0; _ } = stage (Bin.Int.encode ctag0) in
+    let c1 c =
+      let encode_arg = unstage (t c.ctype1) in
+      stage (fun v k ->
+          Bin.Int.encode c.ctag1 k;
+          encode_arg v k)
+    in
+    fun v -> fold_variant { c0; c1 } v
+end
+
 let encode_bin = Encode.t
 let decode_bin = Decode.t
+let pre_hash = Pre_hash.t
 
 type 'a to_bin_string = 'a to_string staged
 type 'a of_bin_string = 'a of_string staged
@@ -306,15 +357,3 @@ let of_bin_string t =
   in
   let f = unstage (aux t) in
   stage (fun x -> try f x with Invalid_argument e -> Error (`Msg e))
-
-let pre_hash t =
-  let rec aux : type a. a t -> a encode_bin = function
-    | Attributes { attr_type; _ } -> aux attr_type
-    | Self s -> aux s.self_fix
-    | Map m ->
-        let dst = unstage (aux m.x) in
-        stage (fun v -> dst (m.g v))
-    | Custom c -> c.pre_hash
-    | t -> Unboxed.encode_bin t
-  in
-  aux t
