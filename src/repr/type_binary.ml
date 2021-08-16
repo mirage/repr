@@ -306,3 +306,15 @@ let of_bin_string t =
   in
   let f = unstage (aux t) in
   stage (fun x -> try f x with Invalid_argument e -> Error (`Msg e))
+
+let pre_hash t =
+  let rec aux : type a. a t -> a encode_bin = function
+    | Attributes { attr_type; _ } -> aux attr_type
+    | Self s -> aux s.self_fix
+    | Map m ->
+        let dst = unstage (aux m.x) in
+        stage (fun v -> dst (m.g v))
+    | Custom c -> c.pre_hash
+    | t -> Unboxed.encode_bin t
+  in
+  aux t

@@ -19,28 +19,6 @@ include Type_core
 include Staging
 open Utils
 
-let pre_hash t =
-  let rec aux : type a. a t -> a encode_bin = function
-    | Attributes { attr_type; _ } -> aux attr_type
-    | Self s -> aux s.self_fix
-    | Map m ->
-        let dst = unstage (aux m.x) in
-        stage (fun v -> dst (m.g v))
-    | Custom c -> c.pre_hash
-    | t -> Type_binary.Unboxed.encode_bin t
-  in
-  aux t
-
-let short_hash = function
-  | Custom c -> c.short_hash
-  | t ->
-      let pre_hash = unstage (pre_hash t) in
-      stage @@ fun ?seed x ->
-      let seed = match seed with None -> 0 | Some t -> t in
-      let h = ref seed in
-      pre_hash x (fun s -> h := Hashtbl.seeded_hash !h s);
-      !h
-
 (* Combinators for Repr types *)
 
 let unit = Prim Unit
@@ -259,6 +237,19 @@ let either a b =
   |~ case1 "right" b (fun b -> Either.Right b)
   |> sealv
 
+let pre_hash, encode_bin, decode_bin, to_bin_string, of_bin_string =
+  Type_binary.(pre_hash, encode_bin, decode_bin, to_bin_string, of_bin_string)
+
+let short_hash = function
+  | Custom c -> c.short_hash
+  | t ->
+      let pre_hash = unstage (pre_hash t) in
+      stage @@ fun ?seed x ->
+      let seed = match seed with None -> 0 | Some t -> t in
+      let h = ref seed in
+      pre_hash x (fun s -> h := Hashtbl.seeded_hash !h s);
+      !h
+
 exception Unsupported_operation of string
 
 let undefined name _ = raise (Unsupported_operation name)
@@ -417,9 +408,6 @@ let ( to_json_string,
       decode_json,
       decode_json_lexemes ) =
   Type_json.(to_string, of_string, pp, encode, decode_jsonm, decode_lexemes)
-
-let encode_bin, decode_bin, to_bin_string, of_bin_string =
-  Type_binary.(encode_bin, decode_bin, to_bin_string, of_bin_string)
 
 let random, random_state = Type_random.(of_global, of_state)
 
