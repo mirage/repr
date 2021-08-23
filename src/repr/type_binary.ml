@@ -257,7 +257,7 @@ module Pre_hash = struct
     | Record r -> record r
     | Variant v -> variant v
     | Var v -> raise (Unbound_type_variable v)
-    | Prim _ as t -> Encode.unboxed t
+    | Prim _ as t -> Encode.t t
 
   and self : type a. a self -> a pre_hash =
    fun { self_unroll; _ } ->
@@ -292,6 +292,23 @@ module Pre_hash = struct
           encode_arg v k)
     in
     fun v -> fold_variant { c0; c1 } v
+
+  (* NOTE: for compatibility reasons, the pre-hash of a primitive type uses the
+     _unboxed_ encoding of that type (but primitive components of larger types
+     _are_ boxed). *)
+  let t =
+    let rec aux : type a. a t -> a pre_hash = function
+      | Prim _ as ty -> Encode.unboxed ty
+      (* 'Simple' wrappers around primitive types retain the unboxed property: *)
+      | Attributes { attr_type; _ } -> aux attr_type
+      | Self s -> aux s.self_fix
+      | Map m ->
+          let dst = unstage (aux m.x) in
+          stage (fun v -> dst (m.g v))
+      (* Otherwise, use regular boxed pre-hashing: *)
+      | ty -> t ty
+    in
+    aux
 end
 
 let encode_bin = Encode.t
