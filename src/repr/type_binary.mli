@@ -17,6 +17,7 @@
 open Type_core
 open Staging
 
+val pre_hash : 'a t -> 'a encode_bin
 val encode_bin : 'a t -> 'a encode_bin
 val decode_bin : 'a t -> 'a decode_bin
 

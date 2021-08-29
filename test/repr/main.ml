@@ -926,4 +926,5 @@ let () =
           ("test_stdlib_containers", `Quick, test_stdlib_containers);
         ] );
       ("size_of", Test_size_of.tests);
+      ("pre_hash", Test_pre_hash.tests);
     ]
