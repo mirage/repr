@@ -56,7 +56,7 @@ let test_boxing () =
   Alcotest.(check string) "foo eq" s foo;
   Alcotest.(check bool) "foo physeq" true (foo == s);
   let check msg ty foo =
-    let msg f = Fmt.strf "%s: %s" msg f in
+    let msg f = Fmt.str "%s: %s" msg f in
     let buf = with_buf (encode_bin ty foo) in
     Alcotest.(check string) (msg "boxed") buf "\003foo";
     let buf = with_buf (Unboxed.encode_bin ty foo) in
@@ -301,7 +301,7 @@ let test_to_string () =
   let test : type a. string -> a T.t -> a -> string -> unit =
    fun case_name typ input expected_output ->
     let assertion =
-      Fmt.strf "Expected output of `to_string` for representation of `%s`"
+      Fmt.str "Expected output of `to_string` for representation of `%s`"
         case_name
     in
     T.to_string typ input |> Alcotest.(check string) assertion expected_output
@@ -378,7 +378,7 @@ let test_pp_dump () =
   let test : type a. string -> a T.t -> a -> string -> unit =
    fun case_name typ input expected_output ->
     let assertion =
-      Fmt.strf "Expected output of `pp_dump` for representation of `%s`"
+      Fmt.str "Expected output of `pp_dump` for representation of `%s`"
         case_name
     in
     to_string typ input |> Alcotest.(check string) assertion expected_output
@@ -461,7 +461,7 @@ let test_pp_ty () =
       match case_name with Some x -> x | None -> expected_output
     in
     let assertion =
-      Fmt.strf "Expected output of `pp_ty` for representation of `%s`" case_name
+      Fmt.str "Expected output of `pp_ty` for representation of `%s`" case_name
     in
     (Fmt.to_to_string T.pp_ty) input
     |> Alcotest.(check string) assertion expected_output
@@ -619,7 +619,7 @@ let test_int () =
   in
   let size x s =
     match T.(unstage (size_of int)) x with
-    | Some n -> Alcotest.(check int) (Fmt.strf "size:%d" x) s n
+    | Some n -> Alcotest.(check int) (Fmt.str "size:%d" x) s n
     | None -> Alcotest.fail "size"
   in
   let p7 = 128 in
@@ -655,7 +655,7 @@ let test_int () =
 
 let test_decode () =
   let wrap f =
-    try Ok (f ()) with e -> Fmt.kstrf (fun s -> Error s) "%a" Fmt.exn e
+    try Ok (f ()) with e -> Fmt.kstr (fun s -> Error s) "%a" Fmt.exn e
   in
   let decode ~off buf exp =
     match (exp, wrap (fun () -> decode_bin T.string buf off)) with

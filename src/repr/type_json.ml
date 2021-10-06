@@ -182,7 +182,7 @@ module Decode = struct
     let _, (l, c) = Jsonm.decoded_range e.d in
     Error
       (`Msg
-        (Fmt.strf
+        (Fmt.str
            "line %d, character %d:\nFound lexeme %a, but lexeme %s was expected"
            l c Jsonm.pp_lexeme got expected))
 
@@ -369,8 +369,7 @@ module Decode = struct
                 | List _ -> Ok []
                 | _ ->
                     Error
-                      (`Msg
-                        (Fmt.strf "missing value for %s.%s" r.rname h.fname)))
+                      (`Msg (Fmt.str "missing value for %s.%s" r.rname h.fname)))
             in
             match v with Ok v -> aux f (c v) | Error _ as e -> e)
       in
