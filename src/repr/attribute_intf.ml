@@ -25,10 +25,10 @@ module type Attribute = sig
   (** An ['f t] is an attribute key that can be used to pack polymorphic data
       into a heterogeneous {!Map} (and then recover it again).
 
-      The type parameter ['f] is the brand of a type operator [f : * ⇒ *]
-      which, when applied to the type parameter ['a] of a {!Map.t}, gives the
-      type ['a f] of the associated data. This allows a single attribute key to
-      store {i polymorphic} data. *)
+      The type parameter ['f] is the brand of a type operator [f : * ⇒ *] which,
+      when applied to the type parameter ['a] of a {!Map.t}, gives the type
+      ['a f] of the associated data. This allows a single attribute key to store
+      {i polymorphic} data. *)
 
   val create : name:string -> _ t
   (** [create ~name] is a fresh attribute key with the given string name. *)
