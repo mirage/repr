@@ -132,7 +132,6 @@ end
 
 module Decode = struct
   type 'a decoder = 'a decode_bin staged
-  type 'a res = int * 'a
 
   let string box = if box then Bin.String.decode else Bin.String_unboxed.decode
   let bytes box = if box then Bin.Bytes.decode else Bin.Bytes_unboxed.decode
@@ -158,7 +157,7 @@ module Decode = struct
     stage (Bin.Option.decode o)
 
   module Record_decoder = Fields_folder (struct
-    type ('a, 'b) t = string -> int -> 'b -> 'a res
+    type ('a, 'b) t = string -> int ref -> 'b -> 'a
   end)
 
   let rec t : type a. a t -> a decoder = function
@@ -209,9 +208,7 @@ module Decode = struct
   and map : type a b. boxed:bool -> (a, b) map -> b decoder =
    fun ~boxed { x; f; _ } ->
     let decode_bin = unstage (if boxed then t x else unboxed x) in
-    stage (fun buf ofs ->
-        let ofs, x = decode_bin buf ofs in
-        (ofs, f x))
+    stage (fun buf pos_ref -> f (decode_bin buf pos_ref))
 
   and prim : type a. boxed:bool -> a prim -> a decoder =
    fun ~boxed -> function
@@ -227,31 +224,29 @@ module Decode = struct
 
   and record : type a. a record -> a decoder =
    fun { rfields = Fields (fs, constr); _ } ->
-    let nil _buf ofs f = (ofs, f) in
+    let nil _buf _pos_ref f = f in
     let cons { ftype; _ } decode_remaining =
       let f_decode = unstage (t ftype) in
-      fun buf ofs constr ->
-        let ofs, x = f_decode buf ofs in
+      fun buf pos_ref constr ->
+        let x = f_decode buf pos_ref in
         let constr = constr x in
-        decode_remaining buf ofs constr
+        decode_remaining buf pos_ref constr
     in
     let f = Record_decoder.fold { nil; cons } fs in
-    stage (fun buf ofs -> f buf ofs constr)
+    stage (fun buf pos_ref -> f buf pos_ref constr)
 
   and variant : type a. a variant -> a decoder =
    fun v ->
     let decoders : a decoder array =
       ArrayLabels.map v.vcases ~f:(function
-        | C0 c -> stage (fun _ ofs -> (ofs, c.c0))
+        | C0 c -> stage (fun _ _ -> c.c0)
         | C1 c ->
             let decode_arg = unstage (t c.ctype1) in
-            stage (fun buf ofs ->
-                let ofs, x = decode_arg buf ofs in
-                (ofs, c.c1 x)))
+            stage (fun buf pos_ref -> c.c1 (decode_arg buf pos_ref)))
     in
-    stage (fun buf ofs ->
-        let ofs, i = Bin.Int.decode buf ofs in
-        unstage decoders.(i) buf ofs)
+    stage (fun buf pos_ref ->
+        let i = Bin.Int.decode buf pos_ref in
+        unstage decoders.(i) buf pos_ref)
 end
 
 module Pre_hash = struct
@@ -368,8 +363,9 @@ let to_bin_string =
 let map_result f = function Ok x -> Ok (f x) | Error _ as e -> e
 
 let of_bin decode_bin x =
-  let last, v = decode_bin x 0 in
-  assert (last = String.length x);
+  let pos_ref = ref 0 in
+  let v = decode_bin x pos_ref in
+  assert (!pos_ref = String.length x);
   Ok v
 
 let of_bin_string t =

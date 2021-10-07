@@ -252,9 +252,9 @@ let test_bin () =
   let buf = Buffer.create 10 in
   Unboxed.encode_bin T.string "foo" (Buffer.add_string buf);
   Alcotest.(check string) "foo 1" (Buffer.contents buf) "foo";
-  let _, foo = Unboxed.decode_bin T.string "foo" 0 in
+  let foo = Unboxed.decode_bin T.string "foo" (ref 0) in
   Alcotest.(check string) "decode foo 0" foo "foo";
-  let _, foo = Unboxed.decode_bin T.string "123foo" 3 in
+  let foo = Unboxed.decode_bin T.string "123foo" (ref 3) in
   Alcotest.(check string) "decode foo 3" foo "foo";
   let varints =
     [
@@ -267,7 +267,7 @@ let test_bin () =
   in
   List.iter
     (fun (k, v) ->
-      let _, k' = decode_bin T.int v 0 in
+      let k' = decode_bin T.int v (ref 0) in
       Alcotest.(check int) (Fmt.str "decoding %S" v) k k')
     varints;
   List.iter
@@ -665,10 +665,10 @@ let test_decode () =
     try Ok (f ()) with e -> Fmt.kstr (fun s -> Error s) "%a" Fmt.exn e
   in
   let decode ~off buf exp =
-    match (exp, wrap (fun () -> decode_bin T.string buf off)) with
+    match (exp, wrap (fun () -> decode_bin T.string buf (ref off))) with
     | Error (), Error _ -> ()
-    | Ok x, Ok (_, y) -> Alcotest.(check string) ("decode " ^ x) x y
-    | Error _, Ok (_, y) -> Alcotest.failf "error expected, got %s" y
+    | Ok x, Ok y -> Alcotest.(check string) ("decode " ^ x) x y
+    | Error _, Ok y -> Alcotest.failf "error expected, got %s" y
     | Ok x, Error e -> Alcotest.failf "expected: %s, got error: %s" x e
   in
   decode ~off:2 "xx\003aaayyy" (Ok "aaa");

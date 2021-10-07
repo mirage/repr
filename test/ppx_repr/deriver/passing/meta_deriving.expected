@@ -16,7 +16,7 @@ module T0 :
         val to_bin_string : t -> string
         val of_bin_string : string -> (t, [ `Msg of string ]) Stdlib.result
         val encode_bin : t -> (string -> unit) -> unit
-        val decode_bin : string -> int -> (int * t)
+        val decode_bin : string -> int ref -> t
         val other_t : other Repr.t
         val equal_other : other -> other -> bool
         val compare_other : other -> other -> int
@@ -27,7 +27,7 @@ module T0 :
         val other_of_bin_string :
           string -> (other, [ `Msg of string ]) Stdlib.result
         val encode_bin_other : other -> (string -> unit) -> unit
-        val decode_bin_other : string -> int -> (int * other)
+        val decode_bin_other : string -> int ref -> other
       end[@@ocaml.doc "@inline"][@@merlin.hide ]
   end =
   struct

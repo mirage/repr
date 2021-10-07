@@ -180,10 +180,11 @@ and variant : type a. a variant -> a Sizer.t =
         tag_length + arg_length
       in
       let of_encoding buf (Size.Offset off) =
-        let off, tag = Bin.Int.decode buf off in
+        let off = ref off in
+        let tag = Bin.Int.decode buf off in
         match case_lengths.(tag) with
-        | _, { of_encoding = Static n; _ } -> Size.Offset (off + n)
-        | _, { of_encoding = Dynamic f; _ } -> f buf (Size.Offset off)
+        | _, { of_encoding = Static n; _ } -> Size.Offset (!off + n)
+        | _, { of_encoding = Dynamic f; _ } -> f buf (Size.Offset !off)
         | _, { of_encoding = _; _ } -> assert false
       in
       Sizer.dynamic ~of_value ~of_encoding
