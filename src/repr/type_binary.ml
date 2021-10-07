@@ -20,6 +20,8 @@ open Utils
 module Bin = Binary_codec
 
 module Encode = struct
+  type 'a encoder = 'a encode_bin staged
+
   let string boxed n =
     if boxed then Bin.String.encode n else Bin.String_unboxed.encode n
 
@@ -46,9 +48,9 @@ module Encode = struct
     let o = unstage o in
     stage (Bin.Option.encode o)
 
-  let rec t : type a. a t -> a encode_bin = function
+  let rec t : type a. a t -> a encoder = function
     | Self s -> fst (self s)
-    | Custom c -> c.encode_bin
+    | Custom c -> stage c.encode_bin
     | Map b -> map ~boxed:true b
     | Prim t -> prim ~boxed:true t
     | Boxed b -> t b
@@ -61,9 +63,9 @@ module Encode = struct
     | Variant v -> variant v
     | Var v -> raise (Unbound_type_variable v)
 
-  and unboxed : type a. a t -> a encode_bin = function
+  and unboxed : type a. a t -> a encoder = function
     | Self s -> snd (self s)
-    | Custom c -> c.unboxed_encode_bin
+    | Custom c -> stage c.unboxed_encode_bin
     | Map b -> map ~boxed:false b
     | Prim t -> prim ~boxed:false t
     | Boxed b -> t b
@@ -76,22 +78,27 @@ module Encode = struct
     | Variant v -> variant v
     | Var v -> raise (Unbound_type_variable v)
 
-  and self : type a. a self -> a encode_bin * a encode_bin =
+  and self : type a. a self -> a encoder * a encoder =
    fun { self_unroll; _ } ->
     fix_staged2 (fun encode_bin unboxed_encode_bin ->
-        let cyclic = self_unroll (partial ~encode_bin ~unboxed_encode_bin ()) in
+        let cyclic =
+          self_unroll
+            (partial ~encode_bin:(unstage encode_bin)
+               ~unboxed_encode_bin:(unstage unboxed_encode_bin)
+               ())
+        in
         (t cyclic, unboxed cyclic))
 
-  and tuple : type a. a tuple -> a encode_bin = function
+  and tuple : type a. a tuple -> a encoder = function
     | Pair (x, y) -> pair (t x) (t y)
     | Triple (x, y, z) -> triple (t x) (t y) (t z)
 
-  and map : type a b. boxed:bool -> (a, b) map -> b encode_bin =
+  and map : type a b. boxed:bool -> (a, b) map -> b encoder =
    fun ~boxed { x; g; _ } ->
     let encode_bin = unstage (if boxed then t x else unboxed x) in
     stage (fun u k -> encode_bin (g u) k)
 
-  and prim : type a. boxed:bool -> a prim -> a encode_bin =
+  and prim : type a. boxed:bool -> a prim -> a encoder =
    fun ~boxed -> function
     | Unit -> stage Bin.Unit.encode
     | Bool -> stage Bin.Bool.encode
@@ -103,7 +110,7 @@ module Encode = struct
     | String n -> string boxed n
     | Bytes n -> bytes boxed n
 
-  and record : type a. a record -> a encode_bin =
+  and record : type a. a record -> a encoder =
    fun r ->
     let field_encoders : (a -> (string -> unit) -> unit) list =
       ListLabels.map (fields r) ~f:(fun (Field f) ->
@@ -112,7 +119,7 @@ module Encode = struct
     in
     stage (fun x k -> Stdlib.List.iter (fun f -> f x k) field_encoders)
 
-  and variant : type a. a variant -> a encode_bin =
+  and variant : type a. a variant -> a encoder =
     let c0 { ctag0; _ } = stage (Bin.Int.encode ctag0) in
     let c1 c =
       let encode_arg = unstage (t c.ctype1) in
@@ -124,6 +131,7 @@ module Encode = struct
 end
 
 module Decode = struct
+  type 'a decoder = 'a decode_bin staged
   type 'a res = int * 'a
 
   let string box = if box then Bin.String.decode else Bin.String_unboxed.decode
@@ -153,9 +161,9 @@ module Decode = struct
     type ('a, 'b) t = string -> int -> 'b -> 'a res
   end)
 
-  let rec t : type a. a t -> a decode_bin = function
+  let rec t : type a. a t -> a decoder = function
     | Self s -> fst (self s)
-    | Custom c -> c.decode_bin
+    | Custom c -> stage c.decode_bin
     | Map b -> map ~boxed:true b
     | Prim t -> prim ~boxed:true t
     | Boxed b -> t b
@@ -168,9 +176,9 @@ module Decode = struct
     | Variant v -> variant v
     | Var v -> raise (Unbound_type_variable v)
 
-  and unboxed : type a. a t -> a decode_bin = function
+  and unboxed : type a. a t -> a decoder = function
     | Self s -> snd (self s)
-    | Custom c -> c.unboxed_decode_bin
+    | Custom c -> stage c.unboxed_decode_bin
     | Map b -> map ~boxed:false b
     | Prim t -> prim ~boxed:false t
     | Boxed b -> t b
@@ -183,24 +191,29 @@ module Decode = struct
     | Variant v -> variant v
     | Var v -> raise (Unbound_type_variable v)
 
-  and self : type a. a self -> a decode_bin * a decode_bin =
+  and self : type a. a self -> a decoder * a decoder =
    fun { self_unroll; _ } ->
     fix_staged2 (fun decode_bin unboxed_decode_bin ->
-        let cyclic = self_unroll (partial ~decode_bin ~unboxed_decode_bin ()) in
+        let cyclic =
+          self_unroll
+            (partial ~decode_bin:(unstage decode_bin)
+               ~unboxed_decode_bin:(unstage unboxed_decode_bin)
+               ())
+        in
         (t cyclic, unboxed cyclic))
 
-  and tuple : type a. a tuple -> a decode_bin = function
+  and tuple : type a. a tuple -> a decoder = function
     | Pair (x, y) -> pair (t x) (t y)
     | Triple (x, y, z) -> triple (t x) (t y) (t z)
 
-  and map : type a b. boxed:bool -> (a, b) map -> b decode_bin =
+  and map : type a b. boxed:bool -> (a, b) map -> b decoder =
    fun ~boxed { x; f; _ } ->
     let decode_bin = unstage (if boxed then t x else unboxed x) in
     stage (fun buf ofs ->
         let ofs, x = decode_bin buf ofs in
         (ofs, f x))
 
-  and prim : type a. boxed:bool -> a prim -> a decode_bin =
+  and prim : type a. boxed:bool -> a prim -> a decoder =
    fun ~boxed -> function
     | Unit -> stage Bin.Unit.decode
     | Bool -> stage Bin.Bool.decode
@@ -212,7 +225,7 @@ module Decode = struct
     | String n -> string boxed n
     | Bytes n -> bytes boxed n
 
-  and record : type a. a record -> a decode_bin =
+  and record : type a. a record -> a decoder =
    fun { rfields = Fields (fs, constr); _ } ->
     let nil _buf ofs f = (ofs, f) in
     let cons { ftype; _ } decode_remaining =
@@ -225,9 +238,9 @@ module Decode = struct
     let f = Record_decoder.fold { nil; cons } fs in
     stage (fun buf ofs -> f buf ofs constr)
 
-  and variant : type a. a variant -> a decode_bin =
+  and variant : type a. a variant -> a decoder =
    fun v ->
-    let decoders : a decode_bin array =
+    let decoders : a decoder array =
       ArrayLabels.map v.vcases ~f:(function
         | C0 c -> stage (fun _ ofs -> (ofs, c.c0))
         | C1 c ->
@@ -242,11 +255,11 @@ module Decode = struct
 end
 
 module Pre_hash = struct
-  type 'a pre_hash = 'a encode_bin
+  type 'a pre_hash = 'a encode_bin staged
 
   let rec t : type a. a t -> a pre_hash = function
     | Self s -> self s
-    | Custom c -> c.pre_hash
+    | Custom c -> stage c.pre_hash
     | Map m -> map m
     | Boxed b -> t b
     | Attributes { attr_type; _ } -> t attr_type
@@ -262,7 +275,7 @@ module Pre_hash = struct
   and self : type a. a self -> a pre_hash =
    fun { self_unroll; _ } ->
     fix_staged (fun pre_hash ->
-        let cyclic = self_unroll (partial ~pre_hash ()) in
+        let cyclic = self_unroll (partial ~pre_hash:(unstage pre_hash) ()) in
         t cyclic)
 
   and tuple : type a. a tuple -> a pre_hash = function
@@ -274,7 +287,7 @@ module Pre_hash = struct
     let pre_hash = unstage (t x) in
     stage (fun u f -> pre_hash (g u) f)
 
-  and record : type a. a record -> a encode_bin =
+  and record : type a. a record -> a pre_hash =
    fun r ->
     let field_encoders : (a -> (string -> unit) -> unit) list =
       ListLabels.map (fields r) ~f:(fun (Field f) ->
@@ -283,7 +296,7 @@ module Pre_hash = struct
     in
     stage (fun x k -> Stdlib.List.iter (fun f -> f x k) field_encoders)
 
-  and variant : type a. a variant -> a encode_bin =
+  and variant : type a. a variant -> a pre_hash =
     let c0 { ctag0; _ } = stage (Bin.Int.encode ctag0) in
     let c1 c =
       let encode_arg = unstage (t c.ctype1) in
@@ -347,7 +360,7 @@ let to_bin_string =
         stage (fun x -> mapped (m.g x))
     | Prim (String _) -> stage (fun x -> x)
     | Prim (Bytes _) -> stage Bytes.to_string
-    | Custom c -> to_bin c.unboxed_size_of c.unboxed_encode_bin
+    | Custom c -> to_bin c.unboxed_size_of (stage c.unboxed_encode_bin)
     | _ -> to_bin (Type_size.unboxed t) (Encode.unboxed t)
   in
   aux
@@ -369,7 +382,7 @@ let of_bin_string t =
         stage (fun x -> mapped x |> map_result l.f)
     | Prim (String _) -> stage (fun x -> Ok x)
     | Prim (Bytes _) -> stage (fun x -> Ok (Bytes.of_string x))
-    | Custom c -> stage (of_bin (unstage c.unboxed_decode_bin))
+    | Custom c -> stage (of_bin c.unboxed_decode_bin)
     | _ -> stage (of_bin (unstage (Decode.unboxed t)))
   in
   let f = unstage (aux t) in

@@ -9,13 +9,13 @@ module Types = struct
   type json_decoder = { mutable lexemes : Jsonm.lexeme list; d : Jsonm.decoder }
   type 'a decode_json = json_decoder -> ('a, [ `Msg of string ]) result
   type 'a bin_seq = 'a -> (string -> unit) -> unit
-  type 'a pre_hash = 'a bin_seq staged
-  type 'a encode_bin = 'a bin_seq staged
-  type 'a decode_bin = (string -> int -> int * 'a) staged
+  type 'a pre_hash = 'a bin_seq
+  type 'a encode_bin = 'a bin_seq
+  type 'a decode_bin = string -> int -> int * 'a
   type 'a size_of = 'a Size.Sizer.t
-  type 'a compare = ('a -> 'a -> int) staged
-  type 'a equal = ('a -> 'a -> bool) staged
-  type 'a short_hash = (?seed:int -> 'a -> int) staged
+  type 'a compare = 'a -> 'a -> int
+  type 'a equal = 'a -> 'a -> bool
+  type 'a short_hash = ?seed:int -> 'a -> int
 
   type 'a t =
     | Var : string -> 'a t

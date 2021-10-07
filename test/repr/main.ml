@@ -552,15 +552,11 @@ let test_pp_ty () =
     let v : empty T.t =
       let a1 _ = assert false in
       let a2 _ _ = assert false in
-      let pre_hash = T.stage @@ fun _ _ -> assert false in
-      let equal = T.stage @@ fun _ _ -> assert false in
-      let compare = T.stage @@ fun _ _ -> assert false in
-      let hdr f = T.stage f in
       T.abstract ~pp:a2 ~of_string:a1 ~json:(a2, a1)
-        ~bin:(hdr a2, hdr a2, T.Size.custom_dynamic ())
-        ~equal ~compare
-        ~short_hash:(T.stage (fun ?seed:_ -> a1))
-        ~pre_hash ()
+        ~bin:(a2, a2, T.Size.custom_dynamic ())
+        ~equal:a2 ~compare:a2
+        ~short_hash:(fun ?seed:_ -> a1)
+        ~pre_hash:a2 ()
 
     let like_prim : int T.t = T.(like int)
     let like_custom : empty T.t = T.like v
@@ -573,7 +569,7 @@ let test_pp_ty () =
 
   ()
 
-let x = T.like ~compare:(T.stage @@ fun x y -> y - x - 1) T.int
+let x = T.like ~compare:(fun x y -> y - x - 1) T.int
 let compare_x = T.(unstage (compare x))
 let equal_x = T.(unstage (equal x))
 
@@ -584,7 +580,7 @@ let test_compare () =
   Alcotest.(check bool) "rev equal" (equal_x 1 2) true;
   Alcotest.(check bool) "rev equal" (equal_x 1 1) false
 
-let y = T.like ~equal:(T.stage @@ fun x y -> x - y = 2) T.int
+let y = T.like ~equal:(fun x y -> x - y = 2) T.int
 let compare_y = T.(unstage (compare y))
 let equal_y = T.(unstage (equal y))
 

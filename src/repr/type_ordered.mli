@@ -15,6 +15,7 @@
  *)
 
 open Type_core
+open Staging
 
-val equal : 'a t -> 'a equal
-val compare : 'a t -> 'a compare
+val equal : 'a t -> 'a equal staged
+val compare : 'a t -> 'a compare staged

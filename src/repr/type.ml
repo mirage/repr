@@ -241,7 +241,7 @@ let pre_hash, encode_bin, decode_bin, to_bin_string, of_bin_string =
   Type_binary.(pre_hash, encode_bin, decode_bin, to_bin_string, of_bin_string)
 
 let short_hash = function
-  | Custom c -> c.short_hash
+  | Custom c -> stage c.short_hash
   | t ->
       let pre_hash = unstage (pre_hash t) in
       stage @@ fun ?seed x ->
@@ -253,7 +253,6 @@ let short_hash = function
 exception Unsupported_operation of string
 
 let undefined name _ = raise (Unsupported_operation name)
-let undefined' name = stage (undefined name)
 
 type 'a impl = Structural | Custom of 'a | Undefined
 
@@ -299,39 +298,41 @@ let partially_abstract ~pp ~of_string ~json ~bin ~unboxed_bin ~equal ~compare
   let encode_bin, decode_bin, size_of =
     fold_impl bin
       ~undefined:(fun () ->
-        (undefined' "encode_bin", undefined' "decode_bin", unimplemented_size_of))
+        (undefined "encode_bin", undefined "decode_bin", unimplemented_size_of))
       ~structural:(fun () ->
-        (Type_binary.encode_bin t, Type_binary.decode_bin t, Type_size.t t))
+        ( unstage (Type_binary.encode_bin t),
+          unstage (Type_binary.decode_bin t),
+          Type_size.t t ))
   in
   let unboxed_encode_bin, unboxed_decode_bin, unboxed_size_of =
     fold_impl unboxed_bin
       ~undefined:(fun () ->
-        ( undefined' "Unboxed.encode_bin",
-          undefined' "Unboxed.decode_bin",
+        ( undefined "Unboxed.encode_bin",
+          undefined "Unboxed.decode_bin",
           unimplemented_size_of ))
       ~structural:(fun () ->
-        ( Type_binary.Unboxed.encode_bin t,
-          Type_binary.Unboxed.decode_bin t,
+        ( unstage (Type_binary.Unboxed.encode_bin t),
+          unstage (Type_binary.Unboxed.decode_bin t),
           Type_size.unboxed t ))
   in
   let equal =
     fold_impl equal
-      ~undefined:(fun () -> undefined' "equal")
-      ~structural:(fun () -> Type_ordered.equal t)
+      ~undefined:(fun () -> undefined "equal")
+      ~structural:(fun () -> unstage (Type_ordered.equal t))
   in
   let compare =
     fold_impl compare
-      ~undefined:(fun () -> undefined' "compare")
-      ~structural:(fun () -> Type_ordered.compare t)
+      ~undefined:(fun () -> undefined "compare")
+      ~structural:(fun () -> unstage (Type_ordered.compare t))
   in
   let short_hash =
     fold_impl short_hash_t
-      ~undefined:(fun () -> stage (fun ?seed:_ -> undefined "short_hash" ()))
-      ~structural:(fun () -> short_hash t)
+      ~undefined:(fun () ?seed:_ -> undefined "short_hash" ())
+      ~structural:(fun () -> unstage (short_hash t))
   in
   let pre_hash =
     fold_impl pre_hash_t
-      ~undefined:(fun () -> undefined' "pre_hash")
+      ~undefined:(fun () -> undefined "pre_hash")
       ~structural:(fun () -> encode_bin)
   in
   Type_core.Custom
@@ -361,10 +362,7 @@ let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
     | Some x -> Custom x
     | None -> (
         match compare with
-        | Some f ->
-            Custom
-              (let f = unstage f in
-               stage (fun x y -> f x y = 0))
+        | Some f -> Custom (fun x y -> f x y = 0)
         | None -> Structural)
   in
   let pp = to_impl pp
@@ -504,8 +502,7 @@ let seq : type a. a t -> a Seq.t t =
     | Cons _, Nil | Nil, Cons _ -> false
     | Cons (x, xf), Cons (y, yf) -> elt_equal x y && equal xf yf
   in
-  map ~compare:(stage compare) ~equal:(stage equal) (list a) List.to_seq
-    List.of_seq
+  map ~compare ~equal (list a) List.to_seq List.of_seq
 
 let stack : type a. a t -> a Stack.t t =
   (* Built-in [Stack.of_seq] adds elements bottom-to-top, which flips the stack.

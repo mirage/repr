@@ -366,14 +366,14 @@ module type DSL = sig
       Given a value ['a t], it is possible to define generic operations on value
       of type ['a] such as pretty-printing, parsing and unparsing. *)
 
-  type 'a equal = ('a -> 'a -> bool) staged
+  type 'a equal = 'a -> 'a -> bool
 
-  val equal : 'a t -> 'a equal
+  val equal : 'a t -> 'a equal staged
   (** [equal t] is the equality function between values of type [t]. *)
 
-  type 'a compare = ('a -> 'a -> int) staged
+  type 'a compare = 'a -> 'a -> int
 
-  val compare : 'a t -> 'a compare
+  val compare : 'a t -> 'a compare staged
   (** [compare t] compares values of type [t]. *)
 
   type 'a pp = Format.formatter -> 'a -> unit
@@ -522,30 +522,30 @@ module type DSL = sig
 
   (** {2 Binary Converters} *)
 
-  type 'a encode_bin = ('a -> (string -> unit) -> unit) staged
+  type 'a encode_bin = 'a -> (string -> unit) -> unit
   (** The type for binary encoders. *)
 
-  type 'a decode_bin = (string -> int -> int * 'a) staged
+  type 'a decode_bin = string -> int -> int * 'a
   (** The type for binary decoders. *)
 
   type -'a size_of
   (** The type for size function related to binary encoder/decoders. *)
 
-  type 'a short_hash := (?seed:int -> 'a -> int) staged
+  type 'a short_hash := ?seed:int -> 'a -> int
 
-  val short_hash : 'a t -> 'a short_hash
+  val short_hash : 'a t -> 'a short_hash staged
   (** [hash t x] is a short hash of [x] of type [t]. *)
 
-  val pre_hash : 'a t -> 'a encode_bin
+  val pre_hash : 'a t -> 'a encode_bin staged
   (** [pre_hash t x] is the string representation of [x], of type [t], which
       will be used to compute the digest of the value. By default it's
       [to_bin_string t x] but it can be overriden by {!v}, {!like} and {!map}
       operators. *)
 
-  val encode_bin : 'a t -> 'a encode_bin
+  val encode_bin : 'a t -> 'a encode_bin staged
   (** [encode_bin t] is the binary encoder for values of type [t]. *)
 
-  val decode_bin : 'a t -> 'a decode_bin
+  val decode_bin : 'a t -> 'a decode_bin staged
   (** [decode_bin t] is the binary decoder for values of type [t]. *)
 
   val to_bin_string : 'a t -> ('a -> string) staged
@@ -616,10 +616,10 @@ module type DSL = sig
         When unboxed operations are applied to values not supporting that
         operation, they automatically fall-back to their boxed counter-part. *)
 
-    val encode_bin : 'a t -> 'a encode_bin
+    val encode_bin : 'a t -> 'a encode_bin staged
     (** Same as {!encode_bin} for unboxed values. *)
 
-    val decode_bin : 'a t -> 'a decode_bin
+    val decode_bin : 'a t -> 'a decode_bin staged
     (** Same as {!decode_bin} for unboxed values. *)
 
     val size_of : 'a t -> 'a size_of
