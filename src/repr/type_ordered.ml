@@ -132,9 +132,9 @@ module Equal = struct
     | Some x, Some y -> e x y
     | _ -> false
 
-  let rec t : type a. a t -> a equal = function
+  let rec t : type a. a t -> a equal staged = function
     | Self s -> self s
-    | Custom c -> c.equal
+    | Custom c -> stage c.equal
     | Map m -> map m
     | Attributes { attr_type = x; _ } -> t x
     | Boxed x -> t x
@@ -147,22 +147,22 @@ module Equal = struct
     | Variant v -> variant v
     | Var v -> raise (Unbound_type_variable v)
 
-  and self : type a. a self -> a equal = function
+  and self : type a. a self -> a equal staged = function
     | { self_unroll; _ } ->
         fix_staged (fun equal ->
-            let cyclic = self_unroll (partial ~equal ()) in
+            let cyclic = self_unroll (partial ~equal:(unstage equal) ()) in
             t cyclic)
 
-  and tuple : type a. a tuple -> a equal = function
+  and tuple : type a. a tuple -> a equal staged = function
     | Pair (a, b) -> pair (t a) (t b)
     | Triple (a, b, c) -> triple (t a) (t b) (t c)
 
-  and map : type a b. (a, b) map -> b equal =
+  and map : type a b. (a, b) map -> b equal staged =
    fun { x; g; _ } ->
     let eq = unstage (t x) in
     stage @@ fun u v -> eq (g u) (g v)
 
-  and prim : type a. a prim -> a equal = function
+  and prim : type a. a prim -> a equal staged = function
     | Unit -> stage unit
     | Bool -> stage bool
     | Char -> stage char
@@ -173,19 +173,19 @@ module Equal = struct
     | String _ -> stage string
     | Bytes _ -> stage bytes
 
-  and record : type a. a record -> a equal =
+  and record : type a. a record -> a equal staged =
    fun r ->
     let fields =
       List.map (function Field f -> unstage (field f)) (fields r)
     in
     stage @@ fun x y -> List.for_all (function f -> f x y) fields
 
-  and field : type a b. (a, b) field -> a equal =
+  and field : type a b. (a, b) field -> a equal staged =
    fun f ->
     let equal = unstage (t f.ftype) in
     stage @@ fun x y -> equal (f.fget x) (f.fget y)
 
-  and variant : type a. a variant -> a equal =
+  and variant : type a. a variant -> a equal staged =
    fun v ->
     let equal x y =
       match (x, y) with
@@ -271,7 +271,7 @@ module Compare = struct
       | None, Some _ -> -1
       | Some x, Some y -> c x y
 
-  let prim : type a. a prim -> a compare = function
+  let prim : type a. a prim -> a compare staged = function
     | Unit -> stage unit
     | Bool -> stage bool
     | Char -> stage char
@@ -283,9 +283,9 @@ module Compare = struct
     | Bytes _ -> stage bytes
     [@@inline always]
 
-  let rec t : type a. a t -> a compare = function
+  let rec t : type a. a t -> a compare staged = function
     | Self s -> self s
-    | Custom c -> c.compare
+    | Custom c -> stage c.compare
     | Map m -> map m
     | Boxed x -> t x
     | Attributes { attr_type = x; _ } -> t x
@@ -298,22 +298,22 @@ module Compare = struct
     | Variant v -> variant v
     | Var v -> raise (Unbound_type_variable v)
 
-  and self : type a. a self -> a compare = function
+  and self : type a. a self -> a compare staged = function
     | { self_unroll; _ } ->
         fix_staged (fun compare ->
-            let cyclic = self_unroll (partial ~compare ()) in
+            let cyclic = self_unroll (partial ~compare:(unstage compare) ()) in
             t cyclic)
 
-  and tuple : type a. a tuple -> a compare = function
+  and tuple : type a. a tuple -> a compare staged = function
     | Pair (x, y) -> pair (t x) (t y)
     | Triple (x, y, z) -> triple (t x) (t y) (t z)
 
-  and map : type a b. (a, b) map -> b compare =
+  and map : type a b. (a, b) map -> b compare staged =
    fun { x; g; _ } ->
     let compare = unstage (t x) in
     stage @@ fun u v -> compare (g u) (g v)
 
-  and record : type a. a record -> a compare =
+  and record : type a. a record -> a compare staged =
    fun r ->
     let fields =
       List.map (function Field f -> unstage (field f)) (fields r)
@@ -325,12 +325,12 @@ module Compare = struct
     in
     aux fields
 
-  and field : type a b. (a, b) field -> a compare =
+  and field : type a b. (a, b) field -> a compare staged =
    fun f ->
     let compare = unstage (t f.ftype) in
     stage @@ fun x y -> compare (f.fget x) (f.fget y)
 
-  and variant : type a. a variant -> a compare =
+  and variant : type a. a variant -> a compare staged =
    fun v ->
     let compare x y =
       match (x, y) with

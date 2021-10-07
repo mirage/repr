@@ -21,7 +21,7 @@ let test_nested_custom () =
     type custom = { pre_hash : string; ignored_data : int } [@@deriving repr]
 
     let custom_t =
-      let pre_hash = Repr.stage (fun { pre_hash; _ } f -> f pre_hash) in
+      let pre_hash { pre_hash; _ } f = f pre_hash in
       Repr.like ~pre_hash custom_t
 
     type pair = custom * custom [@@deriving repr ~pre_hash]

@@ -182,8 +182,8 @@ let test_unknown () =
     type opaque = Opaque [@@deriving repr]
 
     let opaque_t =
-      let encode_bin = T.(encode_bin opaque_t) in
-      let decode_bin = T.(decode_bin opaque_t) in
+      let encode_bin = T.(unstage @@ encode_bin opaque_t) in
+      let decode_bin = T.(unstage @@ decode_bin opaque_t) in
       let size_of = T.Size.custom_dynamic () in
       T.like ~bin:(encode_bin, decode_bin, size_of) opaque_t
 

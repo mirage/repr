@@ -17,13 +17,13 @@
 open Type_core
 open Staging
 
-val pre_hash : 'a t -> 'a encode_bin
-val encode_bin : 'a t -> 'a encode_bin
-val decode_bin : 'a t -> 'a decode_bin
+val pre_hash : 'a t -> 'a encode_bin staged
+val encode_bin : 'a t -> 'a encode_bin staged
+val decode_bin : 'a t -> 'a decode_bin staged
 
 module Unboxed : sig
-  val encode_bin : 'a t -> 'a encode_bin
-  val decode_bin : 'a t -> 'a decode_bin
+  val encode_bin : 'a t -> 'a encode_bin staged
+  val decode_bin : 'a t -> 'a decode_bin staged
 end
 
 val to_bin_string : 'a t -> 'a to_string staged
