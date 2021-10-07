@@ -1,5 +1,8 @@
 ### Unreleased
 
+- Add `Repr.int63`, a representation of the `Optint.Int63.t` type (provided by
+  the `optint` library). (#80, @CraigFe)
+
 - Change `Repr.{like,map,partially_abstract}` functions to not require `_
   staged` wrappers around any (monomorphic) overrides. (#77, @CraigFe)
 
