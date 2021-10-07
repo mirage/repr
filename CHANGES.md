@@ -1,3 +1,12 @@
+### Unreleased
+
+- Change `Repr.{like,map,partially_abstract}` functions to not require `_
+  staged` wrappers around any (monomorphic) overrides. (#77, @CraigFe)
+
+- Fix `Repr.pre_hash` to rely on itself recursively. This ensures that custom
+  `pre_hash` functions attached to components of larger types are not ignored.
+  (#71, @CraigFe)
+
 ### 0.4.0 (2021-06-16)
 
 - Add `Repr.{random,random_state}`, a pair of generic functions for sampling
@@ -7,10 +16,6 @@
   more informative than the existing `Repr.size_of`. Types built using `Repr.v`
   and `Repr.like` must now pass a sizer built using `Repr.Size.custom_*`. (#69,
   @CraigFe)
-
-- Fix `Repr.pre_hash` to rely on itself recursively. This ensures that custom
-  `pre_hash` functions attached to components of larger types are not ignored.
-  (#71, @CraigFe)
 
 ### 0.3.0 (2021-04-30)
 
