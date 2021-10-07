@@ -74,7 +74,8 @@ let rec t : type a. a t -> a random = function
   | Option x -> option x
   | Record x -> record x
   | Variant x -> variant x
-  | Attributes { attr_type; _ } -> t attr_type
+  | Attributes { attrs; attr_type } -> (
+      match Attr.find attrs with Some f -> stage f | None -> t attr_type)
   | Boxed x -> t x
   | Self x -> stage (fun s -> (* improperly staged *) unstage (t x.self_fix) s)
   | Custom _ -> failwith "Cannot generate random instance of Custom type"
