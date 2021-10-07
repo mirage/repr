@@ -23,6 +23,7 @@ depends: [
   "either"
   "jsonm" {>= "1.0.0"}
   "base64" {>= "3.0.0"}
+  "optint" {>= "0.1.0"}
   "odoc" {with-doc}
 ]
 build: [

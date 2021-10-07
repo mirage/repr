@@ -480,6 +480,19 @@ module Attribute = struct
   let set_random f ty = annotate ~add:Type_random.Attr.add ~data:f ty
 end
 
+let int63 =
+  let module I = Optint.Int63 in
+  let random : Stdlib.Random.State.t -> I.t =
+    match I.is_immediate with
+    | True -> unstage (random_state int)
+    | False ->
+        let random_int64 = unstage (random_state int64) in
+        fun s -> I.of_int64 (Int64.shift_right (random_int64 s) 1)
+  in
+  like ~pp:I.pp ~equal:I.equal ~compare:I.compare
+    (map int64 I.of_int64 I.to_int64)
+  |> Attribute.set_random random
+
 let ref : type a. a t -> a ref t = fun a -> map a ref (fun t -> !t)
 let lazy_t : type a. a t -> a Lazy.t t = fun a -> map a Lazy.from_val Lazy.force
 

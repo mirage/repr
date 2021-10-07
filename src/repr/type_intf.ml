@@ -28,6 +28,10 @@ module type DSL = sig
   val int32 : int32 t
   (** [int32] is a representation of the 32-bit integer type. *)
 
+  val int63 : Optint.Int63.t t
+  (** [int63] is a representation of the 63-bit integer type supplied by the
+      {!Optint} library. *)
+
   val int64 : int64 t
   (** [int64] is a representation of the 64-bit integer type. *)
 

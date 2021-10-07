@@ -15,6 +15,7 @@ depends: [
   "ppx_deriving"
   "fmt"
   "hex" {with-test}
+  "optint" {>= "0.1.0" & with-test}
   "alcotest" {>= "1.4.0" & with-test}
   "odoc" {with-doc}
 ]
