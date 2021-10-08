@@ -604,7 +604,16 @@ let test_random () =
   test ~__POS__ [%typ: float * string * bytes];
   test ~__POS__ [%typ: int option list];
   test ~__POS__ [%typ: (bool, string) result array];
-  test ~__POS__ [%typ: [ `Nil | `Cons of int * 'a ] as 'a]
+  test ~__POS__ [%typ: [ `Nil | `Cons of int * 'a ] as 'a];
+
+  let () =
+    let fixed = 42 in
+    let custom_int_t = T.Attribute.set_random (fun _ -> fixed) [%typ: int] in
+    let random = T.(unstage (random [%typ: custom_int * custom_int])) in
+    Alcotest.(check (pair int int))
+      "Custom random generator should be respected" (fixed, fixed) (random ())
+  in
+  ()
 
 let test_int () =
   let test dx x =

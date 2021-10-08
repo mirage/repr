@@ -3,6 +3,9 @@
 - Change `Repr.{like,map,partially_abstract}` functions to not require `_
   staged` wrappers around any (monomorphic) overrides. (#77, @CraigFe)
 
+- Fix a bug causing custom `Repr.{random,random_state}` implementations to be
+  ignored. (#79, @CraigFe)
+
 - Fix `Repr.pre_hash` to rely on itself recursively. This ensures that custom
   `pre_hash` functions attached to components of larger types are not ignored.
   (#71, @CraigFe)
