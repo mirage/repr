@@ -1,3 +1,4 @@
+type int63 = Optint.Int63.t
 module type BASIC  =
   sig
     val test_unit_t : unit Repr.t
@@ -5,6 +6,7 @@ module type BASIC  =
     val test_char_t : char Repr.t
     val test_int_t : int Repr.t
     val test_int32_t : int32 Repr.t
+    val test_int63_t : int63 Repr.t
     val test_int64_t : int64 Repr.t
     val test_float_t : float Repr.t
     val test_string_t : string Repr.t
@@ -26,6 +28,9 @@ module Basic : BASIC =
     [@@merlin.hide ]
     type test_int32 = int32[@@deriving repr]
     include struct let test_int32_t = Repr.int32 end[@@ocaml.doc "@inline"]
+    [@@merlin.hide ]
+    type test_int63 = int63[@@deriving repr]
+    include struct let test_int63_t = Repr.int63 end[@@ocaml.doc "@inline"]
     [@@merlin.hide ]
     type test_int64 = int64[@@deriving repr]
     include struct let test_int64_t = Repr.int64 end[@@ocaml.doc "@inline"]
@@ -109,6 +114,9 @@ module Inside_modules :
     [@@merlin.hide ]
     type test_int32 = Int32.t[@@deriving repr]
     include struct let test_int32_t = Repr.int32 end[@@ocaml.doc "@inline"]
+    [@@merlin.hide ]
+    type test_int63 = Optint.Int63.t[@@deriving repr]
+    include struct let test_int63_t = Repr.int63 end[@@ocaml.doc "@inline"]
     [@@merlin.hide ]
     type test_int64 = Int64.t[@@deriving repr]
     include struct let test_int64_t = Repr.int64 end[@@ocaml.doc "@inline"]

@@ -31,6 +31,7 @@ let basic =
     "char";
     "int";
     "int32";
+    "int63";
     "int64";
     "float";
     "string";
@@ -54,8 +55,10 @@ let type_to_combinator_name : longident -> string option =
       List.map type_in_default_scope basic
       (* Types named [t] within their own modules: *)
       @ List.map type_in_separate_module (basic @ containers)
-      (* Technically [lazy_t] is not for direct use, but derive anyway *)
+      (* Technically [lazy_t] is not for direct use, but derive anyway: *)
       @ [ (Lident "lazy_t", "lazy_t"); (Ldot (Lident "Lazy", "t"), "lazy_t") ]
+      (* [Int63.t] may be namespaced under [Optint.Int63.t]: *)
+      @ [ (Ldot (Ldot (Lident "Optint", "Int63"), "t"), "int63") ]
     in
     List.to_seq assoc |> Hashtbl.of_seq
   in

@@ -1,9 +1,12 @@
+type int63 = Optint.Int63.t
+
 module type BASIC = sig
   val test_unit_t : unit Repr.t
   val test_bool_t : bool Repr.t
   val test_char_t : char Repr.t
   val test_int_t : int Repr.t
   val test_int32_t : int32 Repr.t
+  val test_int63_t : int63 Repr.t
   val test_int64_t : int64 Repr.t
   val test_float_t : float Repr.t
   val test_string_t : string Repr.t
@@ -16,6 +19,7 @@ module Basic : BASIC = struct
   type test_char = char [@@deriving repr]
   type test_int = int [@@deriving repr]
   type test_int32 = int32 [@@deriving repr]
+  type test_int63 = int63 [@@deriving repr]
   type test_int64 = int64 [@@deriving repr]
   type test_float = float [@@deriving repr]
   type test_string = string [@@deriving repr]
@@ -62,6 +66,7 @@ end = struct
   type test_char = Char.t [@@deriving repr]
   type test_int = Int.t [@@deriving repr]
   type test_int32 = Int32.t [@@deriving repr]
+  type test_int63 = Optint.Int63.t [@@deriving repr]
   type test_int64 = Int64.t [@@deriving repr]
   type test_float = Float.t [@@deriving repr]
   type test_string = String.t [@@deriving repr]

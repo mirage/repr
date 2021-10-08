@@ -17,7 +17,8 @@
   uutf
   either
   (jsonm (>= 1.0.0))
-  (base64 (>= 3.0.0)))
+  (base64 (>= 3.0.0))
+  (optint (>= 0.1.0)))
  (synopsis "Dynamic type representations. Provides no stability guarantee")
  (description "\
 This package defines a library of combinators for building dynamic type
@@ -38,6 +39,7 @@ guarantee.
   fmt
   ; Test dependencies inherited from [repr] (see [test/repr/dune])
   (hex :with-test)
+  (optint (and (>= 0.1.0) :with-test))
   (alcotest (and (>= 1.4.0) :with-test)))
  ;; See https://github.com/mirage/repr/issues/48
  ;; Can be removed once using Ppxlib >= 0.16.0

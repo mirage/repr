@@ -1,4 +1,10 @@
 (library
  (name repr)
  (public_name repr)
- (libraries base64 fmt jsonm uutf either))
+ (libraries
+  base64
+  fmt
+  jsonm
+  uutf
+  either
+  (re_export optint)))

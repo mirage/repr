@@ -78,6 +78,7 @@ let test_primitive () =
   check_static ~__POS__ T.bool 1 true;
   check_static ~__POS__ T.char 1 ' ';
   check_static ~__POS__ T.int32 4 1l;
+  check_static ~__POS__ T.int63 8 Optint.Int63.zero;
   check_static ~__POS__ T.int64 8 (-1L);
   check_static ~__POS__ T.float 8 Float.nan
 

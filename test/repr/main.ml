@@ -314,6 +314,7 @@ let test_to_string () =
   test "char" T.char 'a' "a";
   test "int" T.int (-100) "-100";
   test "int32" T.int32 Int32.max_int "2147483647";
+  test "int63" T.int63 Optint.Int63.max_int "4611686018427387903";
   test "int64" T.int64 Int64.max_int "9223372036854775807";
   test "float" T.float (-1.5) "-1.5";
   test "float{NaN}" T.float Stdlib.nan "\"nan\"";
@@ -391,6 +392,7 @@ let test_pp_dump () =
   test "char" T.char 'a' "'a'";
   test "int" T.int (-100) "-100";
   test "int32" T.int32 Int32.max_int "2147483647";
+  test "int63" T.int63 Optint.Int63.max_int "4611686018427387903";
   test "int64" T.int64 Int64.max_int "9223372036854775807";
   test "float" T.float (-1.5) "-1.5";
   test "float{NaN}" T.float Stdlib.nan "nan";
@@ -600,7 +602,7 @@ let test_random () =
       "Random generator should be deterministic given common PRNG state" v1 v2
   in
   test ~__POS__ [%typ: unit * bool * char];
-  test ~__POS__ [%typ: int * int32 * int64];
+  test ~__POS__ [%typ: int * int32 * (int63 * int64)];
   test ~__POS__ [%typ: float * string * bytes];
   test ~__POS__ [%typ: int option list];
   test ~__POS__ [%typ: (bool, string) result array];
