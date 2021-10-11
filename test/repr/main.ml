@@ -565,8 +565,8 @@ let test_pp_ty () =
     let map : int T.t = T.(map int) (fun x -> x) (fun x -> x)
   end in
   test ~case_name:"custom v" Custom.v "Custom (-)";
-  test ~case_name:"custom like prim" Custom.like_prim "Custom (int)";
-  test ~case_name:"custom like custom" Custom.like_custom "Custom (Custom (-))";
+  test ~case_name:"custom like prim" Custom.like_prim "int";
+  test ~case_name:"custom like custom" Custom.like_custom "Custom (-)";
   test ~case_name:"map" Custom.map "Map (int)";
 
   ()

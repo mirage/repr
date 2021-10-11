@@ -16,10 +16,16 @@
 
 open Type_core
 
-module Attr = Attribute.Make1 (struct
+module Attr_pp = Attribute.Make1 (struct
   type 'a t = 'a Fmt.t
 
   let name = "pp"
+end)
+
+module Attr_of_string = Attribute.Make1 (struct
+  type 'a t = 'a of_string
+
+  let name = "of_string"
 end)
 
 (* Polyfill for [Float.is_nan] which is only >=4.08. *)
@@ -30,7 +36,10 @@ let t t =
    fun t ppf x ->
     match t with
     | Self s -> aux s.self_fix ppf x
-    | Attributes { attr_type; _ } -> aux attr_type ppf x
+    | Attributes { attrs; attr_type = t } -> (
+        match Attr_pp.find attrs with
+        | Some pp -> pp ppf x
+        | None -> aux t ppf x)
     | Custom c -> c.pp ppf x
     | Map m -> map m ppf x
     | Prim p -> prim p ppf x
@@ -71,7 +80,9 @@ let dump t =
     | Variant v -> variant v ppf x
     | Boxed t -> aux t ppf x
     | Attributes { attrs; attr_type = t } -> (
-        match Attr.find attrs with None -> aux t ppf x | Some pp -> pp ppf x)
+        match Attr_pp.find attrs with
+        | Some pp -> pp ppf x
+        | None -> aux t ppf x)
   and map : type a b. (a, b) map -> b pp = fun l ppf x -> aux l.x ppf (l.g x)
   and prim : type a. a prim -> a pp =
    fun t ppf x ->
@@ -216,9 +227,7 @@ let ty : type a. a t Fmt.t =
     Format.pp_print_string ppf "[";
     cases |> Array.iteri (fun i -> pp_case ~last:(i = last_i) ppf);
     Format.pp_close_box ppf ()
-  and custom : type a. a custom Fmt.t =
-   fun ppf c ->
-    match c.cwit with `Type t -> ty ppf t | `Witness _ -> Fmt.string ppf "-"
+  and custom : type a. a custom Fmt.t = fun ppf _ -> Fmt.string ppf "-"
   and prim : type a. a prim Fmt.t =
    fun ppf -> function
     | Unit -> Fmt.string ppf "unit"
@@ -250,7 +259,8 @@ let of_string t =
    fun t x ->
     match t with
     | Self s -> aux s.self_fix x
-    | Attributes { attr_type; _ } -> aux attr_type x
+    | Attributes { attrs; attr_type = t } -> (
+        match Attr_of_string.find attrs with Some f -> f x | None -> aux t x)
     | Custom c -> c.of_string x
     | Map m -> aux m.x x |> map_result m.f
     | Prim p -> prim p x

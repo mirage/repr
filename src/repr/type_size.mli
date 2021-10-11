@@ -15,6 +15,8 @@
  *)
 
 open Type_core
+module Attr : Attribute.S1 with type 'a t = 'a Size.Sizer.t
+module Attr_unboxed : Attribute.S1 with type 'a t = 'a Size.Sizer.t
 
 val t : 'a t -> 'a Size.Sizer.t
 val unboxed : 'a t -> 'a Size.Sizer.t

@@ -17,5 +17,14 @@
 open Type_core
 open Staging
 
-val equal : 'a t -> 'a equal staged
-val compare : 'a t -> 'a compare staged
+module Equal : sig
+  val t : 'a t -> 'a equal staged
+
+  module Attr : Attribute.S1 with type 'a t = 'a equal
+end
+
+module Compare : sig
+  val t : 'a t -> 'a compare staged
+
+  module Attr : Attribute.S1 with type 'a t = 'a compare
+end

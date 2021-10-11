@@ -37,7 +37,7 @@ module Types = struct
   and 'a attributes = { attrs : 'a Attribute.Map.t; attr_type : 'a t }
 
   and 'a custom = {
-    cwit : [ `Type of 'a t | `Witness of 'a Witness.t ];
+    cwit : 'a Witness.t;
     pp : 'a pp;
     of_string : 'a of_string;
     short_hash : 'a short_hash;

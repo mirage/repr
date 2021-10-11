@@ -22,6 +22,18 @@ module Bin = Binary_codec
 module Encode = struct
   type 'a encoder = 'a encode_bin staged
 
+  module Attr = Attribute.Make1 (struct
+    type 'a t = 'a encode_bin
+
+    let name = "encode_bin"
+  end)
+
+  module Attr_unboxed = Attribute.Make1 (struct
+    type 'a t = 'a encode_bin
+
+    let name = "encode_bin_unboxed"
+  end)
+
   let string boxed n =
     if boxed then Bin.String.encode n else Bin.String_unboxed.encode n
 
@@ -54,7 +66,8 @@ module Encode = struct
     | Map b -> map ~boxed:true b
     | Prim t -> prim ~boxed:true t
     | Boxed b -> t b
-    | Attributes { attr_type = x; _ } -> t x
+    | Attributes { attrs; attr_type } -> (
+        match Attr.find attrs with Some f -> stage f | None -> t attr_type)
     | List l -> list (t l.v) l.len
     | Array a -> array (t a.v) a.len
     | Tuple t -> tuple t
@@ -69,7 +82,10 @@ module Encode = struct
     | Map b -> map ~boxed:false b
     | Prim t -> prim ~boxed:false t
     | Boxed b -> t b
-    | Attributes { attr_type = x; _ } -> unboxed x
+    | Attributes { attrs; attr_type } -> (
+        match Attr_unboxed.find attrs with
+        | Some f -> stage f
+        | None -> unboxed attr_type)
     | List l -> list (t l.v) l.len
     | Array a -> array (t a.v) a.len
     | Tuple t -> tuple t
@@ -132,6 +148,19 @@ end
 
 module Decode = struct
   type 'a decoder = 'a decode_bin staged
+
+  module Attr = Attribute.Make1 (struct
+    type 'a t = 'a decode_bin
+
+    let name = "decode_bin"
+  end)
+
+  module Attr_unboxed = Attribute.Make1 (struct
+    type 'a t = 'a decode_bin
+
+    let name = "decode_bin_unboxed"
+  end)
+
   type 'a res = int * 'a
 
   let string box = if box then Bin.String.decode else Bin.String_unboxed.decode
@@ -167,7 +196,8 @@ module Decode = struct
     | Map b -> map ~boxed:true b
     | Prim t -> prim ~boxed:true t
     | Boxed b -> t b
-    | Attributes { attr_type = x; _ } -> t x
+    | Attributes { attrs; attr_type } -> (
+        match Attr.find attrs with Some f -> stage f | None -> t attr_type)
     | List l -> list (t l.v) l.len
     | Array a -> array (t a.v) a.len
     | Tuple t -> tuple t
@@ -182,7 +212,10 @@ module Decode = struct
     | Map b -> map ~boxed:false b
     | Prim t -> prim ~boxed:false t
     | Boxed b -> t b
-    | Attributes { attr_type = x; _ } -> unboxed x
+    | Attributes { attrs; attr_type } -> (
+        match Attr_unboxed.find attrs with
+        | Some f -> stage f
+        | None -> unboxed attr_type)
     | List l -> list (t l.v) l.len
     | Array a -> array (t a.v) a.len
     | Tuple t -> tuple t
@@ -257,12 +290,19 @@ end
 module Pre_hash = struct
   type 'a pre_hash = 'a encode_bin staged
 
+  module Attr = Attribute.Make1 (struct
+    type 'a t = 'a encode_bin
+
+    let name = "pre_hash"
+  end)
+
   let rec t : type a. a t -> a pre_hash = function
     | Self s -> self s
     | Custom c -> stage c.pre_hash
     | Map m -> map m
     | Boxed b -> t b
-    | Attributes { attr_type; _ } -> t attr_type
+    | Attributes { attrs; attr_type } -> (
+        match Attr.find attrs with Some f -> stage f | None -> t attr_type)
     | List l -> Encode.list (t l.v) l.len
     | Array a -> Encode.array (t a.v) a.len
     | Tuple t -> tuple t
@@ -324,17 +364,28 @@ module Pre_hash = struct
     aux
 end
 
-let encode_bin = Encode.t
-let decode_bin = Decode.t
-let pre_hash = Pre_hash.t
+module Short_hash = struct
+  module Attr = Attribute.Make1 (struct
+    type 'a t = 'a short_hash
+
+    let name = "short_hash"
+  end)
+
+  let rec t = function
+    | Custom c -> stage c.short_hash
+    | Attributes { attrs; attr_type } -> (
+        match Attr.find attrs with Some f -> stage f | None -> t attr_type)
+    | t ->
+        let pre_hash = unstage (Pre_hash.t t) in
+        stage @@ fun ?seed x ->
+        let seed = match seed with None -> 0 | Some t -> t in
+        let h = ref seed in
+        pre_hash x (fun s -> h := Hashtbl.seeded_hash !h s);
+        !h
+end
 
 type 'a to_bin_string = 'a to_string staged
 type 'a of_bin_string = 'a of_string staged
-
-module Unboxed = struct
-  let encode_bin = Encode.unboxed
-  let decode_bin = Decode.unboxed
-end
 
 let to_bin (size_of : _ Size.Sizer.t) encode_bin =
   let encode_bin = unstage encode_bin in

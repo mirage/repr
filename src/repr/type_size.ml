@@ -18,12 +18,25 @@ open Type_core
 module Sizer = Size.Sizer
 module Bin = Binary_codec
 
+module Attr = Attribute.Make1 (struct
+  type 'a t = 'a Sizer.t
+
+  let name = "size"
+end)
+
+module Attr_unboxed = Attribute.Make1 (struct
+  type 'a t = 'a Sizer.t
+
+  let name = "size_unboxed"
+end)
+
 let rec t : type a. a t -> a Sizer.t = function
   | Self s -> fst (self s)
   | Custom c -> c.size_of
   | Map b -> map ~boxed:true b
   | Prim t -> prim ~boxed:true t
-  | Attributes { attr_type; _ } -> t attr_type
+  | Attributes { attrs; attr_type } -> (
+      match Attr.find attrs with Some t -> t | None -> t attr_type)
   | Boxed b -> t b
   | List l -> Bin.List.sizer l.len (t l.v)
   | Array a -> Bin.Array.sizer a.len (t a.v)
@@ -38,7 +51,10 @@ and unboxed : type a. a t -> a Sizer.t = function
   | Custom c -> c.unboxed_size_of
   | Map b -> map ~boxed:false b
   | Prim t -> prim ~boxed:false t
-  | Attributes { attr_type = t; _ } -> unboxed t
+  | Attributes { attrs; attr_type } -> (
+      match Attr_unboxed.find attrs with
+      | Some t -> t
+      | None -> unboxed attr_type)
   | Boxed b -> t b
   | List l -> Bin.List.sizer l.len (t l.v)
   | Array a -> Bin.Array.sizer a.len (t a.v)
