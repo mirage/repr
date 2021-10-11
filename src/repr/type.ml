@@ -349,7 +349,12 @@ let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
   and unboxed_bin = to_impl unboxed_bin
   and compare = to_impl compare
   and short_hash = to_impl short_hash
-  and pre_hash = to_impl pre_hash in
+  and pre_hash =
+    match pre_hash with
+    | Some x -> Custom x
+    | None -> (
+        match bin with Some (x, _, _) -> Custom x | None -> Structural)
+  in
   partially_abstract ~pp ~json ~of_string ~bin ~unboxed_bin ~equal ~compare
     ~short_hash ~pre_hash t
 
