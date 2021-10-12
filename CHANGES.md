@@ -1,4 +1,4 @@
-### Unreleased
+### 0.5.0 (2021-10-12)
 
 - Add `Repr.int63`, a representation of the `Optint.Int63.t` type (provided by
   the `optint` library). (#80, @CraigFe)
