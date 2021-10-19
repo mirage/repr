@@ -556,14 +556,14 @@ module type DSL = sig
   (** [to_bin_string t x] use {!encode_bin} to convert [x], of type [t], to a
       string.
 
-      {b NOTE:} When [t] is {!Type.string} or {!Type.bytes}, the original buffer
+      {b NOTE:} When [t] is {!Repr.string} or {!Repr.bytes}, the original buffer
       [x] is not prefixed by its size as {!encode_bin} would do. If [t] is
-      {!Type.string}, the result is [x] (without copy). *)
+      {!Repr.string}, the result is [x] (without copy). *)
 
   val of_bin_string : 'a t -> (string -> ('a, [ `Msg of string ]) result) staged
   (** [of_bin_string t s] is [v] such that [s = to_bin_string t v].
 
-      {b NOTE:} When [t] is {!Type.string}, the result is [s] (without copy). *)
+      {b NOTE:} When [t] is {!Repr.string}, the result is [s] (without copy). *)
 
   val size_of : 'a t -> ('a -> int option) staged
   (** [size_of t x] is either the size of [encode_bin t x] or the binary
