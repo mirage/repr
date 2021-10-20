@@ -16,7 +16,7 @@
 
 (** Yet-another type combinator library
 
-    [Type] provides type combinators to define runtime representation for OCaml
+    [Repr] provides type combinators to define runtime representation for OCaml
     types and {{!generics} generic operations} to manipulate values with a
     runtime type representation.
 
