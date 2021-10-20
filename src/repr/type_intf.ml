@@ -460,7 +460,7 @@ module type DSL = sig
   (** The type for JSON decoders. *)
 
   val pp_json : ?minify:bool -> 'a t -> 'a Fmt.t
-  (** Similar to {!dump} but pretty-prints the JSON representation instead of
+  (** Similar to {!pp_dump} but pretty-prints the JSON representation instead of
       the OCaml one. See {!val-encode_json} for details about the encoding.
 
       For instance:
@@ -543,7 +543,7 @@ module type DSL = sig
   val pre_hash : 'a t -> 'a encode_bin staged
   (** [pre_hash t x] is the string representation of [x], of type [t], which
       will be used to compute the digest of the value. By default it's
-      [to_bin_string t x] but it can be overriden by {!v}, {!like} and {!map}
+      [to_bin_string t x] but it can be overriden by {!like} and {!map}
       operators. *)
 
   val encode_bin : 'a t -> 'a encode_bin staged
@@ -556,14 +556,14 @@ module type DSL = sig
   (** [to_bin_string t x] use {!val-encode_bin} to convert [x], of type [t], to
       a string.
 
-      {b NOTE:} When [t] is {!Type.string} or {!Type.bytes}, the original buffer
-      [x] is not prefixed by its size as {!val-encode_bin} would do. If [t] is
-      {!Type.string}, the result is [x] (without copy). *)
+      {b NOTE:} When [t] is {!string} or {!bytes}, the original buffer [x] is
+      not prefixed by its size as {!val-encode_bin} would do. If [t] is
+      {!string}, the result is [x] (without copy). *)
 
   val of_bin_string : 'a t -> (string -> ('a, [ `Msg of string ]) result) staged
   (** [of_bin_string t s] is [v] such that [s = to_bin_string t v].
 
-      {b NOTE:} When [t] is {!Type.string}, the result is [s] (without copy). *)
+      {b NOTE:} When [t] is {!string}, the result is [s] (without copy). *)
 
   val size_of : 'a t -> ('a -> int option) staged
   (** [size_of t x] is either the size of [encode_bin t x] or the binary
