@@ -41,7 +41,7 @@ module Refl = struct
     | Self a, _ -> t a.self_fix b
     | _, Self b -> t a b.self_fix
     | Map a, Map b -> Witness.eq a.mwit b.mwit
-    | Custom a, Custom b -> custom a b
+    | Custom a, Custom b -> Witness.eq a.cwit b.cwit
     | Prim a, Prim b -> prim a b
     | Array a, Array b -> (
         match t a.v b.v with Some Refl -> Some Refl | None -> None)
@@ -61,13 +61,6 @@ module Refl = struct
         _ ) ->
         None
 
-  and custom : type a b. a custom -> b custom -> (a, b) eq option =
-   fun a b ->
-    match (a.cwit, b.cwit) with
-    | `Witness a, `Witness b -> Witness.eq a b
-    | `Type a, `Type b -> t a b
-    | _ -> None
-
   and tuple : type a b. a tuple -> b tuple -> (a, b) eq option =
    fun a b ->
     match (a, b) with
@@ -83,6 +76,12 @@ module Refl = struct
 end
 
 module Equal = struct
+  module Attr = Attribute.Make1 (struct
+    type 'a t = 'a equal
+
+    let name = "equal"
+  end)
+
   let unit _ _ = true
   let bool (x : bool) (y : bool) = x = y
   let char (x : char) (y : char) = x = y
@@ -136,7 +135,8 @@ module Equal = struct
     | Self s -> self s
     | Custom c -> stage c.equal
     | Map m -> map m
-    | Attributes { attr_type = x; _ } -> t x
+    | Attributes { attrs; attr_type } -> (
+        match Attr.find attrs with Some f -> stage f | None -> t attr_type)
     | Boxed x -> t x
     | Prim p -> prim p
     | List l -> list (t l.v)
@@ -206,6 +206,12 @@ module Equal = struct
 end
 
 module Compare = struct
+  module Attr = Attribute.Make1 (struct
+    type 'a t = 'a compare
+
+    let name = "compare"
+  end)
+
   let unit (_ : unit) (_ : unit) = 0 [@@inline always]
   let bool (x : bool) (y : bool) = compare x y [@@inline always]
   let char x y = Char.compare x y [@@inline always]
@@ -288,7 +294,8 @@ module Compare = struct
     | Custom c -> stage c.compare
     | Map m -> map m
     | Boxed x -> t x
-    | Attributes { attr_type = x; _ } -> t x
+    | Attributes { attrs; attr_type } -> (
+        match Attr.find attrs with Some f -> stage f | None -> t attr_type)
     | Prim p -> (prim [@inlined]) p
     | List l -> list (t l.v)
     | Array x -> array (t x.v)
@@ -352,6 +359,3 @@ module Compare = struct
 
   (* this should never happen *)
 end
-
-let equal = Equal.t
-let compare t = Compare.t t

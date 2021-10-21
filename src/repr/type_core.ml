@@ -72,7 +72,7 @@ let partial ?(pp = fun _ -> failwith "`pp` not implemented")
     ?(unboxed_size_of = unimplemented_size_of) () =
   Custom
     {
-      cwit = `Witness (Witness.make ());
+      cwit = Witness.make ();
       pp;
       of_string;
       short_hash;

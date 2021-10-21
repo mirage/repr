@@ -15,7 +15,8 @@
  *)
 
 open Type_core
-module Attr : Attribute.S1 with type 'a t = 'a Fmt.t
+module Attr_pp : Attribute.S1 with type 'a t = 'a Fmt.t
+module Attr_of_string : Attribute.S1 with type 'a t = 'a of_string
 
 val t : 'a t -> 'a Fmt.t
 val dump : 'a t -> 'a Fmt.t

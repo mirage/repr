@@ -17,13 +17,32 @@
 open Type_core
 open Staging
 
-val pre_hash : 'a t -> 'a encode_bin staged
-val encode_bin : 'a t -> 'a encode_bin staged
-val decode_bin : 'a t -> 'a decode_bin staged
+module Encode : sig
+  val t : 'a t -> 'a encode_bin staged
+  val unboxed : 'a t -> 'a encode_bin staged
 
-module Unboxed : sig
-  val encode_bin : 'a t -> 'a encode_bin staged
-  val decode_bin : 'a t -> 'a decode_bin staged
+  module Attr : Attribute.S1 with type 'a t = 'a encode_bin
+  module Attr_unboxed : Attribute.S1 with type 'a t = 'a encode_bin
+end
+
+module Decode : sig
+  val t : 'a t -> 'a decode_bin staged
+  val unboxed : 'a t -> 'a decode_bin staged
+
+  module Attr : Attribute.S1 with type 'a t = 'a decode_bin
+  module Attr_unboxed : Attribute.S1 with type 'a t = 'a decode_bin
+end
+
+module Pre_hash : sig
+  val t : 'a t -> 'a encode_bin staged
+
+  module Attr : Attribute.S1 with type 'a t = 'a encode_bin
+end
+
+module Short_hash : sig
+  val t : 'a t -> 'a short_hash staged
+
+  module Attr : Attribute.S1 with type 'a t = 'a short_hash
 end
 
 val to_bin_string : 'a t -> 'a to_string staged

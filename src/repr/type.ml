@@ -48,7 +48,7 @@ let abstract ~pp ~of_string ~json ~bin ?unboxed_bin ~equal ~compare ~short_hash
   in
   Custom
     {
-      cwit = `Witness (Witness.make ());
+      cwit = Witness.make ();
       pp;
       of_string;
       pre_hash;
@@ -237,18 +237,9 @@ let either a b =
   |~ case1 "right" b (fun b -> Either.Right b)
   |> sealv
 
-let pre_hash, encode_bin, decode_bin, to_bin_string, of_bin_string =
-  Type_binary.(pre_hash, encode_bin, decode_bin, to_bin_string, of_bin_string)
-
-let short_hash = function
-  | Custom c -> stage c.short_hash
-  | t ->
-      let pre_hash = unstage (pre_hash t) in
-      stage @@ fun ?seed x ->
-      let seed = match seed with None -> 0 | Some t -> t in
-      let h = ref seed in
-      pre_hash x (fun s -> h := Hashtbl.seeded_hash !h s);
-      !h
+let pre_hash, short_hash, encode_bin, decode_bin, to_bin_string, of_bin_string =
+  Type_binary.
+    (Pre_hash.t, Short_hash.t, Encode.t, Decode.t, to_bin_string, of_bin_string)
 
 exception Unsupported_operation of string
 
@@ -256,103 +247,68 @@ let undefined name _ = raise (Unsupported_operation name)
 
 type 'a impl = Structural | Custom of 'a | Undefined
 
-let fold_impl ~undefined ~structural = function
-  | Custom x -> x
-  | Undefined -> undefined ()
-  | Structural -> structural ()
+let fold_impl ~undefined = function
+  | Custom x -> Some x
+  | Undefined -> Some (undefined ())
+  | Structural -> None
 
 let partially_abstract ~pp ~of_string ~json ~bin ~unboxed_bin ~equal ~compare
     ~short_hash:short_hash_t ~pre_hash:pre_hash_t t : _ t =
+  let lift_option2 =
+    Option.fold ~none:(None, None) ~some:(fun (a, b) -> (Some a, Some b))
+  in
+  let lift_option3 =
+    Option.fold ~none:(None, None, None) ~some:(fun (a, b, c) ->
+        (Some a, Some b, Some c))
+  in
   let encode_json, decode_json =
-    fold_impl json
-      ~undefined:(fun () -> (undefined "encode_json", undefined "decode_json"))
-      ~structural:(fun () ->
-        let rec is_prim : type a. a t -> bool = function
-          | Self s -> is_prim s.self_fix
-          | Map m -> is_prim m.x
-          | Prim _ -> true
-          | _ -> false
-        in
-        match (t, pp, of_string) with
-        | ty, Custom pp, Custom of_string when is_prim ty ->
-            let ( >|= ) x f = Result.map f x in
-            let join = function Error _ as e -> e | Ok x -> x in
-            let ty = string in
-            let encode ppf u =
-              Type_json.encode ty ppf (Fmt.to_to_string pp u)
-            in
-            let decode buf = Type_json.decode ty buf >|= of_string |> join in
-            (encode, decode)
-        | _ -> (Type_json.encode t, Type_json.decode t))
+    fold_impl json ~undefined:(fun () ->
+        (undefined "encode_json", undefined "decode_json"))
+    |> lift_option2
   in
-  let pp =
-    fold_impl pp
-      ~structural:(fun () -> Type_pp.t t)
-      ~undefined:(fun () -> undefined "pp")
-  in
+  let pp = fold_impl pp ~undefined:(fun () -> undefined "pp") in
   let of_string =
-    fold_impl of_string
-      ~structural:(fun () -> Type_pp.of_string t)
-      ~undefined:(fun () -> undefined "of_string")
+    fold_impl of_string ~undefined:(fun () -> undefined "of_string")
   in
   let encode_bin, decode_bin, size_of =
-    fold_impl bin
-      ~undefined:(fun () ->
+    fold_impl bin ~undefined:(fun () ->
         (undefined "encode_bin", undefined "decode_bin", unimplemented_size_of))
-      ~structural:(fun () ->
-        ( unstage (Type_binary.encode_bin t),
-          unstage (Type_binary.decode_bin t),
-          Type_size.t t ))
+    |> lift_option3
   in
   let unboxed_encode_bin, unboxed_decode_bin, unboxed_size_of =
-    fold_impl unboxed_bin
-      ~undefined:(fun () ->
+    fold_impl unboxed_bin ~undefined:(fun () ->
         ( undefined "Unboxed.encode_bin",
           undefined "Unboxed.decode_bin",
           unimplemented_size_of ))
-      ~structural:(fun () ->
-        ( unstage (Type_binary.Unboxed.encode_bin t),
-          unstage (Type_binary.Unboxed.decode_bin t),
-          Type_size.unboxed t ))
+    |> lift_option3
   in
-  let equal =
-    fold_impl equal
-      ~undefined:(fun () -> undefined "equal")
-      ~structural:(fun () -> unstage (Type_ordered.equal t))
-  in
-  let compare =
-    fold_impl compare
-      ~undefined:(fun () -> undefined "compare")
-      ~structural:(fun () -> unstage (Type_ordered.compare t))
-  in
+  let equal = fold_impl equal ~undefined:(fun () -> undefined "equal") in
+  let compare = fold_impl compare ~undefined:(fun () -> undefined "compare") in
   let short_hash =
-    fold_impl short_hash_t
-      ~undefined:(fun () ?seed:_ -> undefined "short_hash" ())
-      ~structural:(fun () -> unstage (short_hash t))
+    fold_impl short_hash_t ~undefined:(fun () ?seed:_ ->
+        undefined "short_hash" ())
   in
   let pre_hash =
-    fold_impl pre_hash_t
-      ~undefined:(fun () -> undefined "pre_hash")
-      ~structural:(fun () -> encode_bin)
+    fold_impl pre_hash_t ~undefined:(fun () -> undefined "pre_hash")
   in
-  Type_core.Custom
-    {
-      cwit = `Type t;
-      pp;
-      of_string;
-      encode_bin;
-      decode_bin;
-      size_of;
-      compare;
-      equal;
-      short_hash;
-      pre_hash;
-      unboxed_encode_bin;
-      unboxed_decode_bin;
-      unboxed_size_of;
-    }
-  |> annotate ~add:Encode_json.add ~data:encode_json
-  |> annotate ~add:Decode_json.add ~data:decode_json
+  let maybe_annotate add data =
+    match data with None -> Fun.id | Some data -> annotate ~add ~data
+  in
+  t
+  |> maybe_annotate Type_ordered.Equal.Attr.add equal
+  |> maybe_annotate Type_ordered.Compare.Attr.add compare
+  |> maybe_annotate Type_pp.Attr_pp.add pp
+  |> maybe_annotate Type_pp.Attr_of_string.add of_string
+  |> maybe_annotate Encode_json.add encode_json
+  |> maybe_annotate Decode_json.add decode_json
+  |> maybe_annotate Type_binary.Encode.Attr.add encode_bin
+  |> maybe_annotate Type_binary.Encode.Attr_unboxed.add unboxed_encode_bin
+  |> maybe_annotate Type_binary.Decode.Attr.add decode_bin
+  |> maybe_annotate Type_binary.Decode.Attr_unboxed.add unboxed_decode_bin
+  |> maybe_annotate Type_binary.Pre_hash.Attr.add pre_hash
+  |> maybe_annotate Type_binary.Short_hash.Attr.add short_hash
+  |> maybe_annotate Type_size.Attr.add size_of
+  |> maybe_annotate Type_size.Attr_unboxed.add unboxed_size_of
 
 let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
     ?pre_hash t =
@@ -366,13 +322,39 @@ let like ?pp ?of_string ?json ?bin ?unboxed_bin ?equal ?compare ?short_hash
         | None -> Structural)
   in
   let pp = to_impl pp
-  and json = to_impl json
+  and json =
+    match json with
+    | Some x -> Custom x
+    | None -> (
+        let rec is_prim : type a. a t -> bool = function
+          | Self s -> is_prim s.self_fix
+          | Attributes { attr_type; _ } -> is_prim attr_type
+          | Map m -> is_prim m.x
+          | Prim _ -> true
+          | _ -> false
+        in
+        match (pp, of_string) with
+        | Some pp, Some of_string when is_prim t ->
+            let ( >|= ) x f = Result.map f x in
+            let join = function Error _ as e -> e | Ok x -> x in
+            let ty = string in
+            let encode ppf u =
+              Type_json.encode ty ppf (Fmt.to_to_string pp u)
+            in
+            let decode buf = Type_json.decode ty buf >|= of_string |> join in
+            Custom (encode, decode)
+        | _ -> Structural)
   and of_string = to_impl of_string
   and bin = to_impl bin
   and unboxed_bin = to_impl unboxed_bin
   and compare = to_impl compare
   and short_hash = to_impl short_hash
-  and pre_hash = to_impl pre_hash in
+  and pre_hash =
+    match pre_hash with
+    | Some x -> Custom x
+    | None -> (
+        match bin with Some (x, _, _) -> Custom x | None -> Structural)
+  in
   partially_abstract ~pp ~json ~of_string ~bin ~unboxed_bin ~equal ~compare
     ~short_hash ~pre_hash t
 
@@ -394,7 +376,7 @@ module type S = sig
   val t : t ty
 end
 
-let equal, compare = Type_ordered.(equal, compare)
+let equal, compare = Type_ordered.(Equal.t, Compare.t)
 
 let pp, pp_dump, pp_ty, to_string, of_string =
   Type_pp.(t, dump, ty, to_string, of_string)
@@ -462,8 +444,8 @@ module Size = struct
 end
 
 module Unboxed = struct
-  include Type_binary.Unboxed
-
+  let encode_bin = Type_binary.Encode.unboxed
+  let decode_bin = Type_binary.Decode.unboxed
   let size_of = Type_size.unboxed
 end
 
