@@ -134,7 +134,7 @@ module type DSL = sig
   type empty = |
 
   val empty : empty t
-  (** [empty] is a representation of the {!empty} type. *)
+  (** [empty] is a representation of the {!type-empty} type. *)
 
   (** {1:records Records} *)
 
@@ -460,8 +460,8 @@ module type DSL = sig
   (** The type for JSON decoders. *)
 
   val pp_json : ?minify:bool -> 'a t -> 'a Fmt.t
-  (** Similar to {!dump} but pretty-prints the JSON representation instead of
-      the OCaml one. See {!encode_json} for details about the encoding.
+  (** Similar to {!pp_dump} but pretty-prints the JSON representation instead of
+      the OCaml one. See {!val-encode_json} for details about the encoding.
 
       For instance:
 
@@ -515,14 +515,14 @@ module type DSL = sig
 
   val decode_json_lexemes :
     'a t -> Jsonm.lexeme list -> ('a, [ `Msg of string ]) result
-  (** [decode_json_lexemes] is similar to {!decode_json} but uses an already
+  (** [decode_json_lexemes] is similar to {!val-decode_json} but uses an already
       decoded list of JSON lexemes instead of a decoder. *)
 
   val to_json_string : ?minify:bool -> 'a t -> 'a -> string
-  (** [to_json_string] is {!encode_json} with a string encoder. *)
+  (** [to_json_string] is {!val-encode_json} with a string encoder. *)
 
   val of_json_string : 'a t -> string -> ('a, [ `Msg of string ]) result
-  (** [of_json_string] is {!decode_json} with a string decoder .*)
+  (** [of_json_string] is {!val-decode_json} with a string decoder .*)
 
   (** {2 Binary Converters} *)
 
@@ -543,7 +543,7 @@ module type DSL = sig
   val pre_hash : 'a t -> 'a encode_bin staged
   (** [pre_hash t x] is the string representation of [x], of type [t], which
       will be used to compute the digest of the value. By default it's
-      [to_bin_string t x] but it can be overriden by {!v}, {!like} and {!map}
+      [to_bin_string t x] but it can be overriden by {!like} and {!map}
       operators. *)
 
   val encode_bin : 'a t -> 'a encode_bin staged
@@ -553,17 +553,17 @@ module type DSL = sig
   (** [decode_bin t] is the binary decoder for values of type [t]. *)
 
   val to_bin_string : 'a t -> ('a -> string) staged
-  (** [to_bin_string t x] use {!encode_bin} to convert [x], of type [t], to a
-      string.
+  (** [to_bin_string t x] use {!val-encode_bin} to convert [x], of type [t], to
+      a string.
 
-      {b NOTE:} When [t] is {!Type.string} or {!Type.bytes}, the original buffer
-      [x] is not prefixed by its size as {!encode_bin} would do. If [t] is
-      {!Type.string}, the result is [x] (without copy). *)
+      {b NOTE:} When [t] is {!string} or {!bytes}, the original buffer [x] is
+      not prefixed by its size as {!val-encode_bin} would do. If [t] is
+      {!string}, the result is [x] (without copy). *)
 
   val of_bin_string : 'a t -> (string -> ('a, [ `Msg of string ]) result) staged
   (** [of_bin_string t s] is [v] such that [s = to_bin_string t v].
 
-      {b NOTE:} When [t] is {!Type.string}, the result is [s] (without copy). *)
+      {b NOTE:} When [t] is {!string}, the result is [s] (without copy). *)
 
   val size_of : 'a t -> ('a -> int option) staged
   (** [size_of t x] is either the size of [encode_bin t x] or the binary
@@ -621,13 +621,13 @@ module type DSL = sig
         operation, they automatically fall-back to their boxed counter-part. *)
 
     val encode_bin : 'a t -> 'a encode_bin staged
-    (** Same as {!encode_bin} for unboxed values. *)
+    (** Same as {!val-encode_bin} for unboxed values. *)
 
     val decode_bin : 'a t -> 'a decode_bin staged
-    (** Same as {!decode_bin} for unboxed values. *)
+    (** Same as {!val-decode_bin} for unboxed values. *)
 
     val size_of : 'a t -> 'a size_of
-    (** Same as {!size_of} for unboxed values. *)
+    (** Same as {!val-size_of} for unboxed values. *)
   end
 
   (** {1 Abstract types} *)
