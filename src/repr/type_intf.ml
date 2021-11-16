@@ -529,7 +529,7 @@ module type DSL = sig
   type 'a encode_bin = 'a -> (string -> unit) -> unit
   (** The type for binary encoders. *)
 
-  type 'a decode_bin = string -> int -> int * 'a
+  type 'a decode_bin = string -> int ref -> 'a
   (** The type for binary decoders. *)
 
   type -'a size_of

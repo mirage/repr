@@ -3,7 +3,7 @@ open Staging
 
 module Types = struct
   type 'a encoder = 'a -> (string -> unit) -> unit
-  type 'a decoder = string -> int -> int * 'a
+  type 'a decoder = string -> int ref -> 'a
   type 'a sizer = 'a Size.Sizer.t
 end
 

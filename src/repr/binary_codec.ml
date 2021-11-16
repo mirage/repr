@@ -17,22 +17,27 @@ let charstring_of_code : int -> string =
 
 module Unit = struct
   let encode () _k = ()
-  let decode _ ofs = (ofs, ()) [@@inline always]
+  let decode _ _ = () [@@inline always]
   let sizer = Sizer.static 0
 end
 
 module Char = struct
   let encode c k = k (charstring_of_code (Char.code c))
-  let decode buf ofs = (ofs + 1, buf.[ofs]) [@@inline always]
+
+  let decode buf pos_ref =
+    let pos = !pos_ref in
+    pos_ref := pos + 1;
+    buf.[pos]
+    [@@inline always]
+
   let sizer = Sizer.static 1
 end
 
 module Bool = struct
   let encode b = Char.encode (if b then '\255' else '\000')
 
-  let decode buf ofs =
-    let ofs, c = Char.decode buf ofs in
-    match c with '\000' -> (ofs, false) | _ -> (ofs, true)
+  let decode buf pos_ref =
+    match Char.decode buf pos_ref with '\000' -> false | _ -> true
 
   let sizer = Sizer.static 1
 end
@@ -40,9 +45,7 @@ end
 module Int8 = struct
   let encode i k = k (charstring_of_code i)
 
-  let decode buf ofs =
-    let ofs, c = Char.decode buf ofs in
-    (ofs, Stdlib.Char.code c)
+  let decode buf pos_ref = Stdlib.Char.code (Char.decode buf pos_ref)
     [@@inline always]
 end
 
@@ -52,7 +55,11 @@ module Int16 = struct
     Bytes.set_uint16_be b 0 i;
     unsafe_add_bytes b
 
-  let decode buf ofs = (ofs + 2, Bytes.get_uint16_be (str buf) ofs)
+  let decode buf pos_ref =
+    let pos = !pos_ref in
+    pos_ref := pos + 2;
+    Bytes.get_uint16_be (str buf) pos
+
   let sizer = Sizer.static 2
 end
 
@@ -62,7 +69,11 @@ module Int32 = struct
     Bytes.set_int32_be b 0 i;
     unsafe_add_bytes b
 
-  let decode buf ofs = (ofs + 4, Bytes.get_int32_be (str buf) ofs)
+  let decode buf pos_ref =
+    let pos = !pos_ref in
+    pos_ref := pos + 4;
+    Bytes.get_int32_be (str buf) pos
+
   let sizer = Sizer.static 4
 end
 
@@ -72,16 +83,17 @@ module Int64 = struct
     Bytes.set_int64_be b 0 i;
     unsafe_add_bytes b
 
-  let decode buf ofs = (ofs + 8, Bytes.get_int64_be (str buf) ofs)
+  let decode buf pos_ref =
+    let pos = !pos_ref in
+    pos_ref := pos + 8;
+    Bytes.get_int64_be (str buf) pos
+
   let sizer = Sizer.static 8
 end
 
 module Float = struct
   let encode f = Int64.encode (Stdlib.Int64.bits_of_float f)
-
-  let decode buf ofs =
-    let ofs, f = Int64.decode buf ofs in
-    (ofs, Stdlib.Int64.float_of_bits f)
+  let decode buf pos_ref = Stdlib.Int64.float_of_bits (Int64.decode buf pos_ref)
 
   (* NOTE: we consider 'double' here *)
   let sizer = Sizer.static 8
@@ -98,13 +110,13 @@ module Int = struct
     in
     aux i k
 
-  let decode buf ofs =
-    let rec aux buf n p ofs =
-      let ofs, i = Int8.decode buf ofs in
+  let decode buf pos_ref =
+    let rec aux buf n p pos_ref =
+      let i = Int8.decode buf pos_ref in
       let n = n + ((i land 127) lsl p) in
-      if i >= 0 && i < 128 then (ofs, n) else aux buf n (p + 7) ofs
+      if i >= 0 && i < 128 then n else aux buf n (p + 7) pos_ref
     in
-    aux buf 0 0 ofs
+    aux buf 0 0 pos_ref
 
   let sizer =
     let of_value =
@@ -114,37 +126,35 @@ module Int = struct
       fun n -> aux 1 n
     in
     let of_encoding buf (Size.Offset off) =
-      Size.Offset (fst (decode buf off))
+      let pos_ref = ref off in
+      let (_ : int) = decode buf pos_ref in
+      Size.Offset !pos_ref
     in
     Sizer.dynamic ~of_value ~of_encoding
 end
 
 module Len = struct
-  let encode n =
-    stage (fun i ->
-        match n with
-        | `Int -> Int.encode i
-        | `Int8 -> Int8.encode i
-        | `Int16 -> Int16.encode i
-        | `Int32 -> Int32.encode (Stdlib.Int32.of_int i)
-        | `Int64 -> Int64.encode (Stdlib.Int64.of_int i)
-        | `Fixed _ -> Unit.encode ()
-        | `Unboxed -> Unit.encode ())
+  let encode = function
+    | `Int -> stage Int.encode
+    | `Int8 -> stage Int8.encode
+    | `Int16 -> stage Int16.encode
+    | `Int32 -> stage (fun i -> Int32.encode (Stdlib.Int32.of_int i))
+    | `Int64 -> stage (fun i -> Int64.encode (Stdlib.Int64.of_int i))
+    | `Fixed _ -> stage (fun _ _ -> ())
+    | `Unboxed -> stage (fun _ _ -> ())
 
-  let decode n =
-    stage (fun buf ofs ->
-        match n with
-        | `Int -> Int.decode buf ofs
-        | `Int8 -> Int8.decode buf ofs
-        | `Int16 -> Int16.decode buf ofs
-        | `Int32 ->
-            let ofs, i = Int32.decode buf ofs in
-            (ofs, Stdlib.Int32.to_int i)
-        | `Int64 ->
-            let ofs, i = Int64.decode buf ofs in
-            (ofs, Stdlib.Int64.to_int i)
-        | `Fixed n -> (ofs, n)
-        | `Unboxed -> (ofs, String.length buf - ofs))
+  let decode = function
+    | `Int -> stage Int.decode
+    | `Int8 -> stage Int8.decode
+    | `Int16 -> stage Int16.decode
+    | `Int32 ->
+        stage (fun buf pos_ref ->
+            Stdlib.Int32.to_int (Int32.decode buf pos_ref))
+    | `Int64 ->
+        stage (fun buf pos_ref ->
+            Stdlib.Int64.to_int (Int64.decode buf pos_ref))
+    | `Fixed n -> stage (fun _ _ -> n)
+    | `Unboxed -> stage (fun buf pos_ref -> String.length buf - !pos_ref)
 
   let sizer = function
     | `Int -> Int.sizer
@@ -159,31 +169,39 @@ end
 (* Helper functions generalising over [string] / [bytes]. *)
 module Mono_container = struct
   let decode_unboxed of_string of_bytes =
-    stage @@ fun buf ofs ->
-    let len = String.length buf - ofs in
-    if ofs = 0 then (len, of_string buf)
+    stage @@ fun buf pos_ref ->
+    let pos = !pos_ref in
+    let len = String.length buf - pos in
+    if pos = 0 then (
+      pos_ref := pos + len;
+      of_string buf)
     else
       let str = Bytes.create len in
-      String.blit buf ofs str 0 len;
-      (ofs + len, of_bytes str)
+      String.blit buf pos str 0 len;
+      pos_ref := pos + len;
+      of_bytes str
 
   let decode of_string of_bytes =
-    let sub len buf ofs =
-      if ofs = 0 && len = String.length buf then (len, of_string buf)
+    let sub len buf pos_ref =
+      let pos = !pos_ref in
+      if pos = 0 && len = String.length buf then (
+        pos_ref := pos + len;
+        of_string buf)
       else
         let str = Bytes.create len in
-        String.blit buf ofs str 0 len;
-        (ofs + len, of_bytes str)
+        String.blit buf pos str 0 len;
+        pos_ref := pos + len;
+        of_bytes str
     in
     function
     | `Fixed n ->
         (* fixed-size strings are never boxed *)
-        stage @@ fun buf ofs -> sub n buf ofs
+        stage @@ fun buf pos_ref -> sub n buf pos_ref
     | n ->
         let decode_len = unstage (Len.decode n) in
-        stage @@ fun buf ofs ->
-        let ofs, len = decode_len buf ofs in
-        sub len buf ofs
+        stage @@ fun buf pos_ref ->
+        let len = decode_len buf pos_ref in
+        sub len buf pos_ref
 
   let sizer_unboxed ~length = function
     | `Fixed n -> Sizer.static n (* fixed-size containers are never boxed *)
@@ -198,9 +216,10 @@ module Mono_container = struct
     | _, _ -> (
         let decode_len = unstage (Len.decode header_typ) in
         let of_encoding buf (Size.Offset off) =
-          let off, size = decode_len buf off in
+          let pos_ref = ref off in
+          let size = decode_len buf pos_ref in
           assert (size >= 0);
-          Size.Offset (off + size)
+          Size.Offset (!pos_ref + size)
         in
         match size_of_header with
         | Unknown -> assert false
@@ -263,13 +282,9 @@ module Option = struct
         Char.encode '\255' k;
         encode_elt x k
 
-  let decode decode_elt buf ofs =
-    let ofs, c = Char.decode buf ofs in
-    match c with
-    | '\000' -> (ofs, None)
-    | _ ->
-        let ofs, x = decode_elt buf ofs in
-        (ofs, Some x)
+  let decode decode_elt buf pos_ref =
+    let c = Char.decode buf pos_ref in
+    match c with '\000' -> None | _ -> Some (decode_elt buf pos_ref)
 
   let sizer : type a. a Sizer.t -> a option Sizer.t =
    fun elt ->
@@ -343,8 +358,9 @@ module Poly_container = struct
              elements as they have static size. *)
           let decode_len = unstage (Len.decode header_typ) in
           fun buf (Size.Offset off) ->
-            let off, elements = decode_len buf off in
-            Size.Offset (off + (elt_size * elements))
+            let pos_ref = ref off in
+            let elements = decode_len buf pos_ref in
+            Size.Offset (!pos_ref + (elt_size * elements))
         in
         Sizer.dynamic ~of_value ~of_encoding
     | _ ->
@@ -373,8 +389,9 @@ module Poly_container = struct
           in
           let decode_len = unstage (Len.decode header_typ) in
           fun buf (Size.Offset off) ->
-            let off, elements = decode_len buf off in
-            decode_elements buf (Size.Offset off) elements
+            let pos_ref = ref off in
+            let elements = decode_len buf pos_ref in
+            decode_elements buf (Size.Offset !pos_ref) elements
         in
         { of_value; of_encoding }
 end
@@ -394,17 +411,17 @@ module List = struct
           encode_elements encode_elt k x)
 
   let decode =
-    let rec decode_elements decode_elt acc buf off = function
-      | 0 -> (off, List.rev acc)
+    let rec decode_elements decode_elt acc buf pos_ref = function
+      | 0 -> List.rev acc
       | n ->
-          let off, x = decode_elt buf off in
-          decode_elements decode_elt (x :: acc) buf off (n - 1)
+          let x = decode_elt buf pos_ref in
+          decode_elements decode_elt (x :: acc) buf pos_ref (n - 1)
     in
     fun len decode_elt ->
       let decode_len = unstage (Len.decode len) in
-      stage (fun buf ofs ->
-          let ofs, len = decode_len buf ofs in
-          decode_elements decode_elt [] buf ofs len)
+      stage (fun buf pos_ref ->
+          let len = decode_len buf pos_ref in
+          decode_elements decode_elt [] buf pos_ref len)
 
   let sizer len elt =
     Poly_container.sizer ~length:List.length ~fold_left:ListLabels.fold_left len
@@ -426,9 +443,7 @@ module Array = struct
 
   let decode len decode_elt =
     let list_decode = unstage (List.decode len decode_elt) in
-    stage (fun buf off ->
-        let ofs, l = list_decode buf off in
-        (ofs, Array.of_list l))
+    stage (fun buf pos_ref -> Array.of_list (list_decode buf pos_ref))
 
   let sizer len elt =
     Poly_container.sizer ~length:Array.length ~fold_left:ArrayLabels.fold_left
@@ -440,10 +455,10 @@ module Pair = struct
     a x k;
     b y k
 
-  let decode a b buf off =
-    let off, a = a buf off in
-    let off, b = b buf off in
-    (off, (a, b))
+  let decode a b buf pos_ref =
+    let a = a buf pos_ref in
+    let b = b buf pos_ref in
+    (a, b)
 
   let sizer a b = Sizer.(using fst a <+> using snd b)
 end
@@ -454,11 +469,11 @@ module Triple = struct
     b y k;
     c z k
 
-  let decode a b c buf off =
-    let off, a = a buf off in
-    let off, b = b buf off in
-    let off, c = c buf off in
-    (off, (a, b, c))
+  let decode a b c buf pos_ref =
+    let a = a buf pos_ref in
+    let b = b buf pos_ref in
+    let c = c buf pos_ref in
+    (a, b, c)
 
   let sizer a b c =
     Sizer.(

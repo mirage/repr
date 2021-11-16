@@ -71,7 +71,7 @@ module Plugin = struct
         ~intf:(fun loc t -> [%type: [%t t] -> (string -> unit) -> unit]);
       create "decode_bin"
         ~impl:(fun loc t -> [%expr Repr.unstage (Repr.decode_bin [%e t])])
-        ~intf:(fun loc t -> [%type: string -> int -> int * [%t t]]);
+        ~intf:(fun loc t -> [%type: string -> int ref -> [%t t]]);
       create "short_hash"
         ~impl:(fun loc t -> [%expr Repr.unstage (Repr.short_hash [%e t])])
         ~intf:(fun loc t -> [%type: ?seed:int -> [%t t] -> unit]);
