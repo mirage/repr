@@ -304,7 +304,7 @@ module Pre_hash = struct
   (* NOTE: for compatibility reasons, the pre-hash of a primitive type uses the
      _unboxed_ encoding of that type (but primitive components of larger types
      _are_ boxed). *)
-  let t =
+  let unboxed_primitives =
     let rec aux : type a. a t -> a pre_hash = function
       | Prim _ as ty -> Encode.unboxed ty
       (* 'Simple' wrappers around primitive types retain the unboxed property: *)
@@ -322,6 +322,7 @@ end
 let encode_bin = Encode.t
 let decode_bin = Decode.t
 let pre_hash = Pre_hash.t
+let pre_hash_unboxed_primitives = Pre_hash.unboxed_primitives
 
 type 'a to_bin_string = 'a to_string staged
 type 'a of_bin_string = 'a of_string staged

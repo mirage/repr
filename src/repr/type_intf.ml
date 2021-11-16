@@ -546,6 +546,8 @@ module type DSL = sig
       [to_bin_string t x] but it can be overriden by {!like} and {!map}
       operators. *)
 
+  val pre_hash_unboxed_primitives : 'a t -> 'a encode_bin staged
+
   val encode_bin : 'a t -> 'a encode_bin staged
   (** [encode_bin t] is the binary encoder for values of type [t]. *)
 

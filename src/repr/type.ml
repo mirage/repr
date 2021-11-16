@@ -237,8 +237,19 @@ let either a b =
   |~ case1 "right" b (fun b -> Either.Right b)
   |> sealv
 
-let pre_hash, encode_bin, decode_bin, to_bin_string, of_bin_string =
-  Type_binary.(pre_hash, encode_bin, decode_bin, to_bin_string, of_bin_string)
+let ( pre_hash,
+      pre_hash_unboxed_primitives,
+      encode_bin,
+      decode_bin,
+      to_bin_string,
+      of_bin_string ) =
+  Type_binary.
+    ( pre_hash,
+      pre_hash_unboxed_primitives,
+      encode_bin,
+      decode_bin,
+      to_bin_string,
+      of_bin_string )
 
 let short_hash = function
   | Custom c -> stage c.short_hash

@@ -3,6 +3,10 @@
 - Change the type of `Repr.decode_bin` to take a mutable buffer offset rather
   than threading an immutable position. (#81, @CraigFe)
 
+- `Repr.pre_hash` no longer unboxes top level primitive types. Add an explicit
+  `Repr.pre_hash_unboxed_primitives` for backward compatibility. (#87,
+  @icristescu)
+
 ### 0.5.0 (2021-10-12)
 
 - Add `Repr.int63`, a representation of the `Optint.Int63.t` type (provided by
