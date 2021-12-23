@@ -13,8 +13,8 @@ let __ : type a. a typ -> a Id.t typ = Id.t
 module Phantom :
   sig
     type _ t = int[@@deriving repr]
-    include sig val t : 'v_x__001_ Repr.t -> 'v_x__001_ t Repr.t end[@@ocaml.doc
-                                                                    "@inline"]
+    include sig val t : 'a__001_ Repr.t -> 'a__001_ t Repr.t end[@@ocaml.doc
+                                                                  "@inline"]
     [@@merlin.hide ]
   end =
   struct

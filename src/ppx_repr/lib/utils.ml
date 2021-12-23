@@ -55,3 +55,29 @@ end = struct
   let lambda = List.map (pvar >> pexp_fun Nolabel None) >> compose_all
   let arrow = List.map (ptyp_arrow Nolabel) >> compose_all
 end
+
+(* Extracted from [Ppxlib.0.24.0] to avoid depending on the particular naming
+   scheme used (which is exposed in our snapshot tests). This scheme was
+   changed in https://github.com/ocaml-ppx/ppxlib/pull/285. *)
+let name_type_params_in_td =
+  let gen_symbol =
+    let cnt = ref 0 in
+    fun ~prefix () ->
+      cnt := !cnt + 1;
+      Printf.sprintf "%s__%03i_" prefix !cnt
+  in
+  fun (td : type_declaration) : type_declaration ->
+    let prefix_string i =
+      (* a, b, ..., y, z, aa, bb, ... *)
+      String.make ((i / 26) + 1) (Char.chr (Char.code 'a' + (i mod 26)))
+    in
+    let name_param i (tp, variance) =
+      let ptyp_desc =
+        match tp.ptyp_desc with
+        | Ptyp_any -> Ptyp_var (gen_symbol ~prefix:(prefix_string i) ())
+        | Ptyp_var _ as v -> v
+        | _ -> Location.raise_errorf ~loc:tp.ptyp_loc "not a type parameter"
+      in
+      ({ tp with ptyp_desc }, variance)
+    in
+    { td with ptype_params = List.mapi name_param td.ptype_params }
