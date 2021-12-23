@@ -227,7 +227,8 @@ let test_json_assoc () =
   test_back_and_forth "3 entries encoding"
     [ ("k", 41.); ("v", 42.); ("w", 43.) ]
     "{\"k\":41,\"v\":42,\"w\":43}";
-  test_back_and_forth "Duplicate keys encoding" [ ("k", 42.); ("k", 43.) ]
+  test_back_and_forth "Duplicate keys encoding"
+    [ ("k", 42.); ("k", 43.) ]
     "{\"k\":42,\"k\":43}"
 
 let l =
@@ -528,7 +529,6 @@ let test_pp_ty () =
   (* Test cases for mutually-recursive types *)
   let module Mu = struct
     type tree = Empty | Node of node
-
     and node = tree * int * tree
 
     let tree_t, node_t =
