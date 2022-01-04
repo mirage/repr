@@ -16,7 +16,7 @@
 
 open Type_core
 module Sizer = Size.Sizer
-module Bin = Binary_codec
+module Bin = Binary
 
 let rec t : type a. a t -> a Sizer.t = function
   | Self s -> fst (self s)

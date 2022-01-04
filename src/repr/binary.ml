@@ -1,5 +1,5 @@
-include Binary_codec_intf
-include Binary_codec_intf.Types
+include Binary_intf
+include Binary_intf.Types
 open Type_core
 open Staging
 module Sizer = Size.Sizer

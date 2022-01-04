@@ -19,6 +19,6 @@ include Type
 
 (** {1 Miscellaneous modules} *)
 
-module Binary_codec = Binary_codec
+module Binary = Binary
 module Staging = Staging
 module Witness = Witness
