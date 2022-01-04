@@ -17,7 +17,7 @@
 open Type_core
 open Staging
 open Utils
-module Bin = Binary_codec
+module Bin = Binary
 
 module Encode = struct
   type 'a encoder = 'a encode_bin staged

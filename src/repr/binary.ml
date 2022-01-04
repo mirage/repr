@@ -1,5 +1,5 @@
-include Binary_codec_intf
-include Binary_codec_intf.Types
+include Binary_intf
+include Binary_intf.Types
 open Type_core
 open Staging
 module Sizer = Size.Sizer
@@ -153,7 +153,7 @@ module Varint_int63 = struct
   let decode buf pos_ref =
     let rec aux buf n p pos_ref =
       let i = Int8.decode buf pos_ref in
-      let n = Int63.add n ((Int63.of_int (Int.logand i 127)) lsl p) in
+      let n = Int63.add n (Int63.of_int (Int.logand i 127) lsl p) in
       if i >= 0 && i < 128 then n else aux buf n (p + 7) pos_ref
     in
     aux buf Int63.zero 0 pos_ref
