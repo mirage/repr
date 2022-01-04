@@ -1,4 +1,4 @@
-### Unreleased
+### 0.6.0 (2022-01-04)
 
 - Change the type of `Repr.decode_bin` to take a mutable buffer offset rather
   than threading an immutable position. (#81, @CraigFe)
