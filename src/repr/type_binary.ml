@@ -17,7 +17,7 @@
 open Type_core
 open Staging
 open Utils
-module Bin = Binary_codec
+module Bin = Binary
 
 module Encode = struct
   type 'a encoder = 'a encode_bin staged
@@ -103,7 +103,7 @@ module Encode = struct
     | Unit -> stage Bin.Unit.encode
     | Bool -> stage Bin.Bool.encode
     | Char -> stage Bin.Char.encode
-    | Int -> stage Bin.Int.encode
+    | Int -> stage Bin.Varint.encode
     | Int32 -> stage Bin.Int32.encode
     | Int64 -> stage Bin.Int64.encode
     | Float -> stage Bin.Float.encode
@@ -120,11 +120,11 @@ module Encode = struct
     stage (fun x k -> Stdlib.List.iter (fun f -> f x k) field_encoders)
 
   and variant : type a. a variant -> a encoder =
-    let c0 { ctag0; _ } = stage (Bin.Int.encode ctag0) in
+    let c0 { ctag0; _ } = stage (Bin.Varint.encode ctag0) in
     let c1 c =
       let encode_arg = unstage (t c.ctype1) in
       stage (fun v k ->
-          Bin.Int.encode c.ctag1 k;
+          Bin.Varint.encode c.ctag1 k;
           encode_arg v k)
     in
     fun v -> fold_variant { c0; c1 } v
@@ -215,7 +215,7 @@ module Decode = struct
     | Unit -> stage Bin.Unit.decode
     | Bool -> stage Bin.Bool.decode
     | Char -> stage Bin.Char.decode
-    | Int -> stage Bin.Int.decode
+    | Int -> stage Bin.Varint.decode
     | Int32 -> stage Bin.Int32.decode
     | Int64 -> stage Bin.Int64.decode
     | Float -> stage Bin.Float.decode
@@ -245,7 +245,7 @@ module Decode = struct
             stage (fun buf pos_ref -> c.c1 (decode_arg buf pos_ref)))
     in
     stage (fun buf pos_ref ->
-        let i = Bin.Int.decode buf pos_ref in
+        let i = Bin.Varint.decode buf pos_ref in
         unstage decoders.(i) buf pos_ref)
 end
 
@@ -292,11 +292,11 @@ module Pre_hash = struct
     stage (fun x k -> Stdlib.List.iter (fun f -> f x k) field_encoders)
 
   and variant : type a. a variant -> a pre_hash =
-    let c0 { ctag0; _ } = stage (Bin.Int.encode ctag0) in
+    let c0 { ctag0; _ } = stage (Bin.Varint.encode ctag0) in
     let c1 c =
       let encode_arg = unstage (t c.ctype1) in
       stage (fun v k ->
-          Bin.Int.encode c.ctag1 k;
+          Bin.Varint.encode c.ctag1 k;
           encode_arg v k)
     in
     fun v -> fold_variant { c0; c1 } v

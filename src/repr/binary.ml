@@ -1,8 +1,9 @@
-include Binary_codec_intf
-include Binary_codec_intf.Types
+include Binary_intf
+include Binary_intf.Types
 open Type_core
 open Staging
 module Sizer = Size.Sizer
+module Int63 = Optint.Int63
 
 let unsafe_add_bytes b k = k (Bytes.unsafe_to_string b)
 let str = Bytes.unsafe_of_string
@@ -99,7 +100,7 @@ module Float = struct
   let sizer = Sizer.static 8
 end
 
-module Int = struct
+module Varint = struct
   let encode i k =
     let rec aux n k =
       if n >= 0 && n < 128 then k (charstring_of_code n)
@@ -133,9 +134,49 @@ module Int = struct
     Sizer.dynamic ~of_value ~of_encoding
 end
 
+module Varint_int63 = struct
+  let ( lsr ) = Int63.shift_right_logical
+  let ( lsl ) = Int63.shift_left
+  let ( land ) = Int63.logand
+
+  let encode (i : Int63.t) k =
+    let rec aux n k =
+      if n >= Int63.zero && n < Int63.of_int 128 then
+        k (charstring_of_code (Int63.to_int n))
+      else
+        let out = Int.logor 128 (Int63.to_int (n land Int63.of_int 127)) in
+        k (charstring_of_code out);
+        aux (n lsr 7) k
+    in
+    aux i k
+
+  let decode buf pos_ref =
+    let rec aux buf n p pos_ref =
+      let i = Int8.decode buf pos_ref in
+      let n = Int63.add n (Int63.of_int (Int.logand i 127) lsl p) in
+      if i >= 0 && i < 128 then n else aux buf n (p + 7) pos_ref
+    in
+    aux buf Int63.zero 0 pos_ref
+
+  let sizer =
+    let of_value =
+      let rec aux len n =
+        if n >= Int63.zero && n < Int63.of_int 128 then len
+        else aux (len + 1) (n lsr 7)
+      in
+      fun n -> aux 1 n
+    in
+    let of_encoding buf (Size.Offset off) =
+      let pos_ref = ref off in
+      let (_ : Int63.t) = decode buf pos_ref in
+      Size.Offset !pos_ref
+    in
+    Sizer.dynamic ~of_value ~of_encoding
+end
+
 module Len = struct
   let encode = function
-    | `Int -> stage Int.encode
+    | `Int -> stage Varint.encode
     | `Int8 -> stage Int8.encode
     | `Int16 -> stage Int16.encode
     | `Int32 -> stage (fun i -> Int32.encode (Stdlib.Int32.of_int i))
@@ -144,7 +185,7 @@ module Len = struct
     | `Unboxed -> stage (fun _ _ -> ())
 
   let decode = function
-    | `Int -> stage Int.decode
+    | `Int -> stage Varint.decode
     | `Int8 -> stage Int8.decode
     | `Int16 -> stage Int16.decode
     | `Int32 ->
@@ -157,7 +198,7 @@ module Len = struct
     | `Unboxed -> stage (fun buf pos_ref -> String.length buf - !pos_ref)
 
   let sizer = function
-    | `Int -> Int.sizer
+    | `Int -> Varint.sizer
     | `Int8 -> Sizer.static 1
     | `Int16 -> Sizer.static 2
     | `Int32 -> Sizer.static 4

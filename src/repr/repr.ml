@@ -19,5 +19,6 @@ include Type
 
 (** {1 Miscellaneous modules} *)
 
+module Binary = Binary
 module Staging = Staging
 module Witness = Witness

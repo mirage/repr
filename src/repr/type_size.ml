@@ -16,7 +16,7 @@
 
 open Type_core
 module Sizer = Size.Sizer
-module Bin = Binary_codec
+module Bin = Binary
 
 let rec t : type a. a t -> a Sizer.t = function
   | Self s -> fst (self s)
@@ -99,7 +99,7 @@ and prim : type a. boxed:bool -> a prim -> a Sizer.t =
   | Unit -> Bin.Unit.sizer
   | Bool -> Bin.Bool.sizer
   | Char -> Bin.Char.sizer
-  | Int -> Bin.Int.sizer
+  | Int -> Bin.Varint.sizer
   | Int32 -> Bin.Int32.sizer
   | Int64 -> Bin.Int64.sizer
   | Float -> Bin.Float.sizer
@@ -115,7 +115,7 @@ and record : type a. a record -> a Sizer.t =
 and variant : type a. a variant -> a Sizer.t =
  fun v ->
   let static_varint_size n =
-    match Bin.Int.sizer.of_value with
+    match Bin.Varint.sizer.of_value with
     | Unknown | Static _ -> assert false
     | Dynamic f -> f n
   in
@@ -181,7 +181,7 @@ and variant : type a. a variant -> a Sizer.t =
       in
       let of_encoding buf (Size.Offset off) =
         let off = ref off in
-        let tag = Bin.Int.decode buf off in
+        let tag = Bin.Varint.decode buf off in
         match case_lengths.(tag) with
         | _, { of_encoding = Static n; _ } -> Size.Offset (!off + n)
         | _, { of_encoding = Dynamic f; _ } -> f buf (Size.Offset !off)
