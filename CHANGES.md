@@ -3,6 +3,9 @@
 - Change the type of `Repr.decode_bin` to take a mutable buffer offset rather
   than threading an immutable position. (#81, @CraigFe)
 
+- Expose a `Repr.Binary` module providing direct access to functions for
+  interacting with Repr's binary serialisation format. (#88, @CraigFe)
+
 ### 0.5.0 (2021-10-12)
 
 - Add `Repr.int63`, a representation of the `Optint.Int63.t` type (provided by
