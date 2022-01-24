@@ -314,7 +314,6 @@ module type DSL = sig
 
       {[
         type r = { foo : int; bar : string list; z : z option }
-
         and z = { x : int; r : r list }
 
         (* Build the representation of [r] knowing [z]'s. *)

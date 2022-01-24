@@ -33,7 +33,6 @@ module Types = struct
     | Boxed : 'a t -> 'a t
 
   and 'a len_v = { len : len; v : 'a t }
-
   and 'a attributes = { attrs : 'a Attribute.Map.t; attr_type : 'a t }
 
   and 'a custom = {

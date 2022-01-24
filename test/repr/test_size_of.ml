@@ -153,7 +153,6 @@ let test_recursive () =
     [@@deriving repr]
 
     type odd = S of even
-
     and even = Z | S' of odd [@@deriving repr]
   end in
   let open X in
