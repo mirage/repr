@@ -1,1 +1,1 @@
-Fatal error: exception (Failure "Can't support mutually-recursive types with type parameters")
+Fatal error: exception Failure("Can't support mutually-recursive types with type parameters")
