@@ -82,7 +82,14 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
       #core_type
       typ false
 
-  let rowfield_is_inherit = function
+  let rowfield_is_unsupported_inherit = function
+    (* we only support simple kinds of inehrit at the moment *)
+    | {
+        prf_desc =
+          Rinherit { ptyp_desc = Ptyp_constr ({ txt = Lident _; _ }, []); _ };
+        _;
+      } ->
+        false
     | { prf_desc = Rinherit _; _ } -> true
     | _ -> false
 
@@ -104,7 +111,7 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
             pexp_apply (pexp_ident lident) cons_args)
     | Ptyp_variant (_, Open, _) -> Raise.Unsupported.type_open_polyvar ~loc typ
     | Ptyp_variant (rowfields, Closed, _labellist) ->
-        if List.exists rowfield_is_inherit rowfields then
+        if List.exists rowfield_is_unsupported_inherit rowfields then
           Raise.Unsupported.polyvar_inherit_case ~loc typ;
         derive_polyvariant type_name rowfields
     | Ptyp_poly _ -> Raise.Unsupported.type_poly ~loc typ
@@ -161,10 +168,10 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
       let+ case_cons =
         match c.pcd_args with
         | Pcstr_record _ -> invalid_arg "Inline record types unsupported"
-        | Pcstr_tuple [] -> return None
+        | Pcstr_tuple [] -> return `None
         | Pcstr_tuple cs ->
             let+ tuple_typ = derive_tuple cs in
-            Some (tuple_typ, List.length cs)
+            `Some (tuple_typ, List.length cs)
       in
       Algebraic.Typ.{ case_name; case_cons }
     in
@@ -175,10 +182,18 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     let subderive f =
       let+ case_name, case_cons =
         match f.prf_desc with
-        | Rtag (label, _, []) -> return (label.txt, None)
+        | Rtag (label, _, []) -> return (label.txt, `None)
         | Rtag (label, _, typs) ->
             let+ tuple_typ = derive_tuple typs in
-            (label.txt, Some (tuple_typ, List.length typs))
+            (label.txt, `Some (tuple_typ, List.length typs))
+        | Rinherit { ptyp_desc = Ptyp_constr ({ txt = Lident txt; _ }, []); _ }
+          ->
+            let expr =
+              repr_name_of_type_name txt |> Located.lident |> pexp_ident
+            in
+            let patt = ptyp_constr (Located.lident name) [] in
+            let i = Algebraic.Typ.{ expr; patt } in
+            return (txt, `Inherit i)
         | Rinherit _ -> assert false
       in
       Algebraic.Typ.{ case_name; case_cons }

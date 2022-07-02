@@ -32,6 +32,7 @@ module Located (A : Ast_builder.S) (M : Monad.S) : S with module M = M = struct
       | `field -> "field"
       | `case1 -> "case1"
       | `case0 -> "case0"
+      | `case_inherit -> "case_inherit"
       | `add_case -> "|~"
       | `add_field -> "|+"
       | `sealr -> "sealr"
@@ -47,6 +48,24 @@ module Located (A : Ast_builder.S) (M : Monad.S) : S with module M = M = struct
     if polymorphic then pexp_variant name body
     else pexp_construct (Located.lident name) body
 
+  (** fun <cons_name> -> (<cons_name> :> <parent_type>) *)
+  let inherit_inj ~parent_type ~cons_name =
+    [%expr
+      fun [%p pvar cons_name] ->
+        [%e pexp_coerce (evar cons_name) None parent_type]]
+
+  (** fun #<name> as x -> x | _ -> assert false *)
+  let inherit_proj name =
+    [%expr
+      function
+      | [%p
+          let pat =
+            ppat_alias (ppat_type (Located.lident name)) (Located.mk "x")
+          in
+          pat] ->
+          x
+      | _ -> assert false]
+
   (** {[ |~ case0 "cons_name" (`)Cons_name ]} *)
   let variant_case0 ~lib ~polymorphic ~cons_name e =
     [%expr
@@ -55,6 +74,17 @@ module Located (A : Ast_builder.S) (M : Monad.S) : S with module M = M = struct
         ([%e dsl ~lib `case0]
            [%e estring cons_name]
            [%e construct ~polymorphic cons_name])]
+
+  (** {[
+        |~ case_inherit (fun x -> (x :> t) (fun #x as x -> x | _ -> assert false) ty
+      ]} *)
+  let variant_casei ~lib ~cons_name ~parent_type ~component_type e =
+    [%expr
+      [%e dsl ~lib `add_case]
+        [%e e]
+        ([%e dsl ~lib `case_inherit]
+           [%e inherit_inj ~parent_type ~cons_name]
+           [%e inherit_proj cons_name] [%e component_type])]
 
   (** {[
         |~ case1 "cons_name" component_type (fun (x1, ..., xN) -> (`)Cons_name (x1, ..., xN))
@@ -72,10 +102,13 @@ module Located (A : Ast_builder.S) (M : Monad.S) : S with module M = M = struct
   (** Wrapper for {!variant_case0} and {!variant_case1} *)
   let variant_case ~polymorphic { case_name; case_cons } =
     match case_cons with
-    | None -> variant_case0 ~polymorphic ~cons_name:case_name
-    | Some (component_type, n) ->
+    | `None -> variant_case0 ~polymorphic ~cons_name:case_name
+    | `Some (component_type, n) ->
         let idents = generate_identifiers n in
         variant_case1 ~polymorphic ~cons_name:case_name ~component_type ~idents
+    | `Inherit i ->
+        variant_casei ~cons_name:case_name ~component_type:i.expr
+          ~parent_type:i.patt
 
   (** [|+ field "field_name" (field_type) (fun t -> t.field_name)] *)
   let record_field ~lib { field_name; field_repr } e =
@@ -141,6 +174,8 @@ module Located (A : Ast_builder.S) (M : Monad.S) : S with module M = M = struct
     let fparam_of_rowfield f =
       match f.prf_desc with
       | Rtag (label, _, _) -> String.lowercase_ascii label.txt
+      | Rinherit { ptyp_desc = Ptyp_constr ({ txt = Lident txt; _ }, []); _ } ->
+          txt
       | Rinherit _ -> assert false
     in
     let pattern_case_of_rowfield f =
@@ -149,6 +184,13 @@ module Located (A : Ast_builder.S) (M : Monad.S) : S with module M = M = struct
           let pattern = ppat_variant txt in
           let n = List.length typs in
           variant_pattern txt pattern n
+      | Rinherit
+          {
+            ptyp_desc = Ptyp_constr (({ txt = Lident txt; _ } as ident), []);
+            _;
+          } ->
+          let pattern _ = ppat_type ident in
+          variant_pattern txt pattern 0
       | Rinherit _ -> assert false
     in
     fs

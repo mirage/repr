@@ -126,15 +126,19 @@ let fold_variant :
         | C1 c1 -> Dispatch.Arrow { arg_wit = c1.cwit1; f = folder.c1 c1 })
       v_typ.vcases
   in
-  stage (fun v ->
-      match v_typ.vget v with
-      | CV0 { ctag0; _ } -> (
-          match cases.(ctag0) with
-          | Dispatch.Base x -> unstage x
-          | _ -> assert false)
-      | CV1 ({ ctag1; cwit1; _ }, v) -> (
-          match cases.(ctag1) with
-          | Dispatch.Arrow { f; arg_wit } ->
-              let v = Witness.cast_exn cwit1 arg_wit v in
-              unstage f v
-          | _ -> assert false))
+  let rec resolve : type b. b variant -> b -> f =
+   fun v_typ v ->
+    match v_typ.vget v with
+    | CV0 { ctag0; _ } -> (
+        match cases.(ctag0) with
+        | Dispatch.Base x -> unstage x
+        | _ -> assert false)
+    | CV1 ({ ctag1; cwit1; _ }, v) -> (
+        match cases.(ctag1) with
+        | Dispatch.Arrow { f; arg_wit } ->
+            let v = Witness.cast_exn cwit1 arg_wit v in
+            unstage f v
+        | _ -> assert false)
+    | CVi { ctypei; proj; _ } -> resolve ctypei (proj v)
+  in
+  stage (resolve v_typ)

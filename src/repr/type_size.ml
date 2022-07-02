@@ -18,6 +18,23 @@ open Type_core
 module Sizer = Size.Sizer
 module Bin = Binary
 
+let rec resolve_c1 : type a b. a Witness.t -> b variant -> b -> a =
+ fun expected v a ->
+  match v.vget a with
+  | CV0 _ -> assert false
+  | CV1 ({ cwit1 = received; _ }, args) -> (
+      match Witness.cast received expected args with
+      | Some v -> v
+      | None -> assert false)
+  | CVi ty -> resolve_c1 expected ty.ctypei (ty.proj a)
+
+let rec tag_of_value : type a. a variant -> a -> int =
+ fun v a ->
+  match v.vget a with
+  | CV0 { ctag0; _ } -> ctag0
+  | CV1 ({ ctag1; _ }, _) -> ctag1
+  | CVi { ctypei; proj; _ } -> tag_of_value ctypei (proj a)
+
 let rec t : type a. a t -> a Sizer.t = function
   | Self s -> fst (self s)
   | Custom c -> c.size_of
@@ -128,14 +145,7 @@ and variant : type a. a variant -> a Sizer.t =
             match t ctype1 with
             | ({ of_value = Static _; _ } | { of_value = Unknown; _ }) as t -> t
             | { of_value = Dynamic of_value; of_encoding } ->
-                let of_value a =
-                  match v.vget a with
-                  | CV0 _ -> assert false
-                  | CV1 ({ cwit1 = received; _ }, args) -> (
-                      match Witness.cast received expected args with
-                      | Some v -> of_value v
-                      | None -> assert false)
-                in
+                let of_value a = of_value (resolve_c1 expected v a) in
                 { of_value = Dynamic of_value; of_encoding }
           in
           (tag_length, arg_length))
@@ -163,11 +173,7 @@ and variant : type a. a variant -> a Sizer.t =
   | None ->
       (* Otherwise, the variant size is [Dynamic] over the tag *)
       let of_value a =
-        let tag =
-          match v.vget a with
-          | CV0 { ctag0; _ } -> ctag0
-          | CV1 ({ ctag1; _ }, _) -> ctag1
-        in
+        let tag = tag_of_value v a in
         let tag_length, arg_length = case_lengths.(tag) in
         let arg_length =
           match arg_length.of_value with

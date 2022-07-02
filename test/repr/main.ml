@@ -295,6 +295,9 @@ module Algebraic = struct
 
   type my_recursive_record = { head : int; tail : my_recursive_record option }
   [@@deriving repr]
+
+  type s = [ `S of int | `R ] [@@deriving repr]
+  type my_polyvar = [ s | `T of string ] [@@deriving repr]
 end
 
 (** Test the behaviour of {!T.to_string}. *)
@@ -360,6 +363,9 @@ let test_to_string () =
   (* Test cases for algebraic combinators *)
   let open Algebraic in
   test "enum" my_enum_t Alpha "\"Alpha\"";
+  test "polyvar" my_polyvar_t (`S 2) {|{"S":2}|};
+  test "polyvar" my_polyvar_t `R {|"R"|};
+  test "polyvar" my_polyvar_t (`T "x") {|{"T":"x"}|};
   test "variant" my_variant_t (Right [ 1; 2 ]) "{\"Right\":[1,2]}";
   test "recursive variant" my_recursive_variant_t
     (Branch [ Branch [ Leaf 1 ]; Leaf 2 ])
@@ -438,6 +444,9 @@ let test_pp_dump () =
   (* Test cases for algebraic combinators *)
   let open Algebraic in
   test "enum" my_enum_t Alpha "Alpha";
+  test "polyvar" my_polyvar_t (`S 2) "S (2)";
+  test "polyvar" my_polyvar_t `R "R";
+  test "polyvar" my_polyvar_t (`T "x") {|T ("x")|};
   test "variant" my_variant_t (Right [ 1; 2 ]) "Right ([1; 2])";
   test "recursive variant" my_recursive_variant_t
     (Branch [ Branch [ Leaf 1 ]; Leaf 2 ])
@@ -509,6 +518,9 @@ let test_pp_ty () =
 
   test ~case_name:"enum" Algebraic.my_enum_t
     "([ Alpha | Beta | Gamma | Delta ] as my_enum)";
+
+  test ~case_name:"polyvar" Algebraic.my_polyvar_t
+    "([ S of int | R | T of string ] as my_polyvar)";
 
   test ~case_name:"variant" Algebraic.my_variant_t
     "([ Left of int | Right of int list ] as my_variant)";
@@ -749,6 +761,50 @@ let test_variants () =
   test (`X259 1024);
   test (`X259 (1024 * 1024))
 
+let test_polyvariants () =
+  let v = Algebraic.my_polyvar_t in
+  let v_t = Alcotest.testable (T.pp v) (T.unstage (T.equal v)) in
+  let test (i : Algebraic.my_polyvar) =
+    (* Binary *)
+    let x = to_bin_string v i in
+    let y =
+      match of_bin_string v x with
+      | Ok x -> x
+      | Error (`Msg e) -> Alcotest.fail e
+    in
+    let n = size_of v i in
+    let s = to_bin_string v i in
+    Alcotest.(check int) ("sizes " ^ s) (String.length x) n;
+    Alcotest.(check v_t) ("bij " ^ s) i y;
+
+    (* JSON *)
+    let x = Repr.to_json_string v i in
+    let y =
+      match Repr.of_json_string v x with
+      | Ok x -> x
+      | Error (`Msg e) -> Alcotest.fail e
+    in
+    Alcotest.(check v_t) ("json-big " ^ s) i y
+  in
+
+  test (`S 0);
+  test (`S 1024);
+  test `R;
+  test (`T "foo");
+  test (`T "");
+
+  (* Compares *)
+  let eq = Repr.(unstage (equal v)) in
+  let cmp = Repr.(unstage (compare v)) in
+  Alcotest.(check bool) "=1" true (eq (`S 0) (`S 0));
+  Alcotest.(check bool) "=2" true (eq `R `R);
+  Alcotest.(check bool) "=3" true (eq (`T "") (`T ""));
+  Alcotest.(check bool) "=4" false (eq (`T "") (`T "1"));
+  Alcotest.(check int) "cmp1" 0 (cmp (`S 0) (`S 0));
+  Alcotest.(check int) "cmp2" 0 (cmp `R `R);
+  Alcotest.(check int) "cmp3" 0 (cmp (`T "") (`T ""));
+  Alcotest.(check int) "cmp4" (String.compare "1" "") (cmp (`T "1") (`T ""))
+
 (* Test that reusing the same name for different fields raises. *)
 let test_duplicate_names () =
   let open T in
@@ -928,6 +984,7 @@ let () =
           ("ints", `Quick, test_int);
           ("decode", `Quick, test_decode);
           ("test_variants", `Quick, test_variants);
+          ("test_polyvariants", `Quick, test_polyvariants);
           ("test_duplicate_names", `Quick, test_duplicate_names);
           ("test_malformed_utf8", `Quick, test_malformed_utf8);
           ("test_stdlib_containers", `Quick, test_stdlib_containers);

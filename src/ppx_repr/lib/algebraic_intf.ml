@@ -17,6 +17,11 @@
 open Ppxlib
 
 module Typ = struct
+  type case_inherit = {
+    expr : expression; (* the type for inherit (sub-)type *)
+    patt : core_type; (* type name of the parent (super-)type *)
+  }
+
   type nonrec record_field_repr = {
     field_name : string;
     field_repr : expression;
@@ -24,7 +29,7 @@ module Typ = struct
 
   and variant_case_repr = {
     case_name : string;
-    case_cons : (expression * int) option;
+    case_cons : [ `None | `Some of expression * int | `Inherit of case_inherit ];
   }
 
   (** The algebraic datatypes supported by this module, parameterised by:

@@ -147,21 +147,61 @@ let ( |+ ) = app
 (* variants *)
 
 type 'a case_p = 'a case_v
-type ('a, 'b) case = int -> 'a a_case * 'b
+
+type ('a, 'b) case =
+  | C of (int -> 'a a_case * 'b)
+  | I of (int -> 'a a_case list (* cases are in reverse order *) * 'b)
+
+let c f = C f
+let i f = I f
+let cv0 c = CV0 c
+let cv1 c v = CV1 (c, v)
 
 let case0 cname0 c0 =
   check_valid_utf8 cname0;
-  fun ctag0 ->
-    let c = { ctag0; cname0; c0 } in
-    (C0 c, CV0 c)
+  c (fun ctag0 ->
+      let c = { ctag0; cname0; c0 } in
+      (C0 c, cv0 c))
 
 let case1 : type a b. string -> b t -> (b -> a) -> (a, b -> a case_p) case =
  fun cname1 ctype1 c1 ->
   check_valid_utf8 cname1;
-  fun ctag1 ->
-    let cwit1 : b Witness.t = Witness.make () in
-    let c = { ctag1; cname1; ctype1; cwit1; c1 } in
-    (C1 c, fun v -> CV1 (c, v))
+  c (fun ctag1 ->
+      let cwit1 : b Witness.t = Witness.make () in
+      let c = { ctag1; cname1; ctype1; cwit1; c1 } in
+      (C1 c, fun v -> cv1 c v))
+
+(* Shift variants tags by a fixed increment *)
+let incr_ctag : type a. int -> a a_case -> a a_case =
+ fun n -> function
+  | C0 c -> C0 { c with ctag0 = c.ctag0 + n }
+  | C1 c -> C1 { c with ctag1 = c.ctag1 + n }
+
+let map_c0 f c = { ctag0 = c.ctag0; cname0 = c.cname0; c0 = f c.c0 }
+
+let map_c1 f c =
+  {
+    ctag1 = c.ctag1;
+    cname1 = c.cname1;
+    ctype1 = c.ctype1;
+    cwit1 = c.cwit1;
+    c1 = (fun x -> f (c.c1 x));
+  }
+
+let map_case f = function C0 c -> C0 (map_c0 f c) | C1 c -> C1 (map_c1 f c)
+
+let case_inherit : type a b. (b -> a) -> (a -> b) -> b t -> (a, a case_p) case =
+ fun inj proj -> function
+  | Variant v ->
+      i (fun n ->
+          let cis =
+            Array.fold_left
+              (fun acc c -> incr_ctag n (map_case inj c) :: acc)
+              [] v.vcases
+          in
+          let c = { ctypei = v; inj; proj } in
+          (cis, CVi c))
+  | _ -> failwith "unsuported inherit"
 
 type ('a, 'b, 'c) open_variant = 'a a_case list -> string * 'c * 'a a_case list
 
@@ -169,8 +209,13 @@ let variant n c vs = (n, c, vs)
 
 let app v c cs =
   let n, fc, cs = v cs in
-  let c, f = c (List.length cs) in
-  (n, fc f, c :: cs)
+  match c with
+  | C c ->
+      let c, f = c (List.length cs) in
+      (n, fc f, c :: cs)
+  | I i ->
+      let c, f = i (List.length cs) in
+      (n, fc f, c @ cs)
 
 let check_unique_case_names vname vcases =
   let n0, n1 =
