@@ -73,4 +73,18 @@ module Unsupported = struct
       "%s: unsupported deriver plugin %s. Registered plugins: %a" name found
       Fmt.(Dump.list string)
       supported
+
+  let recursive_groups ~loc tys =
+    Location.raise_errorf ~loc
+      "%s: mutually-recursive groups of size > 2 are not supported. Here we \
+       have %d types: %a)"
+      name (List.length tys)
+      Fmt.(list ~sep:(any ", ") string)
+      tys
+
+  let recursive_type_with_type_paramets ~loc ty =
+    Location.raise_errorf ~loc
+      "%s: Can't support mutually-recursive types with type parameters in type \
+       %s"
+      name ty
 end
