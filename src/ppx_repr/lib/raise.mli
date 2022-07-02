@@ -28,4 +28,6 @@ module Unsupported : sig
   val type_alias : loc:location -> core_type -> _
   val type_any : loc:location -> _
   val plugin : loc:location -> supported:string list -> string -> _
+  val recursive_groups : loc:location -> string list -> _
+  val recursive_type_with_type_paramets : loc:location -> string -> _
 end

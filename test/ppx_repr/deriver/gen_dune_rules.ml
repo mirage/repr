@@ -10,6 +10,10 @@ let ppx_fail_global_stanzas () =
 
 |}
 
+let ocaml_version = function
+  | "recursion_with_type_parameters" | "recursion_more_than_two" -> Some "4.09"
+  | _ -> None
+
 let output_stanzas ~expect_failure filename =
   let base = Filename.remove_extension filename in
   let pp_library ppf base =
@@ -45,14 +49,19 @@ let output_stanzas ~expect_failure filename =
        %a))@]@]"
       base base pp_action expect_failure
   in
+  let pp_enabled_if ppf = function
+    | None -> ()
+    | Some v -> Format.fprintf ppf "(enabled_if (>= %%{ocaml_version} %s))@," v
+  in
   let pp_diff_alias ppf base =
     Format.fprintf ppf
       "; Compare the post-processed output to the .expected file@,\
        @[<v 1>(rule@,\
        (alias runtest)@,\
-       (package ppx_repr)@,\
+       %a(package ppx_repr)@,\
        @[<v 1>(action@,\
-       @[<hov 2>(diff@ %s.expected@ %s.actual)@])@])@]" base base
+       @[<hov 2>(diff@ %s.expected@ %s.actual)@])@])@]" pp_enabled_if
+      (ocaml_version base) base base
   in
   let pp_run_alias ppf base =
     (* If we expect the derivation to succeed, then we should be able to compile
