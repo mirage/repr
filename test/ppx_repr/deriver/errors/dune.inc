@@ -69,6 +69,7 @@
 ; Compare the post-processed output to the .expected file
 (rule
  (alias runtest)
+ (enabled_if (>= %{ocaml_version} 4.09))
  (package ppx_repr)
  (action
   (diff recursion_more_than_two.expected recursion_more_than_two.actual)))
@@ -92,6 +93,7 @@
 ; Compare the post-processed output to the .expected file
 (rule
  (alias runtest)
+ (enabled_if (>= %{ocaml_version} 4.09))
  (package ppx_repr)
  (action
   (diff recursion_with_type_parameters.expected

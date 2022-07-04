@@ -389,7 +389,8 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
   let derive_str ~plugins ~name ~lib = function
     | Recursive, [] -> assert false
     | Recursive, tds when List.length tds > 2 ->
-        failwith "Mutually-recursive groups of size > 2 supported"
+        Raise.Unsupported.recursive_groups ~loc
+          (List.map (fun x -> x.ptype_name.txt) tds)
     | rec_flag, type_declarations ->
         let multiple_tds = List.length type_declarations > 1 in
         let repr_names =
@@ -418,8 +419,8 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
                 repr_of_type_decl ~rec_flag ~handle_recursion ~lib typ name.repr
               in
               if pr && multiple_tds then
-                failwith
-                  "Can't support mutually-recursive types with type parameters";
+                Raise.Unsupported.recursive_type_with_type_paramets ~loc
+                  typ.ptype_name.txt;
               (pat, (expr, name)))
           |> List.split
         in
