@@ -187,14 +187,21 @@ module Equal = struct
 
   and variant : type a. a variant -> a equal staged =
    fun v ->
-    let equal x y =
+    let rec equal : type a b. a case_v * a -> b case_v * b -> bool =
+     fun (x, vx) (y, vy) ->
       match (x, y) with
       | CV0 x, CV0 y -> int x.ctag0 y.ctag0
       | CV1 (x, vx), CV1 (y, vy) ->
           int x.ctag1 y.ctag1 && eq (x.ctype1, vx) (y.ctype1, vy)
+      | CVi x, CVi y ->
+          let vx = x.proj vx in
+          let vy = y.proj vy in
+          let x = x.ctypei.vget vx in
+          let y = y.ctypei.vget vy in
+          equal (x, vx) (y, vy)
       | _ -> false
     in
-    stage @@ fun x y -> equal (v.vget x) (v.vget y)
+    stage @@ fun x y -> equal (v.vget x, x) (v.vget y, y)
 
   and eq : type a b. a t * a -> b t * b -> bool =
    fun (tx, x) (ty, y) ->
@@ -332,19 +339,34 @@ module Compare = struct
 
   and variant : type a. a variant -> a compare staged =
    fun v ->
-    let compare x y =
+    let tag : type a. a a_case -> int = function
+      | C0 t -> t.ctag0
+      | C1 t -> t.ctag1
+    in
+    let rec compare : type a b. a case_v * a -> b case_v * b -> int =
+     fun (x, vx) (y, vy) ->
       match (x, y) with
       | CV0 x, CV0 y -> int x.ctag0 y.ctag0
       | CV0 x, CV1 (y, _) -> int x.ctag0 y.ctag1
       | CV1 (x, _), CV0 y -> int x.ctag1 y.ctag0
       | CV1 (x, vx), CV1 (y, vy) -> (
           match int x.ctag1 y.ctag1 with
-          | 0 -> compare (x.ctype1, vx) (y.ctype1, vy)
+          | 0 -> compare_all (x.ctype1, vx) (y.ctype1, vy)
           | i -> i)
+      | CV0 x, CVi y -> int x.ctag0 (tag y.ctypei.vcases.(0))
+      | CVi x, CV0 y -> int (tag x.ctypei.vcases.(0)) y.ctag0
+      | CV1 (x, _), CVi y -> int x.ctag1 (tag y.ctypei.vcases.(0))
+      | CVi x, CV1 (y, _) -> int (tag x.ctypei.vcases.(0)) y.ctag1
+      | CVi x, CVi y ->
+          let vx = x.proj vx in
+          let vy = y.proj vy in
+          let x = x.ctypei.vget vx in
+          let y = y.ctypei.vget vy in
+          compare (x, vx) (y, vy)
     in
-    stage @@ fun x y -> compare (v.vget x) (v.vget y)
+    stage @@ fun x y -> compare (v.vget x, x) (v.vget y, y)
 
-  and compare : type a b. a t * a -> b t * b -> int =
+  and compare_all : type a b. a t * a -> b t * b -> int =
    fun (tx, x) (ty, y) ->
     match Refl.t tx ty with
     | Some Witness.Refl -> unstage (t tx) x y

@@ -247,6 +247,12 @@ module type DSL = sig
         let foo = case1 "Foo" string (fun s -> Foo s)
       ]} *)
 
+  val case_inherit : ('b -> 'a) -> ('a -> 'b) -> 'b t -> ('a, 'a case_p) case
+  (** [case_inherit inj prof t] is a representation of the polyvar [t] to be
+      embedded in a larger, parent polyvar declaration [a]. [inj] is intended to
+      be the coercion function [(t :> a)] and [proj] the partial function
+      [function #t as x -> x]. *)
+
   val ( |~ ) :
     ('a, 'b, 'c -> 'd) open_variant ->
     ('a, 'c) case ->

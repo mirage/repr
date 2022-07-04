@@ -106,6 +106,7 @@ module Types = struct
   and 'a case_v =
     | CV0 : 'a case0 -> 'a case_v
     | CV1 : ('a, 'b) case1 * 'b -> 'a case_v
+    | CVi : ('a, 'b) casei -> 'a case_v
 
   and 'a case0 = { ctag0 : int; cname0 : string; c0 : 'a }
 
@@ -116,6 +117,8 @@ module Types = struct
     cwit1 : 'b Witness.t;
     c1 : 'b -> 'a;
   }
+
+  and ('a, 'b) casei = { ctypei : 'b variant; inj : 'b -> 'a; proj : 'a -> 'b }
 
   type 'a ty = 'a t
 

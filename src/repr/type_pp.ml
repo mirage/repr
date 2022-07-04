@@ -122,6 +122,7 @@ let dump t =
         Fmt.string ppf (String.capitalize_ascii c.cname1);
         Fmt.string ppf " ";
         Fmt.parens (aux c.ctype1) ppf v
+    | CVi { ctypei; proj; _ } -> variant ctypei ppf (proj x)
   in
   aux t
 

@@ -143,10 +143,10 @@ module Encode = struct
       lexeme e `Oe
 
   and variant : type a. a variant -> a encode_json =
-   fun v e x -> case_v e (v.vget x)
+   fun v e x -> case_v x e (v.vget x)
 
-  and case_v : type a. a case_v encode_json =
-   fun e c ->
+  and case_v : type a. a -> a case_v encode_json =
+   fun x e c ->
     match c with
     | CV0 c -> string e c.cname0
     | CV1 (c, v) ->
@@ -154,6 +154,7 @@ module Encode = struct
         lexeme e (`Name c.cname1);
         t c.ctype1 e v;
         lexeme e `Oe
+    | CVi { ctypei; proj; _ } -> variant ctypei e (proj x)
 
   let assoc : type a. a t -> (string * a) list encode_json =
    fun a ->

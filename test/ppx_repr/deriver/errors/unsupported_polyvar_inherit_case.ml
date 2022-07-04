@@ -1,2 +1,2 @@
-type s = [ `S ] [@@deriving repr]
-type t = [ s | `T ] [@@deriving repr]
+type 'a s = [ `S of int | `R ] [@@deriving repr]
+type my_polyvar = [ int s | `T of string ] [@@deriving repr]
