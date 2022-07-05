@@ -91,9 +91,7 @@ module Equal = struct
   let int64 (x : int64) (y : int64) = x = y
   let string x y = x == y || String.equal x y
   let bytes x y = x == y || Bytes.equal x y
-
-  (* NOTE: equality is ill-defined on float *)
-  let float (x : float) (y : float) = x = y
+  let float x y = Float.equal x y
 
   let list e =
     let e = unstage e in

@@ -1,3 +1,7 @@
+### Unreleased
+
+- Change `Repr.Equal.float` to use `Float.equal` rather than polymorphic equality. (#96, @n-osborne)
+
 ### 0.6.0 (2022-01-04)
 
 - Change the type of `Repr.decode_bin` to take a mutable buffer offset rather
