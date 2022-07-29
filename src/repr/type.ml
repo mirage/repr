@@ -396,8 +396,8 @@ end
 
 let equal, compare = Type_ordered.(equal, compare)
 
-let pp, pp_dump, pp_ty, to_string, of_string =
-  Type_pp.(t, dump, ty, to_string, of_string)
+let pp, pp_dump, pp_dot, pp_ty, to_string, of_string =
+  Type_pp.(t, dump, dot, ty, to_string, of_string)
 
 let ( to_json_string,
       of_json_string,

@@ -19,6 +19,7 @@ module Attr : Attribute.S1 with type 'a t = 'a Fmt.t
 
 val t : 'a t -> 'a Fmt.t
 val dump : 'a t -> 'a Fmt.t
+val dot : 'a t Fmt.t
 val ty : 'a t Fmt.t
 val to_string : 'a t -> 'a to_string
 val of_string : 'a t -> 'a of_string

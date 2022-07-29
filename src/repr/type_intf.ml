@@ -395,6 +395,9 @@ module type DSL = sig
       native OCaml syntax, so that the result can easily be copy-pasted into an
       OCaml REPL to inspect the value further. *)
 
+  val pp_dot : 'a t pp
+  (** The DOT language pretty-printer for generics of type {!t}. *)
+
   val pp_ty : 'a t pp
   (** The pretty printer for generics of type {!t}. *)
 
