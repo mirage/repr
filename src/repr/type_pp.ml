@@ -147,9 +147,9 @@ module Dot = struct
     in
     Fmt.pf ppf "  %d -> %d%s@." src dest label
 
-  type k = uid -> unit
+  type ('a, 'r) k = ('a -> 'r) -> 'r
 
-  let rec t : type a. Format.formatter -> a t -> k -> unit =
+  let rec t : type r a. Format.formatter -> a t -> (uid, r) k =
    fun ppf ty k ->
     let uid = make_uid () in
     match ty with
@@ -214,20 +214,21 @@ module Dot = struct
         k uid
 
   and recurse :
-      type a. Format.formatter -> ?label:string -> a t -> uid -> k -> unit =
+      type r a. Format.formatter -> ?label:string -> a t -> uid -> (uid, r) k =
    fun ppf ?label c src k ->
     t ppf c @@ fun dest ->
     pp_edge ?label ppf ~src ~dest;
     k src
 
-  and fields : type r b. Format.formatter -> uid -> (r, b) fields -> k -> unit =
+  and fields :
+      type r rr bb. Format.formatter -> uid -> (rr, bb) fields -> (uid, r) k =
    fun ppf src fs k ->
     match fs with
     | F0 -> k src
     | F1 ({ fname = label; ftype; _ }, fs) ->
         recurse ppf ~label ftype src @@ fun _ -> fields ppf src fs k
 
-  and cases : type v. Format.formatter -> uid -> v a_case list -> k -> unit =
+  and cases : type r v. Format.formatter -> uid -> v a_case list -> (uid, r) k =
    fun ppf src cs k ->
     match cs with
     | [] -> k src
