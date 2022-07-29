@@ -150,12 +150,9 @@ module Dot = struct
     Fmt.pf ppf "  %d%a@." (uid : uid :> int) pp_label label
 
   let pp_edge ?label ppf ~src ~dest =
-    let label =
-      label
-      |> Option.map (fun label -> Fmt.to_to_string pp_label label)
-      |> Option.value ~default:""
-    in
-    Fmt.pf ppf "  %d -> %d%s@." (src : uid :> int) (dest : uid :> int) label
+    Fmt.pf ppf "  %d -> %d" (src : uid :> int) (dest : uid :> int);
+    Option.iter (pp_label ppf) label;
+    Fmt.pf ppf "@."
 
   type ('a, 'r) k = ('a -> 'r) -> 'r
 
