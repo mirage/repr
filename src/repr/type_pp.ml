@@ -125,24 +125,6 @@ let dump t =
   in
   aux t
 
-(* Fresh type variables in sequence: ['a; 'b; ...; 'z; 'aa; 'ab; ...] *)
-let tvar_generator () =
-  let count = ref 0 in
-  let ident_of_count =
-    let rec inner acc i =
-      match i with
-      | -1 -> acc
-      | _ ->
-          let c = String.make 1 (Char.chr ((i mod 26) + 97)) in
-          inner (c ^ acc) ((i / 26) - 1)
-    in
-    inner ""
-  in
-  fun () ->
-    let ident = ident_of_count !count in
-    incr count;
-    "'" ^ ident
-
 let dot : type a. a t Fmt.t =
  fun ppf typ ->
   let open struct
@@ -277,6 +259,24 @@ let dot : type a. a t Fmt.t =
   in
   pp_start ppf;
   aux typ @@ fun _ -> pp_end ppf
+
+(* Fresh type variables in sequence: ['a; 'b; ...; 'z; 'aa; 'ab; ...] *)
+let tvar_generator () =
+  let count = ref 0 in
+  let ident_of_count =
+    let rec inner acc i =
+      match i with
+      | -1 -> acc
+      | _ ->
+          let c = String.make 1 (Char.chr ((i mod 26) + 97)) in
+          inner (c ^ acc) ((i / 26) - 1)
+    in
+    inner ""
+  in
+  fun () ->
+    let ident = ident_of_count !count in
+    incr count;
+    "'" ^ ident
 
 let ty : type a. a t Fmt.t =
  fun ppf typ ->
