@@ -125,140 +125,141 @@ let dump t =
   in
   aux t
 
-let dot : type a. a t Fmt.t =
- fun ppf typ ->
-  let open struct
-    type uid = int
+module Dot = struct
+  type uid = int
 
-    let make_uid : unit -> uid =
-      let i = ref 0 in
-      fun () ->
-        incr i;
-        !i
-  end in
-  let open struct
-    let pp_start ppf = Fmt.pf ppf "digraph {@."
-    let pp_end ppf = Fmt.pf ppf "}"
-    let pp_label ppf label = Fmt.pf ppf " [label = \"%s\"]" label
-    let pp_node ppf ~label ~uid = Fmt.pf ppf "  %d%a@." uid pp_label label
+  let make_uid : unit -> uid =
+    let i = ref 0 in
+    fun () ->
+      incr i;
+      !i
 
-    let pp_edge ?label ppf ~src ~dest =
-      let label =
-        label
-        |> Option.map (fun label -> Fmt.to_to_string pp_label label)
-        |> Option.value ~default:""
-      in
-      Fmt.pf ppf "  %d -> %d%s@." src dest label
-  end in
-  let open struct
-    type k = uid -> unit
-  end in
-  let rec aux : type a. a t -> k -> unit =
-   fun t k ->
-    let uid = make_uid () in
-    match t with
-    | Self _ ->
-        pp_node ppf ~label:"Self" ~uid;
-        (* TODO handle unrolling, see {!ty} *)
-        k uid
-    | Custom c -> (
-        match c.cwit with
-        | `Type t ->
-            pp_node ppf ~label:"Custom Type" ~uid;
-            recurse t uid k
-        | `Witness _ ->
-            pp_node ppf ~label:"Custom Witness" ~uid;
-            k uid)
-    | Attributes { attr_type = at; attrs } ->
-        let label =
-          let open Attribute in
-          let names =
-            Map.bindings attrs |> List.map (fun (Map.B (k, _)) -> name k)
+  let pp_start ppf = Fmt.pf ppf "digraph {@."
+  let pp_end ppf = Fmt.pf ppf "}"
+  let pp_label ppf label = Fmt.pf ppf " [label = \"%s\"]" label
+  let pp_node ppf ~label ~uid = Fmt.pf ppf "  %d%a@." uid pp_label label
+
+  let pp_edge ?label ppf ~src ~dest =
+    let label =
+      label
+      |> Option.map (fun label -> Fmt.to_to_string pp_label label)
+      |> Option.value ~default:""
+    in
+    Fmt.pf ppf "  %d -> %d%s@." src dest label
+
+  type k = uid -> unit
+
+  let dot : type a. a t Fmt.t =
+   fun ppf typ ->
+    let rec aux : type a. a t -> k -> unit =
+     fun t k ->
+      let uid = make_uid () in
+      match t with
+      | Self _ ->
+          pp_node ppf ~label:"Self" ~uid;
+          (* TODO handle unrolling, see {!ty} *)
+          k uid
+      | Custom c -> (
+          match c.cwit with
+          | `Type t ->
+              pp_node ppf ~label:"Custom Type" ~uid;
+              recurse t uid k
+          | `Witness _ ->
+              pp_node ppf ~label:"Custom Witness" ~uid;
+              k uid)
+      | Attributes { attr_type = at; attrs } ->
+          let label =
+            let open Attribute in
+            let names =
+              Map.bindings attrs |> List.map (fun (Map.B (k, _)) -> name k)
+            in
+            Fmt.str "Attributes {%a}" Fmt.(list ~sep:semi string) names
           in
-          Fmt.str "Attributes {%a}" Fmt.(list ~sep:semi string) names
-        in
-        pp_node ppf ~label ~uid;
-        recurse at uid k
-    | Boxed b ->
-        pp_node ppf ~label:"Boxed" ~uid;
-        recurse b uid k
-    | Map m ->
-        pp_node ppf ~label:"Map" ~uid;
-        recurse m.x uid k
-    | Prim p ->
-        pp_node ppf ~label:(prim p) ~uid;
-        k uid
-    | List l ->
-        pp_node ppf ~label:"List" ~uid;
-        recurse l.v uid k
-    | Array a ->
-        pp_node ppf ~label:"Array" ~uid;
-        recurse a.v uid k
-    | Tuple (Pair (a, b)) ->
-        pp_node ppf ~label:"Pair" ~uid;
-        recurse a uid @@ fun _ -> recurse b uid k
-    | Tuple (Triple (a, b, c)) ->
-        pp_node ppf ~label:"Triple" ~uid;
-        recurse a uid @@ fun _ ->
-        recurse b uid @@ fun _ -> recurse c uid k
-    | Option t ->
-        pp_node ppf ~label:"Option" ~uid;
-        recurse t uid k
-    | Record { rname; rfields = Fields (fs, _); _ } ->
-        let label = Fmt.str "Record: %s" rname in
-        pp_node ppf ~label ~uid;
-        fields uid fs k
-    | Variant { vname; vcases; _ } ->
-        let label = Fmt.str "Variant: %s" vname in
-        pp_node ppf ~label ~uid;
-        let vcases = Array.to_seq vcases |> List.of_seq in
-        cases uid vcases k
-    | Var v ->
-        pp_node ppf ~label:v ~uid;
-        k uid
-  and recurse : type a. ?label:string -> a t -> uid -> k -> unit =
-   fun ?label c src k ->
-    aux c @@ fun dest ->
-    pp_edge ?label ppf ~src ~dest;
-    k src
-  and fields : type r b. uid -> (r, b) fields -> k -> unit =
-   fun src fs k ->
-    match fs with
-    | F0 -> k src
-    | F1 ({ fname = label; ftype; _ }, fs) ->
-        recurse ~label ftype src @@ fun _ -> fields src fs k
-  and cases : type v. uid -> v a_case list -> k -> unit =
-   fun src cs k ->
-    match cs with
-    | [] -> k src
-    | hd :: tl -> (
-        match hd with
-        | C0 _ -> cases src tl k
-        | C1 { cname1 = label; ctype1; _ } ->
-            recurse ~label ctype1 src @@ fun _ -> cases src tl k)
-  and prim : type a. a prim -> string =
-   fun t ->
-    match t with
-    | Unit -> "unit"
-    | Bool -> "bool"
-    | Char -> "char"
-    | Int -> "int"
-    | Int32 -> "int32"
-    | Int64 -> "int64"
-    | Float -> "float"
-    | String n -> Fmt.str "string%a" len n
-    | Bytes n -> Fmt.str "bytes%a" len n
-  and len : len Fmt.t =
-   fun ppf -> function
-    | `Int8 -> Fmt.string ppf ":8"
-    | `Int64 -> Fmt.string ppf ":64"
-    | `Int16 -> Fmt.string ppf ":16"
-    | `Fixed n -> Fmt.pf ppf ":<%d>" n
-    | `Int -> ()
-    | `Int32 -> Fmt.pf ppf ":32"
-  in
-  pp_start ppf;
-  aux typ @@ fun _ -> pp_end ppf
+          pp_node ppf ~label ~uid;
+          recurse at uid k
+      | Boxed b ->
+          pp_node ppf ~label:"Boxed" ~uid;
+          recurse b uid k
+      | Map m ->
+          pp_node ppf ~label:"Map" ~uid;
+          recurse m.x uid k
+      | Prim p ->
+          pp_node ppf ~label:(prim p) ~uid;
+          k uid
+      | List l ->
+          pp_node ppf ~label:"List" ~uid;
+          recurse l.v uid k
+      | Array a ->
+          pp_node ppf ~label:"Array" ~uid;
+          recurse a.v uid k
+      | Tuple (Pair (a, b)) ->
+          pp_node ppf ~label:"Pair" ~uid;
+          recurse a uid @@ fun _ -> recurse b uid k
+      | Tuple (Triple (a, b, c)) ->
+          pp_node ppf ~label:"Triple" ~uid;
+          recurse a uid @@ fun _ ->
+          recurse b uid @@ fun _ -> recurse c uid k
+      | Option t ->
+          pp_node ppf ~label:"Option" ~uid;
+          recurse t uid k
+      | Record { rname; rfields = Fields (fs, _); _ } ->
+          let label = Fmt.str "Record: %s" rname in
+          pp_node ppf ~label ~uid;
+          fields uid fs k
+      | Variant { vname; vcases; _ } ->
+          let label = Fmt.str "Variant: %s" vname in
+          pp_node ppf ~label ~uid;
+          let vcases = Array.to_seq vcases |> List.of_seq in
+          cases uid vcases k
+      | Var v ->
+          pp_node ppf ~label:v ~uid;
+          k uid
+    and recurse : type a. ?label:string -> a t -> uid -> k -> unit =
+     fun ?label c src k ->
+      aux c @@ fun dest ->
+      pp_edge ?label ppf ~src ~dest;
+      k src
+    and fields : type r b. uid -> (r, b) fields -> k -> unit =
+     fun src fs k ->
+      match fs with
+      | F0 -> k src
+      | F1 ({ fname = label; ftype; _ }, fs) ->
+          recurse ~label ftype src @@ fun _ -> fields src fs k
+    and cases : type v. uid -> v a_case list -> k -> unit =
+     fun src cs k ->
+      match cs with
+      | [] -> k src
+      | hd :: tl -> (
+          match hd with
+          | C0 _ -> cases src tl k
+          | C1 { cname1 = label; ctype1; _ } ->
+              recurse ~label ctype1 src @@ fun _ -> cases src tl k)
+    and prim : type a. a prim -> string =
+     fun t ->
+      match t with
+      | Unit -> "unit"
+      | Bool -> "bool"
+      | Char -> "char"
+      | Int -> "int"
+      | Int32 -> "int32"
+      | Int64 -> "int64"
+      | Float -> "float"
+      | String n -> Fmt.str "string%a" len n
+      | Bytes n -> Fmt.str "bytes%a" len n
+    and len : len Fmt.t =
+     fun ppf -> function
+      | `Int8 -> Fmt.string ppf ":8"
+      | `Int64 -> Fmt.string ppf ":64"
+      | `Int16 -> Fmt.string ppf ":16"
+      | `Fixed n -> Fmt.pf ppf ":<%d>" n
+      | `Int -> ()
+      | `Int32 -> Fmt.pf ppf ":32"
+    in
+    pp_start ppf;
+    aux typ @@ fun _ -> pp_end ppf
+end
+
+let dot = Dot.dot
 
 (* Fresh type variables in sequence: ['a; 'b; ...; 'z; 'aa; 'ab; ...] *)
 let tvar_generator () =
