@@ -129,11 +129,11 @@ module Dot = struct
   module Uid : sig
     type uid = private int
 
-    val make_uid : unit -> uid
+    val uid_generator : unit -> unit -> uid
   end = struct
     type uid = int
 
-    let make_uid =
+    let uid_generator () =
       let i = ref 0 in
       fun () ->
         incr i;
@@ -154,23 +154,24 @@ module Dot = struct
     Option.iter (pp_label ppf) label;
     Fmt.pf ppf "@."
 
+  type ctxt = { ppf : Format.formatter; make_uid : unit -> uid }
   type ('a, 'r) k = ('a -> 'r) -> 'r
 
-  let rec t : type r a. Format.formatter -> a t -> (uid, r) k =
-   fun ppf ty k ->
-    let uid = make_uid () in
+  let rec t : type r a. ctxt -> a t -> (uid, r) k =
+   fun ctxt ty k ->
+    let uid = ctxt.make_uid () in
     match ty with
     | Self _ ->
-        pp_node ppf ~label:"Self" ~uid;
+        pp_node ctxt.ppf ~label:"Self" ~uid;
         (* TODO handle unrolling, see {!ty} *)
         k uid
     | Custom c -> (
         match c.cwit with
         | `Type t ->
-            pp_node ppf ~label:"Custom Type" ~uid;
-            recurse ppf t uid k
+            pp_node ctxt.ppf ~label:"Custom Type" ~uid;
+            recurse ctxt t uid k
         | `Witness _ ->
-            pp_node ppf ~label:"Custom Witness" ~uid;
+            pp_node ctxt.ppf ~label:"Custom Witness" ~uid;
             k uid)
     | Attributes { attr_type = at; attrs } ->
         let label =
@@ -180,70 +181,68 @@ module Dot = struct
           in
           Fmt.str "Attributes {%a}" Fmt.(list ~sep:semi string) names
         in
-        pp_node ppf ~label ~uid;
-        recurse ppf at uid k
+        pp_node ctxt.ppf ~label ~uid;
+        recurse ctxt at uid k
     | Boxed b ->
-        pp_node ppf ~label:"Boxed" ~uid;
-        recurse ppf b uid k
+        pp_node ctxt.ppf ~label:"Boxed" ~uid;
+        recurse ctxt b uid k
     | Map m ->
-        pp_node ppf ~label:"Map" ~uid;
-        recurse ppf m.x uid k
+        pp_node ctxt.ppf ~label:"Map" ~uid;
+        recurse ctxt m.x uid k
     | Prim p ->
-        pp_node ppf ~label:(prim p) ~uid;
+        pp_node ctxt.ppf ~label:(prim p) ~uid;
         k uid
     | List l ->
-        pp_node ppf ~label:"List" ~uid;
-        recurse ppf l.v uid k
+        pp_node ctxt.ppf ~label:"List" ~uid;
+        recurse ctxt l.v uid k
     | Array a ->
-        pp_node ppf ~label:"Array" ~uid;
-        recurse ppf a.v uid k
+        pp_node ctxt.ppf ~label:"Array" ~uid;
+        recurse ctxt a.v uid k
     | Tuple (Pair (a, b)) ->
-        pp_node ppf ~label:"Pair" ~uid;
-        recurse ppf a uid @@ fun _ -> recurse ppf b uid k
+        pp_node ctxt.ppf ~label:"Pair" ~uid;
+        recurse ctxt a uid @@ fun _ -> recurse ctxt b uid k
     | Tuple (Triple (a, b, c)) ->
-        pp_node ppf ~label:"Triple" ~uid;
-        recurse ppf a uid @@ fun _ ->
-        recurse ppf b uid @@ fun _ -> recurse ppf c uid k
+        pp_node ctxt.ppf ~label:"Triple" ~uid;
+        recurse ctxt a uid @@ fun _ ->
+        recurse ctxt b uid @@ fun _ -> recurse ctxt c uid k
     | Option t ->
-        pp_node ppf ~label:"Option" ~uid;
-        recurse ppf t uid k
+        pp_node ctxt.ppf ~label:"Option" ~uid;
+        recurse ctxt t uid k
     | Record { rname; rfields = Fields (fs, _); _ } ->
         let label = Fmt.str "Record: %s" rname in
-        pp_node ppf ~label ~uid;
-        fields ppf uid fs k
+        pp_node ctxt.ppf ~label ~uid;
+        fields ctxt uid fs k
     | Variant { vname; vcases; _ } ->
         let label = Fmt.str "Variant: %s" vname in
-        pp_node ppf ~label ~uid;
+        pp_node ctxt.ppf ~label ~uid;
         let vcases = Array.to_seq vcases |> List.of_seq in
-        cases ppf uid vcases k
+        cases ctxt uid vcases k
     | Var v ->
-        pp_node ppf ~label:v ~uid;
+        pp_node ctxt.ppf ~label:v ~uid;
         k uid
 
-  and recurse :
-      type r a. Format.formatter -> ?label:string -> a t -> uid -> (uid, r) k =
-   fun ppf ?label c src k ->
-    t ppf c @@ fun dest ->
-    pp_edge ?label ppf ~src ~dest;
+  and recurse : type r a. ctxt -> ?label:string -> a t -> uid -> (uid, r) k =
+   fun ctxt ?label c src k ->
+    t ctxt c @@ fun dest ->
+    pp_edge ?label ctxt.ppf ~src ~dest;
     k src
 
-  and fields :
-      type r rr bb. Format.formatter -> uid -> (rr, bb) fields -> (uid, r) k =
-   fun ppf src fs k ->
+  and fields : type r rr bb. ctxt -> uid -> (rr, bb) fields -> (uid, r) k =
+   fun ctxt src fs k ->
     match fs with
     | F0 -> k src
     | F1 ({ fname = label; ftype; _ }, fs) ->
-        recurse ppf ~label ftype src @@ fun _ -> fields ppf src fs k
+        recurse ctxt ~label ftype src @@ fun _ -> fields ctxt src fs k
 
-  and cases : type r v. Format.formatter -> uid -> v a_case list -> (uid, r) k =
-   fun ppf src cs k ->
+  and cases : type r v. ctxt -> uid -> v a_case list -> (uid, r) k =
+   fun ctxt src cs k ->
     match cs with
     | [] -> k src
     | hd :: tl -> (
         match hd with
-        | C0 _ -> cases ppf src tl k
+        | C0 _ -> cases ctxt src tl k
         | C1 { cname1 = label; ctype1; _ } ->
-            recurse ppf ~label ctype1 src @@ fun _ -> cases ppf src tl k)
+            recurse ctxt ~label ctype1 src @@ fun _ -> cases ctxt src tl k)
 
   and prim : type a. a prim -> string =
    fun t ->
@@ -270,7 +269,8 @@ module Dot = struct
   let t : _ t Fmt.t =
    fun ppf ty ->
     pp_start ppf;
-    t ppf ty @@ fun _ -> pp_end ppf
+    let ctxt = { ppf; make_uid = uid_generator () } in
+    t ctxt ty @@ fun _ -> pp_end ppf
 end
 
 let dot = Dot.t
