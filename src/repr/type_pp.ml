@@ -126,18 +126,28 @@ let dump t =
   aux t
 
 module Dot = struct
-  type uid = int
+  module Uid : sig
+    type uid = private int
 
-  let make_uid : unit -> uid =
-    let i = ref 0 in
-    fun () ->
-      incr i;
-      !i
+    val make_uid : unit -> uid
+  end = struct
+    type uid = int
+
+    let make_uid =
+      let i = ref 0 in
+      fun () ->
+        incr i;
+        !i
+  end
+
+  open Uid
 
   let pp_start ppf = Fmt.pf ppf "digraph {@."
   let pp_end ppf = Fmt.pf ppf "}"
   let pp_label ppf label = Fmt.pf ppf " [label = \"%s\"]" label
-  let pp_node ppf ~label ~uid = Fmt.pf ppf "  %d%a@." uid pp_label label
+
+  let pp_node ppf ~label ~uid =
+    Fmt.pf ppf "  %d%a@." (uid : uid :> int) pp_label label
 
   let pp_edge ?label ppf ~src ~dest =
     let label =
@@ -145,7 +155,7 @@ module Dot = struct
       |> Option.map (fun label -> Fmt.to_to_string pp_label label)
       |> Option.value ~default:""
     in
-    Fmt.pf ppf "  %d -> %d%s@." src dest label
+    Fmt.pf ppf "  %d -> %d%s@." (src : uid :> int) (dest : uid :> int) label
 
   type ('a, 'r) k = ('a -> 'r) -> 'r
 
