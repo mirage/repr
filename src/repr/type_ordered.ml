@@ -355,3 +355,4 @@ end
 
 let equal = Equal.t
 let compare t = Compare.t t
+let ty_equal = Refl.t

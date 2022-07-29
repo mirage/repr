@@ -19,3 +19,4 @@ open Staging
 
 val equal : 'a t -> 'a equal staged
 val compare : 'a t -> 'a compare staged
+val ty_equal : 'a ty -> 'b ty -> ('a, 'b) Witness.eq option

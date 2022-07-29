@@ -154,22 +154,59 @@ module Dot = struct
     Option.iter (pp_label ppf) label;
     Fmt.pf ppf "@."
 
-  type ctxt = { ppf : Format.formatter; make_uid : unit -> uid }
+  type ty_box = U : 'a t -> ty_box
+
+  type ctxt = {
+    ppf : Format.formatter;
+    make_uid : unit -> uid;
+    mutable uid_cache : (ty_box * uid) list;
+  }
+  (* [uid_cache] is an association list, which has a poor time complexity.
+     Using a hashtbl or a map would require a hashing or a comparison function
+     over [ty]s. *)
+
+  let equal : type a b. a t -> b t -> bool =
+   fun a b ->
+    (* [ty_equal] returns [Some] if [a] and [b] are the same type. This then
+       enables the use of [==] which tells if two typereprs are the same OCaml
+       evalues. *)
+    match Type_ordered.ty_equal a b with None -> false | Some Refl -> a == b
+
+  let find_cache_opt ctxt ty =
+    List.find_map
+      (fun (U ty', uid) -> if equal ty ty' then Some uid else None)
+      ctxt.uid_cache
+
+  let add_cache ctxt ty uid = ctxt.uid_cache <- (U ty, uid) :: ctxt.uid_cache
+
   type ('a, 'r) k = ('a -> 'r) -> 'r
 
-  let rec t : type r a. ctxt -> a t -> (uid, r) k =
+  let rec recurse_with_cache : type r a. ctxt -> a t -> (uid, r) k =
    fun ctxt ty k ->
-    let uid = ctxt.make_uid () in
+    match find_cache_opt ctxt ty with
+    | Some uid -> k uid
+    | None -> (
+        let uid = ctxt.make_uid () in
+        match ty with
+        | Prim p ->
+            (* Do not cache primitives, let's duplicate in dot *)
+            pp_node ctxt.ppf ~label:(prim p) ~uid;
+            k uid
+        | _ ->
+            add_cache ctxt ty uid;
+            recurse_without_cache ctxt ty uid k)
+
+  and recurse_without_cache : type r a. ctxt -> a t -> uid -> (uid, r) k =
+   fun ctxt ty uid k ->
     match ty with
-    | Self _ ->
+    | Self { self_fix; _ } ->
         pp_node ctxt.ppf ~label:"Self" ~uid;
-        (* TODO handle unrolling, see {!ty} *)
-        k uid
+        recurse_with_edge ctxt self_fix uid k
     | Custom c -> (
         match c.cwit with
         | `Type t ->
             pp_node ctxt.ppf ~label:"Custom Type" ~uid;
-            recurse ctxt t uid k
+            recurse_with_edge ctxt t uid k
         | `Witness _ ->
             pp_node ctxt.ppf ~label:"Custom Witness" ~uid;
             k uid)
@@ -182,32 +219,30 @@ module Dot = struct
           Fmt.str "Attributes {%a}" Fmt.(list ~sep:(any "; ") string) names
         in
         pp_node ctxt.ppf ~label ~uid;
-        recurse ctxt at uid k
+        recurse_with_edge ctxt at uid k
     | Boxed b ->
         pp_node ctxt.ppf ~label:"Boxed" ~uid;
-        recurse ctxt b uid k
+        recurse_with_edge ctxt b uid k
     | Map m ->
         pp_node ctxt.ppf ~label:"Map" ~uid;
-        recurse ctxt m.x uid k
-    | Prim p ->
-        pp_node ctxt.ppf ~label:(prim p) ~uid;
-        k uid
+        recurse_with_edge ctxt m.x uid k
+    | Prim p -> assert false
     | List l ->
         pp_node ctxt.ppf ~label:"List" ~uid;
-        recurse ctxt l.v uid k
+        recurse_with_edge ctxt l.v uid k
     | Array a ->
         pp_node ctxt.ppf ~label:"Array" ~uid;
-        recurse ctxt a.v uid k
+        recurse_with_edge ctxt a.v uid k
     | Tuple (Pair (a, b)) ->
         pp_node ctxt.ppf ~label:"Pair" ~uid;
-        recurse ctxt a uid @@ fun _ -> recurse ctxt b uid k
+        recurse_with_edge ctxt a uid @@ fun _ -> recurse_with_edge ctxt b uid k
     | Tuple (Triple (a, b, c)) ->
         pp_node ctxt.ppf ~label:"Triple" ~uid;
-        recurse ctxt a uid @@ fun _ ->
-        recurse ctxt b uid @@ fun _ -> recurse ctxt c uid k
+        recurse_with_edge ctxt a uid @@ fun _ ->
+        recurse_with_edge ctxt b uid @@ fun _ -> recurse_with_edge ctxt c uid k
     | Option t ->
         pp_node ctxt.ppf ~label:"Option" ~uid;
-        recurse ctxt t uid k
+        recurse_with_edge ctxt t uid k
     | Record { rname; rfields = Fields (fs, _); _ } ->
         let label = Fmt.str "Record: %s" rname in
         pp_node ctxt.ppf ~label ~uid;
@@ -221,9 +256,10 @@ module Dot = struct
         pp_node ctxt.ppf ~label:v ~uid;
         k uid
 
-  and recurse : type r a. ctxt -> ?label:string -> a t -> uid -> (uid, r) k =
+  and recurse_with_edge :
+      type r a. ctxt -> ?label:string -> a t -> uid -> (uid, r) k =
    fun ctxt ?label c src k ->
-    t ctxt c @@ fun dest ->
+    recurse_with_cache ctxt c @@ fun dest ->
     pp_edge ?label ctxt.ppf ~src ~dest;
     k src
 
@@ -232,7 +268,7 @@ module Dot = struct
     match fs with
     | F0 -> k src
     | F1 ({ fname = label; ftype; _ }, fs) ->
-        recurse ctxt ~label ftype src @@ fun _ -> fields ctxt src fs k
+        recurse_with_edge ctxt ~label ftype src @@ fun _ -> fields ctxt src fs k
 
   and cases : type r v. ctxt -> uid -> v a_case list -> (uid, r) k =
    fun ctxt src cs k ->
@@ -242,7 +278,8 @@ module Dot = struct
         match hd with
         | C0 _ -> cases ctxt src tl k
         | C1 { cname1 = label; ctype1; _ } ->
-            recurse ctxt ~label ctype1 src @@ fun _ -> cases ctxt src tl k)
+            recurse_with_edge ctxt ~label ctype1 src @@ fun _ ->
+            cases ctxt src tl k)
 
   and prim : type a. a prim -> string =
    fun t ->
@@ -269,8 +306,8 @@ module Dot = struct
   let t : _ t Fmt.t =
    fun ppf ty ->
     pp_start ppf;
-    let ctxt = { ppf; make_uid = uid_generator () } in
-    t ctxt ty @@ fun _ -> pp_end ppf
+    let ctxt = { ppf; make_uid = uid_generator (); uid_cache = [] } in
+    recurse_with_cache ctxt ty @@ fun _ -> pp_end ppf
 end
 
 let dot = Dot.t
