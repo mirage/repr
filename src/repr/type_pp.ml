@@ -179,7 +179,7 @@ module Dot = struct
           let names =
             Map.bindings attrs |> List.map (fun (Map.B (k, _)) -> name k)
           in
-          Fmt.str "Attributes {%a}" Fmt.(list ~sep:semi string) names
+          Fmt.str "Attributes {%a}" Fmt.(list ~sep:(any "; ") string) names
         in
         pp_node ctxt.ppf ~label ~uid;
         recurse ctxt at uid k
