@@ -260,10 +260,10 @@ module Dot = struct
     | `Int -> ()
     | `Int32 -> Fmt.pf ppf ":32"
 
-  let t : type a. a t Fmt.t =
-   fun ppf typ ->
+  let t : _ t Fmt.t =
+   fun ppf ty ->
     pp_start ppf;
-    t ppf typ @@ fun _ -> pp_end ppf
+    t ppf ty @@ fun _ -> pp_end ppf
 end
 
 let dot = Dot.t
