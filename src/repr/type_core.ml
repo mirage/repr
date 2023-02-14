@@ -31,6 +31,8 @@ module Json = struct
         e.lexemes <- t;
         `Lexeme h
     | [] -> Jsonm.decode e.d
+
+  let decoder_and_lexemes t = (t.d, t.lexemes)
 end
 
 module Encode_json = Attribute.Make1 (struct

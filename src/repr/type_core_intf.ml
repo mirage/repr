@@ -190,5 +190,7 @@ module type Type_core = sig
     val decode :
       json_decoder ->
       [> `Await | `End | `Error of Jsonm.error | `Lexeme of Jsonm.lexeme ]
+
+    val decoder_and_lexemes : decoder -> Jsonm.decoder * Jsonm.lexeme list
   end
 end
