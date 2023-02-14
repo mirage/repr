@@ -1,3 +1,8 @@
+### Unreleased
+
+ - Expose the underlying `Jsonm.decoder` for custom JSON serialisation in
+   functions like `Repr.like`. (#103, @patricoferris)
+
 ### 0.6.0 (2022-01-04)
 
 - Change the type of `Repr.decode_bin` to take a mutable buffer offset rather
