@@ -136,6 +136,7 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
           (match List.length args with
           | 2 -> "pair"
           | 3 -> "triple"
+          | 4 -> "quad"
           | n -> Raise.Unsupported.tuple_size ~loc n)
           |> in_lib ~lib
           |> evar

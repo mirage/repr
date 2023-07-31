@@ -79,6 +79,14 @@ module Encode = struct
     c e z;
     lexeme e `Ae
 
+  let quad a b c d e (w, x, y, z) =
+    lexeme e `As;
+    a e w;
+    b e x;
+    c e y;
+    d e z;
+    lexeme e `Ae
+
   let boxed_option o e = function
     | None -> lexeme e `Null
     | Some x ->
@@ -106,6 +114,7 @@ module Encode = struct
   and tuple : type a. a tuple -> a encode_json = function
     | Pair (x, y) -> pair (t x) (t y)
     | Triple (x, y, z) -> triple (t x) (t y) (t z)
+    | Quad (w, x, y, z) -> quad (t w) (t x) (t y) (t z)
 
   and map : type a b. (a, b) map -> b encode_json =
    fun { x; g; _ } ->
@@ -287,6 +296,14 @@ module Decode = struct
     c e >>= fun z ->
     expect_lexeme e `Ae >|= fun () -> (x, y, z)
 
+  let quad a b c d e =
+    expect_lexeme e `As >>= fun () ->
+    a e >>= fun w ->
+    b e >>= fun x ->
+    c e >>= fun y ->
+    d e >>= fun z ->
+    expect_lexeme e `Ae >|= fun () -> (w, x, y, z)
+
   let unboxed_option o e = o e >|= fun v -> Some v
 
   let boxed_option o e =
@@ -323,6 +340,7 @@ module Decode = struct
   and tuple : type a. a tuple -> a decode_json = function
     | Pair (x, y) -> pair (t x) (t y)
     | Triple (x, y, z) -> triple (t x) (t y) (t z)
+    | Quad (w, x, y, z) -> quad (t w) (t x) (t y) (t z)
 
   and map : type a b. (a, b) map -> b decode_json =
    fun { x; f; _ } ->

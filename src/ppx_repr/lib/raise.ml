@@ -21,7 +21,7 @@ let name = "ppx_repr"
 module Unsupported = struct
   let tuple_size ~loc count =
     Location.raise_errorf ~loc
-      "%s: tuple types must have 2 or 3 components. Found %d." name count
+      "%s: tuple types must have 2, 3 or 4 components. Found %d." name count
 
   let type_arrow ~loc ctyp =
     Location.raise_errorf ~loc

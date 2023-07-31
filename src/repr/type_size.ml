@@ -90,6 +90,7 @@ and self : type a. a self -> a Sizer.t * a Sizer.t =
 and tuple : type a. a tuple -> a Sizer.t = function
   | Pair (x, y) -> Bin.Pair.sizer (t x) (t y)
   | Triple (x, y, z) -> Bin.Triple.sizer (t x) (t y) (t z)
+  | Quad (w, x, y, z) -> Bin.Quad.sizer (t w) (t x) (t y) (t z)
 
 and map : type a b. boxed:bool -> (a, b) map -> b Sizer.t =
  fun ~boxed { x; g; _ } -> Sizer.using g (if boxed then t x else unboxed x)

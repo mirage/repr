@@ -522,3 +522,25 @@ module Triple = struct
       <+> using (fun (_, x, _) -> x) b
       <+> using (fun (_, _, x) -> x) c)
 end
+
+module Quad = struct
+  let encode a b c d (w, x, y, z) k =
+    a w k;
+    b x k;
+    c y k;
+    d z k
+
+  let decode a b c d buf pos_ref =
+    let a = a buf pos_ref in
+    let b = b buf pos_ref in
+    let c = c buf pos_ref in
+    let d = d buf pos_ref in
+    (a, b, c, d)
+
+  let sizer a b c d =
+    Sizer.(
+      using (fun (w, _, _, _) -> w) a
+      <+> using (fun (_, x, _, _) -> x) b
+      <+> using (fun (_, _, y, _) -> y) c
+      <+> using (fun (_, _, _, z) -> z) d)
+end

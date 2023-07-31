@@ -350,6 +350,9 @@ let test_to_string () =
   test "(int * string * bool)"
     T.(triple int string bool)
     (1, "foo", true) "[1,\"foo\",true]";
+  test "(int * string * bool * int)"
+    T.(quad int string bool int)
+    (1, "foo", true, 1) "[1,\"foo\",true,1]";
   test "(string, bool) result{ok}"
     T.(result string bool)
     (Ok "foo") "{\"ok\":\"foo\"}";

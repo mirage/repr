@@ -57,6 +57,27 @@ module type S3 = sig
   val sizer : 'a sizer -> 'b sizer -> 'c sizer -> ('a, 'b, 'c) t sizer
 end
 
+module type S4 = sig
+  type ('a, 'b, 'c, 'd) t
+
+  val encode :
+    'a encoder ->
+    'b encoder ->
+    'c encoder ->
+    'd encoder ->
+    ('a, 'b, 'c, 'd) t encoder
+
+  val decode :
+    'a decoder ->
+    'b decoder ->
+    'c decoder ->
+    'd decoder ->
+    ('a, 'b, 'c, 'd) t decoder
+
+  val sizer :
+    'a sizer -> 'b sizer -> 'c sizer -> 'd sizer -> ('a, 'b, 'c, 'd) t sizer
+end
+
 module type Intf = sig
   include module type of Types
 
@@ -64,6 +85,7 @@ module type Intf = sig
   module type S1 = S1
   module type S2 = S2
   module type S3 = S3
+  module type S4 = S4
 
   module Unit : S with type t := unit
   module Bool : S with type t := bool
@@ -83,4 +105,5 @@ module type Intf = sig
   module Option : S1 with type 'a t := 'a option
   module Pair : S2 with type ('a, 'b) t := 'a * 'b
   module Triple : S3 with type ('a, 'b, 'c) t := 'a * 'b * 'c
+  module Quad : S4 with type ('a, 'b, 'c, 'd) t := 'a * 'b * 'c * 'd
 end

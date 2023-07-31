@@ -101,6 +101,9 @@ and tuple : type a. a tuple -> a random = function
   | Triple (a, b, c) ->
       let+ a = t a and+ b = t b and+ c = t c in
       fun s -> (a s, b s, c s)
+  | Quad (a, b, c, d) ->
+      let+ a = t a and+ b = t b and+ c = t c and+ d = t d in
+      fun s -> (a s, b s, c s, d s)
 
 and option : type a. a t -> a option random =
  fun elt ->
