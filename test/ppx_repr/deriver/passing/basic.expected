@@ -72,6 +72,12 @@ module Composite : sig  end =
       struct
         let test_triple_t = Repr.triple Repr.string Repr.int32 Repr.bool
       end[@@ocaml.doc "@inline"][@@merlin.hide ]
+    type test_quad = (string * int32 * bool * float)[@@deriving repr]
+    include
+      struct
+        let test_quad_t =
+          Repr.quad Repr.string Repr.int32 Repr.bool Repr.float
+      end[@@ocaml.doc "@inline"][@@merlin.hide ]
     type test_result = (int32 lazy_t, string) result[@@deriving repr]
     include
       struct
@@ -83,6 +89,7 @@ module Composite : sig  end =
     let (_ : test_option Repr.t) = test_option_t
     let (_ : test_pair Repr.t) = test_pair_t
     let (_ : test_triple Repr.t) = test_triple_t
+    let (_ : test_quad Repr.t) = test_quad_t
     let (_ : test_result Repr.t) = test_result_t
   end 
 module Inside_modules :

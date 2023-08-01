@@ -79,6 +79,10 @@ module Refl = struct
         match (t a0 b0, t a1 b1, t a2 b2) with
         | Some Refl, Some Refl, Some Refl -> Some Refl
         | _ -> None)
+    | Quad (a0, a1, a2, a3), Quad (b0, b1, b2, b3) -> (
+        match (t a0 b0, t a1 b1, t a2 b2, t a3 b3) with
+        | Some Refl, Some Refl, Some Refl, Some Refl -> Some Refl
+        | _ -> None)
     | _ -> None
 end
 
@@ -122,6 +126,14 @@ module Equal = struct
     stage @@ fun ((x1, y1, z1) as a) ((x2, y2, z2) as b) ->
     a == b || (ex x1 x2 && ey y1 y2 && ez z1 z2)
 
+  let quad ew ex ey ez =
+    let ew = unstage ew
+    and ex = unstage ex
+    and ey = unstage ey
+    and ez = unstage ez in
+    stage @@ fun ((w1, x1, y1, z1) as a) ((w2, x2, y2, z2) as b) ->
+    a == b || (ew w1 w2 && ex x1 x2 && ey y1 y2 && ez z1 z2)
+
   let option e =
     let e = unstage e in
     stage @@ fun x y ->
@@ -156,6 +168,7 @@ module Equal = struct
   and tuple : type a. a tuple -> a equal staged = function
     | Pair (a, b) -> pair (t a) (t b)
     | Triple (a, b, c) -> triple (t a) (t b) (t c)
+    | Quad (a, b, c, d) -> quad (t a) (t b) (t c) (t d)
 
   and map : type a b. (a, b) map -> b equal staged =
    fun { x; g; _ } ->
@@ -260,6 +273,13 @@ module Compare = struct
     if a == b then 0
     else match cx x1 x2 with 0 -> pair (y1, z1) (y2, z2) | i -> i
 
+  let quad cw cx cy cz =
+    let cw = unstage cw in
+    let triple = unstage (triple cx cy cz) in
+    stage @@ fun ((w1, x1, y1, z1) as a) ((w2, x2, y2, z2) as b) ->
+    if a == b then 0
+    else match cw w1 w2 with 0 -> triple (x1, y1, z1) (x2, y2, z2) | i -> i
+
   let option c =
     let c = unstage c in
     stage @@ fun x y ->
@@ -307,6 +327,7 @@ module Compare = struct
   and tuple : type a. a tuple -> a compare staged = function
     | Pair (x, y) -> pair (t x) (t y)
     | Triple (x, y, z) -> triple (t x) (t y) (t z)
+    | Quad (w, x, y, z) -> quad (t w) (t x) (t y) (t z)
 
   and map : type a b. (a, b) map -> b compare staged =
    fun { x; g; _ } ->

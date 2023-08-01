@@ -70,6 +70,9 @@ module type DSL = sig
   val triple : 'a t -> 'b t -> 'c t -> ('a * 'b * 'c) t
   (** [triple x y z] is a representation of values of type [x * y * z]. *)
 
+  val quad : 'a t -> 'b t -> 'c t -> 'd t -> ('a * 'b * 'c * 'd) t
+  (** [quad w x y z] is a representation of values of type [w * x * y * z]. *)
+
   val result : 'a t -> 'b t -> ('a, 'b) result t
   (** [result a b] is a representation of values of type [(a, b) result]. *)
 

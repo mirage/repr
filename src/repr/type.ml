@@ -36,6 +36,7 @@ let list ?(len = `Int) v = List { v; len }
 let array ?(len = `Int) v = Array { v; len }
 let pair a b = Tuple (Pair (a, b))
 let triple a b c = Tuple (Triple (a, b, c))
+let quad a b c d = Tuple (Quad (a, b, c, d))
 let option a = Option a
 let boxed t = Boxed t
 

@@ -76,6 +76,7 @@ module Types = struct
   and 'a tuple =
     | Pair : 'a t * 'b t -> ('a * 'b) tuple
     | Triple : 'a t * 'b t * 'c t -> ('a * 'b * 'c) tuple
+    | Quad : 'a t * 'b t * 'c t * 'd t -> ('a * 'b * 'c * 'd) tuple
 
   and 'a record = {
     rwit : 'a Witness.t;

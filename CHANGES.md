@@ -1,5 +1,7 @@
 ### Unreleased
 
+ - Add quadruples as another type combinator (#104, @patricoferris)
+
  - Expose the underlying `Jsonm.decoder` for custom JSON serialisation in
    functions like `Repr.like`. (#103, @patricoferris)
 

@@ -101,6 +101,17 @@ let dump t =
             ++ using (fun (_, b, _) -> b) (box (aux tb))
             ++ comma
             ++ using (fun (_, _, c) -> c) (box (aux tc))))
+    | Quad (ta, tb, tc, td) ->
+        (* There is no built-in formatter for quadruples in [Fmt.Dump]. *)
+        Fmt.(
+          parens
+            (using (fun (a, _, _, _) -> a) (box (aux ta))
+            ++ comma
+            ++ using (fun (_, b, _, _) -> b) (box (aux tb))
+            ++ comma
+            ++ using (fun (_, _, c, _) -> c) (box (aux tc))
+            ++ comma
+            ++ using (fun (_, _, _, d) -> d) (box (aux td))))
   and record : type a. a record -> a pp =
    fun t ->
     fields t
@@ -175,6 +186,8 @@ let ty : type a. a t Fmt.t =
     | Array a -> Fmt.pf ppf "@[%a array%a@]" ty a.v len a.len
     | Tuple (Pair (a, b)) -> Fmt.pf ppf "@[(%a * %a)@]" ty a ty b
     | Tuple (Triple (a, b, c)) -> Fmt.pf ppf "@[(%a * %a * %a)@]" ty a ty b ty c
+    | Tuple (Quad (a, b, c, d)) ->
+        Fmt.pf ppf "@[(%a * %a * %a * %a)@]" ty a ty b ty c ty d
     | Option t -> Fmt.pf ppf "@[%a option@]" ty t
     | Record { rname; rfields = Fields (fields, _); _ } ->
         Fmt.pf ppf "(@[<hv>%a>@] as %s)" pp_fields fields rname
