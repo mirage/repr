@@ -1,0 +1,18 @@
+kind: pipeline
+name: amd
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+  - name: build
+    image: ocaml/opam:debian-10-ocaml-4.12-afl
+    commands:
+      - sudo apt-get update && sudo apt-get -y install afl
+      - sudo chown -R opam .
+      - git -C /home/opam/opam-repository pull origin && opam update
+      - opam pin add --no-action .
+      - opam depext --update repr-fuzz
+      - opam install -y repr-fuzz
+      - timeout --preserve-status 30m opam exec -- dune build @fuzz --no-buffer

@@ -6,6 +6,12 @@
  (preprocess
   (pps repr-fuzz.rewriter)))
 
+(rule
+ (alias runtest)
+ (package repr-fuzz)
+ (deps main.exe)
+ (action progn))
+
 ;; Start fuzzing when calling `dune build @fuzz`.
 
 (rule
@@ -13,10 +19,4 @@
  (deps
   (source_tree ./input))
  (action
-  (run afl-fuzz -i ./input -o output %{exe:fuzz_types.exe} @@)))
-
-(rule
- (alias runtest)
- (package repr-fuzz)
- (deps main.exe)
- (action progn))
+  (run bun -v --input=input --output=output -- ./%{exe:main.exe})))
