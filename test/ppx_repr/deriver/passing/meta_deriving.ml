@@ -4,14 +4,14 @@ module T0 : sig
   and other = string
   [@@deriving
     repr ~equal ~compare ~pp ~pp_dump ~size_of ~to_bin_string ~of_bin_string
-      ~encode_bin ~decode_bin]
+      ~encode_bin ~decode_bin ~short_hash]
 end = struct
   type nonrec t = int
 
   and other = string
   [@@deriving
     repr ~equal ~compare ~pp ~pp_dump ~size_of ~to_bin_string ~of_bin_string
-      ~encode_bin ~decode_bin]
+      ~encode_bin ~decode_bin ~short_hash]
 end
 
 module T1 : sig

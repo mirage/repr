@@ -74,7 +74,7 @@ module Plugin = struct
         ~intf:(fun loc t -> [%type: string -> int ref -> [%t t]]);
       create "short_hash"
         ~impl:(fun loc t -> [%expr Repr.unstage (Repr.short_hash [%e t])])
-        ~intf:(fun loc t -> [%type: ?seed:int -> [%t t] -> unit]);
+        ~intf:(fun loc t -> [%type: ?seed:int -> [%t t] -> int]);
       create "pre_hash"
         ~impl:(fun loc t -> [%expr Repr.unstage (Repr.pre_hash [%e t])])
         ~intf:(fun loc t -> [%type: [%t t] -> (string -> unit) -> unit]);
