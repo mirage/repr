@@ -123,7 +123,8 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
           let+ inner = derive_core c in
           recursive ~lib var.txt inner)
         else derive_core c
-    | Ptyp_object _ | Ptyp_class _ | Ptyp_open _ -> invalid_arg "unsupported"
+    | Ptyp_open (_, c) -> derive_core c
+    | Ptyp_object _ | Ptyp_class _ -> invalid_arg "unsupported"
 
   and derive_tuple args =
     let* { lib; _ } = ask in
