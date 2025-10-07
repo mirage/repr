@@ -34,7 +34,7 @@ guarantee.
  (documentation "https://mirage.github.io/repr")
  (depends
   (repr (= :version))
-  (ppxlib (>= 0.12.0))
+  (ppxlib (>= 0.36.2))
   ppx_deriving
   fmt
   ; Test dependencies inherited from [repr] (see [test/repr/dune])
