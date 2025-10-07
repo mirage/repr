@@ -15,8 +15,7 @@ module Sum =
         (Repr.(|~)
            (Repr.(|~)
               (Repr.variant "t"
-                 (fun foo ->
-                    fun bar -> function | `Foo -> foo | `Bar x1 -> bar x1))
+                 (fun foo bar -> function | `Foo -> foo | `Bar x1 -> bar x1))
               (Repr.case0 "Foo" `Foo))
            (Repr.case1 "Bar" Repr.string (fun x1 -> `Bar x1)))
   end
@@ -24,8 +23,8 @@ module Params =
   struct
     let __ : type a. a typ -> a list typ = fun a -> Repr.list a
     let __ : type a b. a typ -> b typ -> (a * b * a) typ =
-      fun a -> fun _x__001_ -> Repr.triple a _x__001_ a
+      fun a _x__001_ -> Repr.triple a _x__001_ a
     let __ : type a b. a typ -> b typ -> (a, b) result typ =
-      fun _x__002_ -> fun _x__003_ -> Repr.result _x__002_ _x__003_
+      fun _x__002_ _x__003_ -> Repr.result _x__002_ _x__003_
   end
 module Namespace = struct let (_ : string typ) = Repr.string end

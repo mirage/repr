@@ -133,7 +133,7 @@ module Located (A : Ast_builder.S) (M : Monad.S) : S with module M = M = struct
       in
       variant_pattern c.pcd_name.txt pattern n
     in
-    cs >|= pattern_of_cdecl |> pexp_function |> lambda (cs >|= fparam_of_cdecl)
+    cs >|= pattern_of_cdecl |> pexp_function_cases |> lambda (cs >|= fparam_of_cdecl)
 
   (** Analogous to {!variant_composite} but using AST fragments for polymorphic
       variants. *)
@@ -153,7 +153,7 @@ module Located (A : Ast_builder.S) (M : Monad.S) : S with module M = M = struct
     in
     fs
     >|= pattern_case_of_rowfield
-    |> pexp_function
+    |> pexp_function_cases
     |> lambda (fs >|= fparam_of_rowfield)
 
   (** {1 Functional encodings of composite types}

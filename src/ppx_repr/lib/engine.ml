@@ -118,12 +118,12 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     | Ptyp_package _ -> Raise.Unsupported.type_package ~loc typ
     | Ptyp_extension _ -> Raise.Unsupported.type_extension ~loc typ
     | Ptyp_alias (c, var) ->
-        if contains_tvar var c then (
-          add_var_repr var_repr (`Var var, evar var);
+        if contains_tvar var.txt c then (
+          add_var_repr var_repr (`Var var.txt, evar var.txt);
           let+ inner = derive_core c in
-          recursive ~lib var inner)
+          recursive ~lib var.txt inner)
         else derive_core c
-    | Ptyp_object _ | Ptyp_class _ -> invalid_arg "unsupported"
+    | Ptyp_object _ | Ptyp_class _ | Ptyp_open _ -> invalid_arg "unsupported"
 
   and derive_tuple args =
     let* { lib; _ } = ask in
@@ -277,11 +277,11 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
            | Ptyp_alias (c, v) ->
                (* Push [v] to the bound stack, traverse the alias, then remove it. *)
                let c, acc =
-                 super#core_type c { acc with ctx_bound = v :: acc.ctx_bound }
+                 super#core_type c { acc with ctx_bound = v.txt :: acc.ctx_bound }
                in
                let ctx_bound =
                  match acc.ctx_bound with
-                 | v' :: ctx_bound when v = v' -> ctx_bound
+                 | v' :: ctx_bound when v.txt = v' -> ctx_bound
                  | _ -> assert false
                in
                (Ptyp_alias (c, v), { acc with ctx_bound })

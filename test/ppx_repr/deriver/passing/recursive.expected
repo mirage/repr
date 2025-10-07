@@ -33,19 +33,18 @@ module Recursive_group :
       struct
         let (odd_t, even_t) =
           Repr.mu2
-            (fun odd_t ->
-               fun even_t ->
-                 ((Repr.sealv
-                     (Repr.(|~)
-                        (Repr.variant "odd"
-                           (fun odd -> function | Odd x1 -> odd x1))
-                        (Repr.case1 "Odd" (Repr.option even_t)
-                           (fun x1 -> Odd x1)))),
-                   (Repr.sealv
-                      (Repr.(|~)
-                         (Repr.variant "even"
-                            (fun even -> function | Even x1 -> even x1))
-                         (Repr.case1 "Even" (Repr.option odd_t)
-                            (fun x1 -> Even x1))))))
+            (fun odd_t even_t ->
+               ((Repr.sealv
+                   (Repr.(|~)
+                      (Repr.variant "odd"
+                         (fun odd -> function | Odd x1 -> odd x1))
+                      (Repr.case1 "Odd" (Repr.option even_t)
+                         (fun x1 -> Odd x1)))),
+                 (Repr.sealv
+                    (Repr.(|~)
+                       (Repr.variant "even"
+                          (fun even -> function | Even x1 -> even x1))
+                       (Repr.case1 "Even" (Repr.option odd_t)
+                          (fun x1 -> Even x1))))))
       end[@@ocaml.doc "@inline"][@@merlin.hide ]
   end 

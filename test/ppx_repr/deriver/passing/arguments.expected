@@ -23,9 +23,8 @@ include
         (Repr.(|~)
            (Repr.(|~)
               (Repr.variant "point_elsewhere3"
-                 (fun a ->
-                    fun b ->
-                      function | A (x1, x2) -> a (x1, x2) | B x1 -> b x1))
+                 (fun a b ->
+                    function | A (x1, x2) -> a (x1, x2) | B x1 -> b x1))
               (Repr.case1 "A" (Repr.pair Repr.int c_wit)
                  (fun (x1, x2) -> A (x1, x2))))
            (Repr.case1 "B" c_wit (fun x1 -> B x1)))
@@ -45,10 +44,8 @@ include
               (Repr.(|+)
                  (Repr.(|+)
                     (Repr.record "point_elsewhere4"
-                       (fun lorem ->
-                          fun ipsum ->
-                            fun dolor ->
-                              fun sit -> { lorem; ipsum; dolor; sit }))
+                       (fun lorem ipsum dolor sit ->
+                          { lorem; ipsum; dolor; sit }))
                     (Repr.field "lorem" Repr.string (fun t -> t.lorem)))
                  (Repr.field "ipsum" c_wit (fun t -> t.ipsum)))
               (Repr.field "dolor" Repr.int (fun t -> t.dolor)))

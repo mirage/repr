@@ -29,11 +29,10 @@ module Recursive :
                  (Repr.(|~)
                     (Repr.(|~)
                        (Repr.variant "tree"
-                          (fun branch ->
-                             fun leaf ->
-                               function
-                               | `Branch x1 -> branch x1
-                               | `Leaf x1 -> leaf x1))
+                          (fun branch leaf ->
+                             function
+                             | `Branch x1 -> branch x1
+                             | `Leaf x1 -> leaf x1))
                        (Repr.case1 "Branch" (Repr.triple tree Repr.int tree)
                           (fun x1 -> `Branch x1)))
                     (Repr.case1 "Leaf" a (fun x1 -> `Leaf x1))))

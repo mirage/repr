@@ -39,13 +39,11 @@ module SigTests :
                (Repr.(|~)
                   (Repr.(|~)
                      (Repr.variant "my_variant"
-                        (fun a ->
-                           fun b ->
-                             fun c ->
-                               function
-                               | A x1 -> a x1
-                               | B x1 -> b x1
-                               | C (x1, x2) -> c (x1, x2)))
+                        (fun a b c ->
+                           function
+                           | A x1 -> a x1
+                           | B x1 -> b x1
+                           | C (x1, x2) -> c (x1, x2)))
                      (Repr.case1 "A" (Repr.result my_int_t Repr.int)
                         (fun x1 -> A x1)))
                   (Repr.case1 "B" Repr.unit (fun x1 -> B x1)))

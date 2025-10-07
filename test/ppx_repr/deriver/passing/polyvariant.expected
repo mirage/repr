@@ -6,8 +6,7 @@ include
         (Repr.(|~)
            (Repr.(|~)
               (Repr.variant "test_polyvar1"
-                 (fun on ->
-                    fun off -> function | `On x1 -> on x1 | `Off -> off))
+                 (fun on off -> function | `On x1 -> on x1 | `Off -> off))
               (Repr.case1 "On" Repr.int (fun x1 -> `On x1)))
            (Repr.case0 "Off" `Off))
   end[@@ocaml.doc "@inline"][@@merlin.hide ]
@@ -22,23 +21,20 @@ include
            (Repr.(|~)
               (Repr.(|~)
                  (Repr.variant "test_polyvar2"
-                    (fun outer_a ->
-                       fun outer_b ->
-                         fun outer_c ->
-                           function
-                           | `Outer_a x1 -> outer_a x1
-                           | `Outer_b x1 -> outer_b x1
-                           | `Outer_c x1 -> outer_c x1))
+                    (fun outer_a outer_b outer_c ->
+                       function
+                       | `Outer_a x1 -> outer_a x1
+                       | `Outer_b x1 -> outer_b x1
+                       | `Outer_c x1 -> outer_c x1))
                  (Repr.case1 "Outer_a"
                     (Repr.sealv
                        (Repr.(|~)
                           (Repr.(|~)
                              (Repr.variant "test_polyvar2"
-                                (fun inner_a ->
-                                   fun inner_b ->
-                                     function
-                                     | `Inner_a -> inner_a
-                                     | `Inner_b -> inner_b))
+                                (fun inner_a inner_b ->
+                                   function
+                                   | `Inner_a -> inner_a
+                                   | `Inner_b -> inner_b))
                              (Repr.case0 "Inner_a" `Inner_a))
                           (Repr.case0 "Inner_b" `Inner_b)))
                     (fun x1 -> `Outer_a x1)))
@@ -54,11 +50,10 @@ include
                  (Repr.(|~)
                     (Repr.(|~)
                        (Repr.variant "test_polyvar2"
-                          (fun inner_a ->
-                             fun inner_c ->
-                               function
-                               | `Inner_a x1 -> inner_a x1
-                               | `Inner_c x1 -> inner_c x1))
+                          (fun inner_a inner_c ->
+                             function
+                             | `Inner_a x1 -> inner_a x1
+                             | `Inner_c x1 -> inner_c x1))
                        (Repr.case1 "Inner_a" Repr.string
                           (fun x1 -> `Inner_a x1)))
                     (Repr.case1 "Inner_c" Repr.int (fun x1 -> `Inner_c x1))))
@@ -76,11 +71,10 @@ include
              (Repr.(|~)
                 (Repr.(|~)
                    (Repr.variant "test_polyvar3"
-                      (fun branch ->
-                         fun leaf ->
-                           function
-                           | `Branch x1 -> branch x1
-                           | `Leaf x1 -> leaf x1))
+                      (fun branch leaf ->
+                         function
+                         | `Branch x1 -> branch x1
+                         | `Leaf x1 -> leaf x1))
                    (Repr.case1 "Branch"
                       (Repr.pair test_polyvar3_t test_polyvar3_t)
                       (fun x1 -> `Branch x1)))
