@@ -1,3 +1,7 @@
+### Unreleased
+
+ - Bump ppxlib to `>=0.36.2` (#110, @patricoferris)
+
 ### 0.7.0 (2023-08-02)
 
  - Add quadruples as another type combinator (#104, @patricoferris)
