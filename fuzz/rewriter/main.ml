@@ -46,12 +46,11 @@ module Located (A : Ast_builder.S) : S = struct
         let apply_fields body =
           indices
           >>| (fun i body ->
-                [%expr
-                  [%e body]
-                  |+ T.field [%e ev "n" i]
-                       (t_to_repr [%e ev "t" i])
-                       (new_dyn_record_getter record_name [%e ev "n" i]
-                          [%e ev "t" i])])
+          [%expr
+            [%e body]
+            |+ T.field [%e ev "n" i]
+                 (t_to_repr [%e ev "t" i])
+                 (new_dyn_record_getter record_name [%e ev "n" i] [%e ev "t" i])])
           |> List.fold_left ( |> ) body
         in
         let values =
@@ -143,7 +142,8 @@ module Located (A : Ast_builder.S) : S = struct
         [%e
           cases
             [%expr
-              T.variant variant_name [%e wrap_params (pexp_function_cases destructor)]]]
+              T.variant variant_name
+                [%e wrap_params (pexp_function_cases destructor)]]]
         |> T.sealv]
     in
     case ~lhs:pattern ~guard:None ~rhs

@@ -106,8 +106,7 @@ let field fname ftype fget =
 
 let record : string -> 'b -> ('a, 'b, 'b) open_record = fun n c fs -> (n, c, fs)
 
-let app :
-    type a b c d.
+let app : type a b c d.
     (a, b, c -> d) open_record -> (a, c) field -> (a, b, d) open_record =
  fun r f fs ->
   let n, c, fs = r (F1 (f, fs)) in
@@ -226,14 +225,16 @@ let enum vname l =
 
 let result a b =
   variant "result" (fun ok error -> function
-    | Ok x -> ok x | Error x -> error x)
+    | Ok x -> ok x
+    | Error x -> error x)
   |~ case1 "ok" a (fun a -> Ok a)
   |~ case1 "error" b (fun b -> Error b)
   |> sealv
 
 let either a b =
   variant "either" (fun left right -> function
-    | Either.Left x -> left x | Either.Right x -> right x)
+    | Either.Left x -> left x
+    | Either.Right x -> right x)
   |~ case1 "left" a (fun a -> Either.Left a)
   |~ case1 "right" b (fun b -> Either.Right b)
   |> sealv

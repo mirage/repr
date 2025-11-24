@@ -33,9 +33,9 @@ module Sizer = struct
       - [of_value]: given a value to encode, return the size of its encoding.
 
       - [of_encoding]: given a buffer [buf] and an offset [off], return the
-        _offset_ immediately _after_ the encoding starting at [buf.\[off\]]
-        NOTE: not the length of the encoding itself, to enable chains of such
-        sizers to call each other in tail-position.
+        _offset_ immediately _after_ the encoding starting at [buf.[off]] NOTE:
+        not the length of the encoding itself, to enable chains of such sizers
+        to call each other in tail-position.
 
       Invariant: [∀ n. (of_value = Static n) ⟺ (of_encoding = Static n)]. *)
 

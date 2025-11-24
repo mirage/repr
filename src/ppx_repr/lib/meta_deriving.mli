@@ -48,7 +48,8 @@ module Plugin : sig
     signature_item
 
   val defaults : t list
-  (** Default set of plugins, using the generic operations provided by {!Repr}. *)
+  (** Default set of plugins, using the generic operations provided by {!Repr}.
+  *)
 end
 
 module Args : sig

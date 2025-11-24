@@ -118,8 +118,8 @@ struct
     | F1 (f, fs) -> folder.cons f (fold folder fs)
 end
 
-let fold_variant :
-    type a f. (a, f) Case_folder.t -> a variant -> (a -> f) staged =
+let fold_variant : type a f.
+    (a, f) Case_folder.t -> a variant -> (a -> f) staged =
  fun folder v_typ ->
   let cases =
     Array.map

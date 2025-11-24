@@ -398,8 +398,8 @@ let inhabited_gen : inhabited gen =
 
 (** Pretty-print a value of a given dynamic type. [~context] can be used to
     print additional context in case of an error. *)
-let pp_value :
-    type a. ?context:(unit -> string) -> a t -> Format.formatter -> a -> unit =
+let pp_value : type a.
+    ?context:(unit -> string) -> a t -> Format.formatter -> a -> unit =
  fun ?(context = fun () -> "") t ppf v ->
   pp ppf "Type: %s\n    Value: %s%s" (show_any_type (AT t))
     (show_any_value (wrap t v))

@@ -12,7 +12,7 @@ let charstring_of_code : int -> string =
   let tbl =
     Array.init 256 (fun i -> Bytes.unsafe_to_string (Bytes.make 1 (Char.chr i)))
   in
-  fun [@inline always] i ->
+  fun[@inline always] i ->
     assert (i < 256);
     Array.unsafe_get tbl i
 
@@ -29,7 +29,7 @@ module Char = struct
     let pos = !pos_ref in
     pos_ref := pos + 1;
     buf.[pos]
-    [@@inline always]
+  [@@inline always]
 
   let sizer = Sizer.static 1
 end
@@ -47,7 +47,7 @@ module Int8 = struct
   let encode i k = k (charstring_of_code i)
 
   let decode buf pos_ref = Stdlib.Char.code (Char.decode buf pos_ref)
-    [@@inline always]
+  [@@inline always]
 end
 
 module Int16 = struct
@@ -365,8 +365,7 @@ end
 
 (* Helper functions generalising over [list] / [array]. *)
 module Poly_container = struct
-  let sizer :
-      type a at.
+  let sizer : type a at.
       length:(at -> int) ->
       fold_left:(f:(int -> a -> int) -> init:int -> at -> int) ->
       len ->

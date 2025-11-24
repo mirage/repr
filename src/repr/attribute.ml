@@ -38,8 +38,7 @@ module Map = struct
   let mem t k = mem (E k) t
   let add t ~key ~data = add (E key) (B (key, data)) t
 
-  let update :
-      type a f.
+  let update : type a f.
       a t -> f Key.t -> ((a, f) data option -> (a, f) data option) -> a t =
    fun t k f ->
     update (E k)

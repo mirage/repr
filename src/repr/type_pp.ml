@@ -116,15 +116,15 @@ let dump t =
    fun t ->
     fields t
     |> List.map (fun (Field f) ->
-           Fmt.Dump.field ~label:Fmt.string f.fname f.fget (aux f.ftype))
+        Fmt.Dump.field ~label:Fmt.string f.fname f.fget (aux f.ftype))
     |> Fmt.Dump.record
   and option : type a. a t -> a option pp =
    fun t ppf -> function
-    | None -> Fmt.string ppf "None"
-    | Some x ->
-        Fmt.(
-          string ppf "Some ";
-          parens (aux t) ppf x)
+     | None -> Fmt.string ppf "None"
+     | Some x ->
+         Fmt.(
+           string ppf "Some ";
+           parens (aux t) ppf x)
   and variant : type a. a variant -> a pp =
    fun t ppf x ->
     match t.vget x with
@@ -160,53 +160,54 @@ let ty : type a. a t Fmt.t =
 
   let rec ty : type a. a t Fmt.t =
    fun ppf -> function
-    | Self { self_unroll; _ } -> (
-        match self_unroll (Var "") with
-        (* If it's a recursive variant or record, don't print the [as 'a]
+     | Self { self_unroll; _ } -> (
+         match self_unroll (Var "") with
+         (* If it's a recursive variant or record, don't print the [as 'a]
            alias since the type is already named. *)
-        | Variant { vname; _ } -> ty ppf (self_unroll (Var vname))
-        | Record { rname; _ } -> ty ppf (self_unroll (Var rname))
-        | _ ->
-            let var = Var (get_tvar ()) in
-            Fmt.pf ppf "@[(%a as %a)@]" ty (self_unroll var) ty var)
-    | Custom c | Attributes { attr_type = Custom c; _ } ->
-        Fmt.pf ppf "@[Custom (%a)@]" custom c
-    | Attributes { attr_type = t; attrs } ->
-        let open Attribute in
-        let names =
-          Map.bindings attrs |> List.map (fun (Map.B (k, _)) -> name k)
-        in
-        Fmt.pf ppf "@[Attributes<%a> (%a)@]"
-          Fmt.(list ~sep:semi string)
-          names ty t
-    | Boxed b -> Fmt.pf ppf "@[Boxed (%a)@]" ty b
-    | Map m -> Fmt.pf ppf "@[Map (%a)@]" ty m.x
-    | Prim p -> Fmt.pf ppf "@[%a@]" prim p
-    | List l -> Fmt.pf ppf "@[%a list%a@]" ty l.v len l.len
-    | Array a -> Fmt.pf ppf "@[%a array%a@]" ty a.v len a.len
-    | Tuple (Pair (a, b)) -> Fmt.pf ppf "@[(%a * %a)@]" ty a ty b
-    | Tuple (Triple (a, b, c)) -> Fmt.pf ppf "@[(%a * %a * %a)@]" ty a ty b ty c
-    | Tuple (Quad (a, b, c, d)) ->
-        Fmt.pf ppf "@[(%a * %a * %a * %a)@]" ty a ty b ty c ty d
-    | Option t -> Fmt.pf ppf "@[%a option@]" ty t
-    | Record { rname; rfields = Fields (fields, _); _ } ->
-        Fmt.pf ppf "(@[<hv>%a>@] as %s)" pp_fields fields rname
-    | Variant { vname; vcases; _ } -> (
-        match Array.length vcases with
-        | 0 -> Fmt.pf ppf "({} as %s)" vname (* empty type *)
-        | _ -> Fmt.pf ppf "(@[%a]@] as %s)" pp_cases vcases vname)
-    | Var v -> Fmt.string ppf v
+         | Variant { vname; _ } -> ty ppf (self_unroll (Var vname))
+         | Record { rname; _ } -> ty ppf (self_unroll (Var rname))
+         | _ ->
+             let var = Var (get_tvar ()) in
+             Fmt.pf ppf "@[(%a as %a)@]" ty (self_unroll var) ty var)
+     | Custom c | Attributes { attr_type = Custom c; _ } ->
+         Fmt.pf ppf "@[Custom (%a)@]" custom c
+     | Attributes { attr_type = t; attrs } ->
+         let open Attribute in
+         let names =
+           Map.bindings attrs |> List.map (fun (Map.B (k, _)) -> name k)
+         in
+         Fmt.pf ppf "@[Attributes<%a> (%a)@]"
+           Fmt.(list ~sep:semi string)
+           names ty t
+     | Boxed b -> Fmt.pf ppf "@[Boxed (%a)@]" ty b
+     | Map m -> Fmt.pf ppf "@[Map (%a)@]" ty m.x
+     | Prim p -> Fmt.pf ppf "@[%a@]" prim p
+     | List l -> Fmt.pf ppf "@[%a list%a@]" ty l.v len l.len
+     | Array a -> Fmt.pf ppf "@[%a array%a@]" ty a.v len a.len
+     | Tuple (Pair (a, b)) -> Fmt.pf ppf "@[(%a * %a)@]" ty a ty b
+     | Tuple (Triple (a, b, c)) ->
+         Fmt.pf ppf "@[(%a * %a * %a)@]" ty a ty b ty c
+     | Tuple (Quad (a, b, c, d)) ->
+         Fmt.pf ppf "@[(%a * %a * %a * %a)@]" ty a ty b ty c ty d
+     | Option t -> Fmt.pf ppf "@[%a option@]" ty t
+     | Record { rname; rfields = Fields (fields, _); _ } ->
+         Fmt.pf ppf "(@[<hv>%a>@] as %s)" pp_fields fields rname
+     | Variant { vname; vcases; _ } -> (
+         match Array.length vcases with
+         | 0 -> Fmt.pf ppf "({} as %s)" vname (* empty type *)
+         | _ -> Fmt.pf ppf "(@[%a]@] as %s)" pp_cases vcases vname)
+     | Var v -> Fmt.string ppf v
   and pp_fields : type r b. (r, b) fields Fmt.t =
    fun ppf fields ->
     let rec inner : type b. first:bool -> (r, b) fields -> unit =
      fun ~first -> function
-      | F0 -> ()
-      | F1 ({ fname; ftype; _ }, fs) ->
-          let trailing_space = match fs with F0 -> 1 | F1 _ -> 0 in
-          Format.pp_print_char ppf (if first then '<' else ';');
-          Format.fprintf ppf " %s : %a" fname ty ftype;
-          Format.pp_print_break ppf trailing_space 0;
-          (inner [@tailrec]) ~first:false fs
+       | F0 -> ()
+       | F1 ({ fname; ftype; _ }, fs) ->
+           let trailing_space = match fs with F0 -> 1 | F1 _ -> 0 in
+           Format.pp_print_char ppf (if first then '<' else ';');
+           Format.fprintf ppf " %s : %a" fname ty ftype;
+           Format.pp_print_break ppf trailing_space 0;
+           (inner [@tailrec]) ~first:false fs
     in
     inner ~first:true fields
   and pp_case : type v. last:bool -> v a_case Fmt.t =
@@ -234,23 +235,23 @@ let ty : type a. a t Fmt.t =
     match c.cwit with `Type t -> ty ppf t | `Witness _ -> Fmt.string ppf "-"
   and prim : type a. a prim Fmt.t =
    fun ppf -> function
-    | Unit -> Fmt.string ppf "unit"
-    | Bool -> Fmt.string ppf "bool"
-    | Char -> Fmt.string ppf "char"
-    | Int -> Fmt.string ppf "int"
-    | Int32 -> Fmt.string ppf "int32"
-    | Int64 -> Fmt.string ppf "int64"
-    | Float -> Fmt.string ppf "float"
-    | String n -> Fmt.pf ppf "string%a" len n
-    | Bytes n -> Fmt.pf ppf "bytes%a" len n
+     | Unit -> Fmt.string ppf "unit"
+     | Bool -> Fmt.string ppf "bool"
+     | Char -> Fmt.string ppf "char"
+     | Int -> Fmt.string ppf "int"
+     | Int32 -> Fmt.string ppf "int32"
+     | Int64 -> Fmt.string ppf "int64"
+     | Float -> Fmt.string ppf "float"
+     | String n -> Fmt.pf ppf "string%a" len n
+     | Bytes n -> Fmt.pf ppf "bytes%a" len n
   and len : len Fmt.t =
    fun ppf -> function
-    | `Int8 -> Fmt.string ppf ":8"
-    | `Int64 -> Fmt.string ppf ":64"
-    | `Int16 -> Fmt.string ppf ":16"
-    | `Fixed n -> Fmt.pf ppf ":<%d>" n
-    | `Int -> ()
-    | `Int32 -> Fmt.pf ppf ":32"
+     | `Int8 -> Fmt.string ppf ":8"
+     | `Int64 -> Fmt.string ppf ":64"
+     | `Int16 -> Fmt.string ppf ":16"
+     | `Fixed n -> Fmt.pf ppf ":<%d>" n
+     | `Int -> ()
+     | `Int32 -> Fmt.pf ppf ":32"
   in
   ty ppf typ
 

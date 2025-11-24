@@ -301,7 +301,7 @@ module Compare = struct
     | Float -> stage float
     | String _ -> stage string
     | Bytes _ -> stage bytes
-    [@@inline always]
+  [@@inline always]
 
   let rec t : type a. a t -> a compare staged = function
     | Self s -> self s

@@ -21,9 +21,9 @@
     runtime type representation.
 
     The type combinators supports all the usual {{!primitives} type primitives}
-    but also compact definitions of {{!records} records} and {{!variants}
-    variants}. It also allows the definition of run-time representations of
-    {{!recursive} recursive types}. *)
+    but also compact definitions of {{!records} records} and
+    {{!variants} variants}. It also allows the definition of run-time
+    representations of {{!recursive} recursive types}. *)
 
 include Type_intf.Type
 (** @inline *)
