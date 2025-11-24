@@ -5,7 +5,7 @@ module Trivial :
     include sig val t : t Repr.t end[@@ocaml.doc "@inline"][@@merlin.hide ]
   end =
   struct
-    type t = int as 'a[@@deriving repr]
+    type t = int as 'a[@@warning "-34"][@@deriving repr]
     include struct let t = Repr.int end[@@ocaml.doc "@inline"][@@merlin.hide
                                                                 ]
   end 
