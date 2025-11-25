@@ -30,13 +30,13 @@ let output_stanzas ~expect_failure filename =
     let pp_action ppf expect_failure =
       Format.fprintf ppf
         (if expect_failure then
-         "; expect the process to fail, capturing stderr@,\
-          @[<v 1>(with-stderr-to@,\
-          %%{targets}@,\
-          (bash \"! ./%%{pp} -no-color --impl %%{input}\"))@]"
-        else
-          "(run ./%%{pp} -deriving-keep-w32 both --impl %%{input} -o \
-           %%{targets})")
+           "; expect the process to fail, capturing stderr@,\
+            @[<v 1>(with-stderr-to@,\
+            %%{targets}@,\
+            (bash \"! ./%%{pp} -no-color --impl %%{input}\"))@]"
+         else
+           "(run ./%%{pp} -deriving-keep-w32 both --impl %%{input} -o \
+            %%{targets})")
     in
     Format.fprintf ppf
       "; Run the PPX on the `.ml` file@,\
@@ -60,8 +60,8 @@ let output_stanzas ~expect_failure filename =
        (alias runtest)@,\
        %a(package ppx_repr)@,\
        @[<v 1>(action@,\
-       @[<hov 2>(diff@ %s.expected@ %s.actual)@])@])@]" pp_enabled_if
-      (ocaml_version base) base base
+       @[<hov 2>(diff@ %s.expected@ %s.actual)@])@])@]"
+      pp_enabled_if (ocaml_version base) base base
   in
   let pp_run_alias ppf base =
     (* If we expect the derivation to succeed, then we should be able to compile
@@ -75,7 +75,8 @@ let output_stanzas ~expect_failure filename =
          (alias runtest)@,\
          (package ppx_repr)@,\
          @[<v 1>(action@,\
-         @[<hov 2>(run@ ./%s.exe)@])@])@]" base
+         @[<hov 2>(run@ ./%s.exe)@])@])@]"
+        base
     else ()
   in
   Format.set_margin 80;

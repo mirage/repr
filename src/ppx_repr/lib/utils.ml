@@ -44,10 +44,10 @@ module Make (A : Ast_builder.S) : sig
   (** Left-to-right composition of a list of functions. *)
 
   val lambda : string list -> expression -> expression
-  (** [lambda \[ "x_1"; ...; "x_n" \] e] is [fun x1 ... x_n -> e] *)
+  (** [lambda [ "x_1"; ...; "x_n" ] e] is [fun x1 ... x_n -> e] *)
 
   val arrow : core_type list -> core_type -> core_type
-  (** [arrow \[ "t_1"; ...; "t_n" \] u] is [t_1 -> ... -> t_n -> u] *)
+  (** [arrow [ "t_1"; ...; "t_n" ] u] is [t_1 -> ... -> t_n -> u] *)
 end = struct
   open A
 

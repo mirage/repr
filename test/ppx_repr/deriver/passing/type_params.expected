@@ -46,8 +46,7 @@ module Multiple :
             (Repr.(|+)
                (Repr.(|+)
                   (Repr.(|+)
-                     (Repr.record "t"
-                        (fun foo -> fun bar -> fun baz -> { foo; bar; baz }))
+                     (Repr.record "t" (fun foo bar baz -> { foo; bar; baz }))
                      (Repr.field "foo" a (fun t -> t.foo)))
                   (Repr.field "bar" (Repr.list b) (fun t -> t.bar)))
                (Repr.field "baz" (Repr.pair b c) (fun t -> t.baz)))

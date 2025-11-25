@@ -9,4 +9,4 @@ include
            (Repr.triple (Repr.pair Repr.int32 Repr.int32) Repr.int32
               Repr.int32) Repr.int32 Repr.int32) Repr.int32 Repr.int32
   end[@@ocaml.doc "@inline"][@@merlin.hide ]
-let (_ : deep_tuple Repr.t) = deep_tuple_t
+let _ : deep_tuple Repr.t = deep_tuple_t

@@ -94,11 +94,11 @@ let pp_results =
         the output format indexes in the reverse order. *)
      hashtbl_transpose
     >> (fun h ->
-         Hashtbl.fold
-           (fun bench_name measurements ->
-             let measurements = Hashtbl.fold add_measurement measurements [] in
-             List.cons { bench_name; measurements })
-           h [])
+    Hashtbl.fold
+      (fun bench_name measurements ->
+        let measurements = Hashtbl.fold add_measurement measurements [] in
+        List.cons { bench_name; measurements })
+      h [])
     >> sort_results
     >> (fun results -> { results })
     >> output_to_yojson)

@@ -10,8 +10,7 @@ include
            (Repr.(|+)
               (Repr.(|+)
                  (Repr.record "test_record1"
-                    (fun alpha ->
-                       fun beta -> fun gamma -> { alpha; beta; gamma }))
+                    (fun alpha beta gamma -> { alpha; beta; gamma }))
                  (Repr.field "alpha" Repr.string (fun t -> t.alpha)))
               (Repr.field "beta" (Repr.list Repr.int64) (fun t -> t.beta)))
            (Repr.field "gamma" Repr.unit (fun t -> t.gamma)))
@@ -27,9 +26,8 @@ include
         (Repr.(|+)
            (Repr.(|+)
               (Repr.record "test_record2"
-                 (fun the_FIRST_identifier ->
-                    fun the_SECOND_identifier ->
-                      { the_FIRST_identifier; the_SECOND_identifier }))
+                 (fun the_FIRST_identifier the_SECOND_identifier ->
+                    { the_FIRST_identifier; the_SECOND_identifier }))
               (Repr.field "the_FIRST_identifier" (Repr.option test_record1_t)
                  (fun t -> t.the_FIRST_identifier)))
            (Repr.field "the_SECOND_identifier"

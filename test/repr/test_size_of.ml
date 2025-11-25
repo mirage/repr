@@ -159,8 +159,14 @@ let test_recursive () =
   check_dynamic ~__POS__ int_list_t 1 [];
   check_dynamic ~__POS__ int_list_t 7 [ 1; 2; 3 ];
 
-  let leaf_size = 2 (* tag + short int *) in
-  let branch_size = 1 (* tag, excluding subterms *) in
+  let leaf_size =
+    2
+    (* tag + short int *)
+  in
+  let branch_size =
+    1
+    (* tag, excluding subterms *)
+  in
   check_dynamic ~__POS__ int_tree_t leaf_size (Leaf 0);
   check_dynamic ~__POS__ int_tree_t
     (branch_size + (2 * leaf_size))

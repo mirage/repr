@@ -191,9 +191,10 @@ module Decode = struct
     let _, (l, c) = Jsonm.decoded_range e.d in
     Error
       (`Msg
-        (Fmt.str
-           "line %d, character %d:\nFound lexeme %a, but lexeme %s was expected"
-           l c Jsonm.pp_lexeme got expected))
+         (Fmt.str
+            "line %d, character %d:\n\
+             Found lexeme %a, but lexeme %s was expected"
+            l c Jsonm.pp_lexeme got expected))
 
   let expect_lexeme e expected =
     lexeme e >>= fun got ->
@@ -370,8 +371,8 @@ module Decode = struct
         | l -> error e l "`Record-contents"
       in
       soup [] >>= fun soup ->
-      let rec aux :
-          type a b. (a, b) fields -> b -> (a, [ `Msg of string ]) result =
+      let rec aux : type a b.
+          (a, b) fields -> b -> (a, [ `Msg of string ]) result =
        fun f c ->
         match f with
         | F0 -> Ok c

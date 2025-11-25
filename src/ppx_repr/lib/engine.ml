@@ -118,11 +118,12 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     | Ptyp_package _ -> Raise.Unsupported.type_package ~loc typ
     | Ptyp_extension _ -> Raise.Unsupported.type_extension ~loc typ
     | Ptyp_alias (c, var) ->
-        if contains_tvar var c then (
-          add_var_repr var_repr (`Var var, evar var);
+        if contains_tvar var.txt c then (
+          add_var_repr var_repr (`Var var.txt, evar var.txt);
           let+ inner = derive_core c in
-          recursive ~lib var inner)
+          recursive ~lib var.txt inner)
         else derive_core c
+    | Ptyp_open (_, c) -> derive_core c
     | Ptyp_object _ | Ptyp_class _ -> invalid_arg "unsupported"
 
   and derive_tuple args =
@@ -134,10 +135,10 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     | _ ->
         let tuple_type =
           (match List.length args with
-          | 2 -> "pair"
-          | 3 -> "triple"
-          | 4 -> "quad"
-          | n -> Raise.Unsupported.tuple_size ~loc n)
+            | 2 -> "pair"
+            | 3 -> "triple"
+            | 4 -> "quad"
+            | n -> Raise.Unsupported.tuple_size ~loc n)
           |> in_lib ~lib
           |> evar
         in
@@ -277,11 +278,12 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
            | Ptyp_alias (c, v) ->
                (* Push [v] to the bound stack, traverse the alias, then remove it. *)
                let c, acc =
-                 super#core_type c { acc with ctx_bound = v :: acc.ctx_bound }
+                 super#core_type c
+                   { acc with ctx_bound = v.txt :: acc.ctx_bound }
                in
                let ctx_bound =
                  match acc.ctx_bound with
-                 | v' :: ctx_bound when v = v' -> ctx_bound
+                 | v' :: ctx_bound when v.txt = v' -> ctx_bound
                  | _ -> assert false
                in
                (Ptyp_alias (c, v), { acc with ctx_bound })
@@ -323,10 +325,12 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
         in
         let ty_lident =
           (match lib with
-          | Some _ -> in_lib ~lib "t"
-          | None -> (
-              (* This type decl may shadow the repr type ['a t] *)
-              match name.txt with "t" -> "ty" | _ -> "t"))
+            | Some _ -> in_lib ~lib "t"
+            | None -> (
+                (* This type decl may shadow the repr type ['a t] *)
+                match name.txt with
+                | "t" -> "ty"
+                | _ -> "t"))
           |> Located.lident
         in
         let type_ =
@@ -362,9 +366,9 @@ module Located (Attributes : Attributes.S) (A : Ast_builder.S) : S = struct
     let tparams =
       typ.ptype_params
       |> List.map (function
-           | { ptyp_desc = Ptyp_var v; _ }, _ -> v
-           | { ptyp_desc = Ptyp_any; _ }, _ -> "_"
-           | _ -> assert false)
+        | { ptyp_desc = Ptyp_var v; _ }, _ -> v
+        | { ptyp_desc = Ptyp_any; _ }, _ -> "_"
+        | _ -> assert false)
     in
     let env =
       let type_name = typ.ptype_name.txt in

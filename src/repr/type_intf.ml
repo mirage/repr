@@ -415,7 +415,8 @@ module type DSL = sig
       Derived generators use the global PRNG state provided by
       {!Stdlib.Random.get_state}.
 
-      NOTE: this generator may fail to terminate when sampling a recursive type. *)
+      NOTE: this generator may fail to terminate when sampling a recursive type.
+  *)
 
   val random_state : 'a t -> (Random.State.t -> 'a) staged
   (** [random_state] is a variant of {!random} that takes an explicit PRNG state

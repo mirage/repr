@@ -5,7 +5,7 @@ module Trivial :
     include sig val t : t Repr.t end[@@ocaml.doc "@inline"][@@merlin.hide ]
   end =
   struct
-    type t = int as 'a[@@deriving repr]
+    type t = int as 'a[@@warning "-34"][@@deriving repr]
     include struct let t = Repr.int end[@@ocaml.doc "@inline"][@@merlin.hide
                                                                 ]
   end 
@@ -29,11 +29,10 @@ module Recursive :
                  (Repr.(|~)
                     (Repr.(|~)
                        (Repr.variant "tree"
-                          (fun branch ->
-                             fun leaf ->
-                               function
-                               | `Branch x1 -> branch x1
-                               | `Leaf x1 -> leaf x1))
+                          (fun branch leaf ->
+                             function
+                             | `Branch x1 -> branch x1
+                             | `Leaf x1 -> leaf x1))
                        (Repr.case1 "Branch" (Repr.triple tree Repr.int tree)
                           (fun x1 -> `Branch x1)))
                     (Repr.case1 "Leaf" a (fun x1 -> `Leaf x1))))

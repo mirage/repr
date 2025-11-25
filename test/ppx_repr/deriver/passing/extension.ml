@@ -1,18 +1,18 @@
 type 'a typ = 'a Repr.t
 
 module Simple = struct
-  let (_ : (int * string) list typ) = [%typ: (int * string) list]
+  let _ : (int * string) list typ = [%typ: (int * string) list]
 end
 
 module Alias = struct
   type t = unit
 
   let t = Repr.unit
-  let (_ : unit typ) = [%typ: t]
+  let _ : unit typ = [%typ: t]
 end
 
 module Sum = struct
-  let (_ : [ `Foo | `Bar of string ] typ) = [%typ: [ `Foo | `Bar of string ]]
+  let _ : [ `Foo | `Bar of string ] typ = [%typ: [ `Foo | `Bar of string ]]
 end
 
 module Params = struct
@@ -22,5 +22,5 @@ module Params = struct
 end
 
 module Namespace = struct
-  let (_ : string typ) = [%repr.typ: string]
+  let _ : string typ = [%repr.typ: string]
 end

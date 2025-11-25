@@ -34,8 +34,7 @@ let pick_len : mean:int -> len -> R.t -> int =
         bound l (Float.to_int (-.Float.log (R.float s 1.) *. Float.of_int mean))
     | `Fixed i -> i
 
-let indexable :
-    type a b.
+let indexable : type a b.
     mean_len:int -> len -> (int -> (int -> a) -> b) -> a random -> b random =
  fun ~mean_len len init elt ->
   let+ elt = elt in

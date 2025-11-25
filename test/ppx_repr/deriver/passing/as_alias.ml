@@ -3,7 +3,7 @@ type 'a typ = 'a Repr.t
 module Trivial : sig
   type t [@@deriving repr]
 end = struct
-  type t = int as 'a [@@deriving repr]
+  type[@warning "-34"] t = int as 'a [@@deriving repr]
 end
 
 module Recursive : sig

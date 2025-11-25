@@ -102,7 +102,7 @@ module Args = struct
 end
 
 (** Each plugin gets a flag in the main deriver corresponding to whether it's
-    activated or not. For instance, [\[@@deriving repr ~equal\]] indicates that
+    activated or not. For instance, [[@@deriving repr ~equal]] indicates that
     the "equal" plugin should be run on this type definition.
 
     Given the list of plugins [ p1; p2; ... pn ], we need to build:
@@ -111,7 +111,8 @@ end
     - a corresponding function over booleans [fun b1 b2 ... bn -> ...] for
       Ppxlib to call indicating which of the plugins have been activated.
 
-    For each derivation, we pass the list of activated plugins to the deriver. *)
+    For each derivation, we pass the list of activated plugins to the deriver.
+*)
 module Arg_collector = struct
   type _ t =
     | E : {

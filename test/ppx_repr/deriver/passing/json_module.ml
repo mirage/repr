@@ -11,4 +11,4 @@ end
 
 type foo = { contents : Json.t } [@@deriving repr]
 
-let (_ : foo Repr.t) = foo_t
+let _ : foo Repr.t = foo_t
