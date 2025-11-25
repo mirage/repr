@@ -1,6 +1,8 @@
-### Unreleased
+### 0.8.0
 
  - Bump ppxlib to `>=0.36.2` (#110, @patricoferris)
+ - Update to ocamlformat 0.28.1 (#110, @patricoferris)
+ - Fix `short_hash` signature for ppx_repr deriver (#109, @mattiasdrp)
 
 ### 0.7.0 (2023-08-02)
 
