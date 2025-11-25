@@ -4,7 +4,7 @@ module T0 :
     and other = string[@@deriving
                         repr ~equal ~compare ~pp ~pp_dump ~size_of
                           ~to_bin_string ~of_bin_string ~encode_bin
-                          ~decode_bin]
+                          ~decode_bin ~short_hash]
     include
       sig
         val t : t Repr.t
@@ -17,6 +17,7 @@ module T0 :
         val of_bin_string : string -> (t, [ `Msg of string ]) Stdlib.result
         val encode_bin : t -> (string -> unit) -> unit
         val decode_bin : string -> int ref -> t
+        val short_hash : ?seed:int -> t -> int
         val other_t : other Repr.t
         val equal_other : other -> other -> bool
         val compare_other : other -> other -> int
@@ -28,6 +29,7 @@ module T0 :
           string -> (other, [ `Msg of string ]) Stdlib.result
         val encode_bin_other : other -> (string -> unit) -> unit
         val decode_bin_other : string -> int ref -> other
+        val short_hash_other : ?seed:int -> other -> int
       end[@@ocaml.doc "@inline"][@@merlin.hide ]
   end =
   struct
@@ -35,7 +37,7 @@ module T0 :
     and other = string[@@deriving
                         repr ~equal ~compare ~pp ~pp_dump ~size_of
                           ~to_bin_string ~of_bin_string ~encode_bin
-                          ~decode_bin]
+                          ~decode_bin ~short_hash]
     include
       struct
         let (t, other_t) = (Repr.int, Repr.string)
@@ -48,6 +50,7 @@ module T0 :
         let of_bin_string = Repr.unstage (Repr.of_bin_string Repr.int)
         let encode_bin = Repr.unstage (Repr.encode_bin Repr.int)
         let decode_bin = Repr.unstage (Repr.decode_bin Repr.int)
+        let short_hash = Repr.unstage (Repr.short_hash Repr.int)
         let equal_other = Repr.unstage (Repr.equal Repr.string)
         let compare_other = Repr.unstage (Repr.compare Repr.string)
         let size_of_other = Repr.unstage (Repr.size_of Repr.string)
@@ -59,6 +62,7 @@ module T0 :
           Repr.unstage (Repr.of_bin_string Repr.string)
         let encode_bin_other = Repr.unstage (Repr.encode_bin Repr.string)
         let decode_bin_other = Repr.unstage (Repr.decode_bin Repr.string)
+        let short_hash_other = Repr.unstage (Repr.short_hash Repr.string)
       end[@@ocaml.doc "@inline"][@@merlin.hide ]
   end 
 module T1 :
