@@ -1,4 +1,4 @@
-(lang dune 2.7)
+(lang dune 3.18)
 (generate_opam_files true)
 (allow_approximate_merlin)
 
@@ -7,6 +7,7 @@
 (license ISC)
 (authors "Thomas Gazagnaire" "Craig Ferguson")
 (maintainers "thomas@gazagnaire.org")
+(maintenance_intent "(latest)")
 
 (package
  (name repr)

@@ -16,7 +16,7 @@ homepage: "https://github.com/mirage/repr"
 doc: "https://mirage.github.io/repr"
 bug-reports: "https://github.com/mirage/repr/issues"
 depends: [
-  "dune" {>= "2.7"}
+  "dune" {>= "3.18"}
   "ocaml" {>= "4.08.0"}
   "fmt" {>= "0.8.7"}
   "uutf"
@@ -41,3 +41,4 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/mirage/repr.git"
+x-maintenance-intent: ["(latest)"]

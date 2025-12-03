@@ -9,7 +9,7 @@ homepage: "https://github.com/mirage/repr"
 doc: "https://mirage.github.io/repr"
 bug-reports: "https://github.com/mirage/repr/issues"
 depends: [
-  "dune" {>= "2.7"}
+  "dune" {>= "3.18"}
   "repr" {= version}
   "ppxlib" {>= "0.36.2"}
   "ppx_deriving"
@@ -37,3 +37,4 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/mirage/repr.git"
+x-maintenance-intent: ["(latest)"]
